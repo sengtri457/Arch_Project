@@ -47,8 +47,11 @@
     "@react-three/fiber": "9.4.0",
     "@react-three/postprocessing": "latest",
     "@react-three/rapier": "latest",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.48.0",
     "@vercel/analytics": "latest",
     "autoprefixer": "^10.4.20",
+    "bakong-khqr": "^1.0.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
@@ -82,9 +85,7 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "0.180.0",
     "three-stdlib": "latest",
-    "zod": "3.25.76",
-    "@supabase/supabase-js": "^2.48.0",
-    "@supabase/ssr": "^0.5.2"
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",

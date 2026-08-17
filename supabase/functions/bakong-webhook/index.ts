@@ -152,38 +152,58 @@ serve(async (req) => {
       throw new Error(`Failed to update transaction: ${updateTxError.message}`);
     }
 
-    // 7. If payment succeeded, create or update user's subscription record
+    // 7. If payment succeeded, create or update user's subscription record or course enrollment
     if (isSuccess) {
-      const planCode = dbTx.subscription_plans.plan_code;
-      const billingInterval = dbTx.subscription_plans.billing_interval; // 'monthly' | 'yearly'
+      if (dbTx.plan_id && dbTx.subscription_plans) {
+        const planCode = dbTx.subscription_plans.plan_code;
+        const billingInterval = dbTx.subscription_plans.billing_interval; // 'monthly' | 'yearly'
 
-      const startDate = new Date();
-      const endDate = new Date();
-      if (billingInterval === "yearly") {
-        endDate.setFullYear(startDate.getFullYear() + 1);
-      } else {
-        endDate.setMonth(startDate.getMonth() + 1);
+        const startDate = new Date();
+        const endDate = new Date();
+        if (billingInterval === "yearly") {
+          endDate.setFullYear(startDate.getFullYear() + 1);
+        } else {
+          endDate.setMonth(startDate.getMonth() + 1);
+        }
+
+        // Upsert user subscription
+        const { error: subscriptionError } = await supabaseAdmin
+          .from("user_subscriptions")
+          .upsert(
+            {
+              user_id: dbTx.user_id,
+              plan_id: dbTx.plan_id,
+              status: "active",
+              current_period_start: startDate.toISOString(),
+              current_period_end: endDate.toISOString(),
+              last_transaction_id: dbTx.transaction_id || dbTx.id,
+            },
+            { onConflict: "user_id" },
+          ); // Only allow one active subscription record per user
+
+        if (subscriptionError) {
+          throw new Error(
+            `Failed to save subscription: ${subscriptionError.message}`,
+          );
+        }
+        console.log(`Successfully activated ${planCode} subscription for user ${dbTx.user_id}`);
       }
 
-      // Upsert user subscription
-      const { error: subscriptionError } = await supabaseAdmin
-        .from("user_subscriptions")
-        .upsert(
-          {
-            user_id: dbTx.user_id,
-            plan_id: dbTx.plan_id,
+      // If direct course purchase, create an enrollment record for the course
+      if (dbTx.course_id) {
+        const { error: enrollmentError } = await supabaseAdmin
+          .from("course_enrollments")
+          .upsert({
+            student_id: dbTx.user_id,
+            course_id: dbTx.course_id,
             status: "active",
-            current_period_start: startDate.toISOString(),
-            current_period_end: endDate.toISOString(),
-            last_transaction_id: dbTx.id,
-          },
-          { onConflict: "user_id" },
-        ); // Only allow one active subscription record per user
+            enrolled_at: new Date().toISOString()
+          }, { onConflict: "student_id,course_id" })
 
-      if (subscriptionError) {
-        throw new Error(
-          `Failed to save subscription: ${subscriptionError.message}`,
-        );
+        if (enrollmentError) {
+          throw new Error(`Failed to activate course enrollment: ${enrollmentError.message}`)
+        }
+        console.log(`Successfully enrolled user ${dbTx.user_id} in course ${dbTx.course_id}`);
       }
 
       // Also upgrade user's profile role to student/pro logic if applicable
@@ -197,10 +217,6 @@ serve(async (req) => {
           `Warning: Failed to update user profile role: ${profileError.message}`,
         );
       }
-
-      console.log(
-        `Successfully activated ${planCode} subscription for user ${dbTx.user_id}`,
-      );
     }
 
     return new Response(

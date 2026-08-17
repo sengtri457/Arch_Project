@@ -28,7 +28,7 @@ import {
   Globe
 } from "lucide-react"
 
-type AdminTab = "overview" | "crm" | "courses" | "projects" | "inquiries"
+type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries"
 
 export default function AdminDashboard() {
   const { user, profile, loading, signOut } = useAuth()
@@ -37,6 +37,7 @@ export default function AdminDashboard() {
   const [courses, setCourses] = useState<Course[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [messages, setMessages] = useState<any[]>([])
+  const [submissions, setSubmissions] = useState<any[]>([])
   const [loadingData, setLoadingData] = useState(true)
   
   const router = useRouter()
@@ -83,6 +84,17 @@ export default function AdminDashboard() {
           .order('created_at', { ascending: false })
         if (!messagesErr && messagesData) setMessages(messagesData)
         
+        // 5. Fetch student exercise submissions
+        const { data: subData, error: subErr } = await supabase
+          .from('exercise_submissions')
+          .select(`
+            *,
+            profiles:student_id(full_name, avatar_url),
+            exercises:exercise_id(title, max_score)
+          `)
+          .order('submitted_at', { ascending: false })
+        if (!subErr && subData) setSubmissions(subData)
+        
       } catch (err) {
         console.error("Admin data loading error:", err)
       } finally {
@@ -107,6 +119,36 @@ export default function AdminDashboard() {
       alert(`User role successfully updated to ${newRole}!`)
     } catch (err: any) {
       alert(`Failed to update user role: ${err.message}`)
+    }
+  }
+
+  // Grading a student submission
+  const handleGradeSubmission = async (
+    submissionId: string, 
+    score: number, 
+    feedback: string
+  ) => {
+    try {
+      const { error } = await supabase
+        .from('exercise_submissions')
+        .update({
+          status: 'graded',
+          score,
+          instructor_feedback: feedback,
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('submission_id', submissionId)
+
+      if (error) throw error
+
+      setSubmissions(prev => prev.map(s => 
+        s.submission_id === submissionId 
+          ? { ...s, status: 'graded', score, instructor_feedback: feedback } 
+          : s
+      ))
+      alert("Submission successfully graded!")
+    } catch (err: any) {
+      alert(`Failed to grade submission: ${err.message}`)
     }
   }
 
@@ -196,6 +238,19 @@ export default function AdminDashboard() {
             >
               <FolderGit className="w-5 h-5" />
               Projects Showcase
+            </button>
+
+            <button
+              onClick={() => setActiveTab("submissions")}
+              className={`w-full text-left px-5 py-3.5 rounded-xl font-medium flex items-center gap-3 transition-colors ${
+                activeTab === "submissions" 
+                  ? "bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/10" 
+                  : "text-zinc-400 hover:text-white hover:bg-zinc-900/50"
+              }`}
+              style={activeTab === 'submissions' ? { backgroundColor: '#9ACD32', color: '#000' } : {}}
+            >
+              <FileText className="w-5 h-5" />
+              Submissions ({submissions.length})
             </button>
 
             <button
@@ -403,6 +458,118 @@ export default function AdminDashboard() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* 4.5. SUBMISSIONS TAB */}
+                {activeTab === "submissions" && (
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">Student Homework Submissions</h2>
+                      <p className="text-zinc-400 text-sm mt-1">Review student render workspace uploads, allocate scores, and submit comments.</p>
+                    </div>
+
+                    {submissions.length === 0 ? (
+                      <div className="text-center py-12 border border-dashed border-zinc-850 rounded-xl text-zinc-400">
+                        No submissions recorded yet.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {submissions.map((sub: any) => {
+                          const files = Array.isArray(sub.submission_files_json) ? sub.submission_files_json : []
+                          const fileObj = files[0] || {}
+                          
+                          return (
+                            <div key={sub.submission_id} className="bg-zinc-900/30 border border-zinc-850 p-5 rounded-xl space-y-4">
+                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-zinc-300">
+                                    {sub.profiles?.full_name?.charAt(0).toUpperCase() || "S"}
+                                  </div>
+                                  <div>
+                                    <h4 className="text-sm font-semibold text-white">{sub.profiles?.full_name || "Unknown Student"}</h4>
+                                    <p className="text-xs text-zinc-500">{new Date(sub.submitted_at).toLocaleDateString()}</p>
+                                  </div>
+                                </div>
+                                <span className={`px-2.5 py-1 text-xs font-semibold rounded-full uppercase border ${
+                                  sub.status === 'graded' 
+                                    ? 'bg-green-950/20 text-green-400 border-green-900/30' 
+                                    : 'bg-yellow-950/20 text-yellow-400 border-yellow-900/30'
+                                }`}>
+                                  {sub.status}
+                                </span>
+                              </div>
+
+                              <div className="bg-zinc-950/50 border border-zinc-850/60 p-4 rounded-lg space-y-2">
+                                <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Exercise requirement:</p>
+                                <h3 className="text-sm text-white font-bold">{sub.exercises?.title || "Practice Task"}</h3>
+                                <div className="pt-2">
+                                  <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Submitted Link:</p>
+                                  <a href={fileObj.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline break-all mt-1 inline-block" style={{ color: '#9ACD32' }}>
+                                    {fileObj.url || "No link provided"}
+                                  </a>
+                                </div>
+                                {fileObj.notes && (
+                                  <div className="pt-1">
+                                    <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Notes:</p>
+                                    <p className="text-xs text-zinc-300 italic mt-1 bg-zinc-900/20 p-2.5 rounded border border-zinc-850/40">{fileObj.notes}</p>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Grading inputs */}
+                              {sub.status !== 'graded' ? (
+                                <form onSubmit={(e) => {
+                                  e.preventDefault()
+                                  const form = e.currentTarget
+                                  const score = parseInt((form.elements.namedItem('score') as HTMLInputElement).value)
+                                  const feedback = (form.elements.namedItem('feedback') as HTMLTextAreaElement).value
+                                  handleGradeSubmission(sub.submission_id, score, feedback)
+                                }} className="border-t border-zinc-850/60 pt-4 space-y-3">
+                                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                                    <div className="sm:col-span-1">
+                                      <label className="text-[10px] uppercase font-bold text-zinc-500">Score (/100)</label>
+                                      <input 
+                                        type="number" 
+                                        name="score"
+                                        min={0}
+                                        max={100}
+                                        required
+                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-primary/80" 
+                                      />
+                                    </div>
+                                    <div className="sm:col-span-3">
+                                      <label className="text-[10px] uppercase font-bold text-zinc-500">Instructor Feedback</label>
+                                      <input 
+                                        type="text" 
+                                        name="feedback"
+                                        placeholder="Add constructive comments..."
+                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-primary/80" 
+                                      />
+                                    </div>
+                                  </div>
+                                  <Button type="submit" size="sm" className="bg-primary text-black font-semibold" style={{ backgroundColor: '#9ACD32', color: '#000' }}>
+                                    Submit Grade
+                                  </Button>
+                                </form>
+                              ) : (
+                                <div className="border-t border-zinc-850/60 pt-4 grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs bg-green-950/5 p-3 rounded-lg border border-green-900/10">
+                                  <div className="sm:col-span-1">
+                                    <p className="font-bold text-zinc-500 uppercase text-[10px]">Score Awarded</p>
+                                    <p className="text-lg font-bold text-primary mt-0.5" style={{ color: '#9ACD32' }}>{sub.score} / 100</p>
+                                  </div>
+                                  <div className="sm:col-span-3">
+                                    <p className="font-bold text-zinc-500 uppercase text-[10px]">Feedback Comments</p>
+                                    <p className="text-zinc-300 mt-1 italic">"{sub.instructor_feedback || "None"}"</p>
+                                  </div>
+                                </div>
+                              )}
+
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 

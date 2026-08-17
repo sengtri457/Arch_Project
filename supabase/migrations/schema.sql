@@ -231,15 +231,8 @@ CREATE POLICY "Admins and instructors manage courses" ON public.courses
     FOR ALL USING (public.is_instructor_or_admin(auth.uid()));
 
 -- Lessons
-CREATE POLICY "Students can view lessons of enrolled/purchased courses" ON public.lessons
-    FOR SELECT USING (
-        is_preview = true OR
-        EXISTS (
-            SELECT 1 FROM public.course_enrollments
-            WHERE course_id = lessons.course_id AND student_id = auth.uid()
-        ) OR
-        public.is_instructor_or_admin(auth.uid())
-    );
+CREATE POLICY "Allow public read access to lessons" ON public.lessons
+    FOR SELECT USING (true);
 
 CREATE POLICY "Admins and instructors manage lessons" ON public.lessons
     FOR ALL USING (public.is_instructor_or_admin(auth.uid()));

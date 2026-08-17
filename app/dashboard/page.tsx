@@ -9,12 +9,18 @@ import { db } from "@/lib/supabase/db"
 import { Course } from "@/lib/courses-data"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { BookOpen, Award, Download, Clock, LogOut, Loader2, Sparkles } from "lucide-react"
 
 export default function StudentDashboard() {
   const { user, profile, loading, signOut } = useAuth()
   const [courses, setCourses] = useState<Course[]>([])
+  const [courseProgress, setCourseProgress] = useState<Record<string, number>>({})
+  const [averageScore, setAverageScore] = useState<number | null>(null)
+  const [gradedCount, setGradedCount] = useState<number>(0)
   const [loadingCourses, setLoadingCourses] = useState(true)
+  const [subscriptionName, setSubscriptionName] = useState<string>("Free Student")
+  const [watchHours, setWatchHours] = useState<number>(0)
   const router = useRouter()
 
   useEffect(() => {
@@ -33,9 +39,103 @@ export default function StudentDashboard() {
     async function loadEnrolledCourses() {
       try {
         setLoadingCourses(true)
-        // For testing / demo, we fetch all published courses and assume student has access
-        const data = await db.getCourses(supabase)
-        setCourses(data)
+        // 1. Fetch all published courses
+        const allCourses = await db.getCourses(supabase)
+
+        // Filter courses to only those the student has purchased or has subscription access to
+        const accessChecks = await Promise.all(
+          allCourses.map(async (course) => {
+            const hasAccess = await db.checkCourseAccess(supabase, user.id, course.course_id || course.id)
+            return { course, hasAccess }
+          })
+        )
+        const enrolledCourses = accessChecks
+          .filter(check => check.hasAccess)
+          .map(check => check.course)
+
+        setCourses(enrolledCourses)
+
+        // 2. Fetch all lessons to get total count per course
+        const { data: allLessons } = await supabase
+          .from('lessons')
+          .select('lesson_id, course_id')
+
+        // 3. Fetch completed progress for this student
+        const { data: completedProgress } = await supabase
+          .from('lesson_progress')
+          .select('lesson_id, course_id')
+          .eq('student_id', user.id)
+          .eq('is_completed', true)
+
+        // 4. Calculate progress percentage per course
+        const progressMap: Record<string, number> = {}
+        console.log("Dashboard progress math debug:", {
+          allLessons,
+          completedProgress
+        })
+        if (allLessons && completedProgress) {
+          enrolledCourses.forEach(course => {
+            const courseLessons = allLessons.filter(l => l.course_id === course.course_id)
+            const completed = completedProgress.filter(p => p.course_id === course.course_id)
+            console.log(`Course ${course.title} (${course.id} / ${course.course_id}) progress calculation:`, {
+              totalLessonsCount: courseLessons.length,
+              completedCount: completed.length
+            })
+            
+            progressMap[course.id] = courseLessons.length > 0 
+              ? Math.round((completed.length / courseLessons.length) * 100)
+              : 0
+          })
+        }
+        setCourseProgress(progressMap)
+
+        // 5. Fetch graded submissions to calculate student's overall average grade
+        const { data: gradedSubs } = await supabase
+          .from('exercise_submissions')
+          .select('score')
+          .eq('student_id', user.id)
+          .eq('status', 'graded')
+
+        if (gradedSubs && gradedSubs.length > 0) {
+          const total = gradedSubs.reduce((acc, curr) => acc + (curr.score || 0), 0)
+          setAverageScore(Math.round(total / gradedSubs.length))
+          setGradedCount(gradedSubs.length)
+        } else {
+          setAverageScore(null)
+          setGradedCount(0)
+        }
+
+        // 6. Fetch active subscription name
+        const { data: activeSub } = await supabase
+          .from('user_subscriptions')
+          .select('*, subscription_plans(name)')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle()
+
+        if (activeSub?.subscription_plans) {
+          const planInfo = activeSub.subscription_plans as any
+          setSubscriptionName(planInfo.name || "Student Pro")
+        } else if (profile?.role === 'admin') {
+          setSubscriptionName('Admin')
+        } else if (profile?.role === 'instructor') {
+          setSubscriptionName('Instructor')
+        } else if (['sengtri@gmail.com', 'sengktri@gmail.com'].includes(user.email || '')) {
+          setSubscriptionName('Student Pro (Bypass)')
+        } else {
+          setSubscriptionName('Free Student')
+        }
+
+        // 7. Calculate watch hours
+        const { data: watchLogs } = await supabase
+          .from('lesson_progress')
+          .select('seconds_watched')
+          .eq('student_id', user.id)
+
+        if (watchLogs) {
+          const totalSecs = watchLogs.reduce((sum, item) => sum + (item.seconds_watched || 0), 0)
+          setWatchHours(parseFloat((totalSecs / 3600).toFixed(1)))
+        }
       } catch (err) {
         console.error(err)
       } finally {
@@ -101,7 +201,7 @@ export default function StudentDashboard() {
                 <h1 className="text-3xl font-bold text-white">{profile?.full_name || "Student"}</h1>
                 <span className="px-3 py-0.5 text-xs font-semibold bg-primary/20 text-primary border border-primary/30 rounded-full flex items-center gap-1">
                   <Sparkles className="w-3 h-3" />
-                  {profile?.role === 'admin' ? 'Admin' : 'Student Pro'}
+                  {subscriptionName}
                 </span>
               </div>
               <p className="text-zinc-400 text-sm">{user.email}</p>
@@ -136,17 +236,19 @@ export default function StudentDashboard() {
             </div>
             <div>
               <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Watch Progress</p>
-              <p className="text-2xl font-bold text-white">18.5 Hours</p>
+              <p className="text-2xl font-bold text-white">{watchHours} Hours</p>
             </div>
           </div>
 
-          <div className="bg-zinc-900/40 border border-zinc-800/60 p-6 rounded-xl flex items-center gap-4">
+          <div className="bg-zinc-900/40 border border-zinc-880 p-6 rounded-xl flex items-center gap-4">
             <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center" style={{ color: '#9ACD32' }}>
               <Award className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Certificates Earned</p>
-              <p className="text-2xl font-bold text-white">1 Certificate</p>
+              <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Average Grade</p>
+              <p className="text-2xl font-bold text-white">
+                {averageScore !== null ? `${averageScore}% (${gradedCount} Graded)` : "No grades yet"}
+              </p>
             </div>
           </div>
         </div>
@@ -164,13 +266,18 @@ export default function StudentDashboard() {
                 <span>Loading courses...</span>
               </div>
             ) : courses.length === 0 ? (
-              <div className="text-center py-12 border border-dashed border-zinc-800 rounded-xl text-zinc-400">
-                You are not enrolled in any courses yet.
+              <div className="text-center py-16 border border-dashed border-zinc-800 rounded-xl text-zinc-400 space-y-4">
+                <p>You are not enrolled in any courses yet.</p>
+                <Link href="/courses" className="inline-block">
+                  <Button className="bg-primary text-black font-semibold rounded-xl text-xs py-5 px-6" style={{ backgroundColor: '#9ACD32', color: '#000' }}>
+                    Browse Available Courses
+                  </Button>
+                </Link>
               </div>
             ) : (
               <div className="space-y-4">
                 {courses.map((course) => {
-                  const progressObj = mockProgress.find(p => p.id === course.id) || { percent: 0, status: "Not Started" }
+                  const percent = courseProgress[course.id] || 0
                   return (
                     <div
                       key={course.id}
@@ -191,18 +298,20 @@ export default function StudentDashboard() {
                             <div className="flex-grow bg-zinc-800 h-2 rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-primary transition-all duration-500"
-                                style={{ width: `${progressObj.percent}%`, backgroundColor: '#9ACD32' }}
+                                style={{ width: `${percent}%`, backgroundColor: '#9ACD32' }}
                               />
                             </div>
-                            <span className="text-xs font-medium text-zinc-300">{progressObj.percent}%</span>
+                            <span className="text-xs font-medium text-zinc-300">{percent}%</span>
                           </div>
                         </div>
                       </div>
 
                       <div className="flex-shrink-0 w-full md:w-auto text-right">
-                        <Button className="w-full md:w-auto bg-primary text-primary-foreground hover:bg-primary/95 text-sm font-semibold rounded-lg px-6 py-5">
-                          Resume
-                        </Button>
+                        <Link href={`/courses/${course.id}/start`}>
+                          <Button className="w-full md:w-auto bg-primary text-primary-foreground hover:bg-primary/95 text-sm font-semibold rounded-lg px-6 py-5" style={{ backgroundColor: '#9ACD32', color: '#000' }}>
+                            Resume
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                   )
