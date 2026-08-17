@@ -36,7 +36,7 @@ export function HeroSection() {
           <source src={getMediaUrl(currentVideo)} type="video/mp4" />
           {/* Fallback image if video doesn't load */}
           <img
-            src="/modern-luxury-architectural-interior-with-dramatic.jpg"
+            src={getMediaUrl("/16-SB TOWER (Commercial)/Render Image/LIGHTROOM/Exterior-1.jpg")}
             alt="Architectural visualization"
             className="w-full h-full object-cover"
           />

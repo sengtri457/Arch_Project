@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
-import { projects } from "@/lib/projects-data"
+import { createClient as createServerClient } from "@/lib/supabase/server"
+import { createClient as createClientClient } from "@/lib/supabase/client"
+import { db } from "@/lib/supabase/db"
 import { EnhancedProjectGallery } from "@/components/enhanced-project-gallery"
 import { EnhancedCategorizedGallery } from "@/components/enhanced-categorized-gallery"
 import { VideoGallery } from "@/components/video-gallery"
@@ -9,14 +11,17 @@ import { Button } from "@/components/ui/button"
 import { ProjectHeroMedia } from "@/components/project-hero-media"
 
 export async function generateStaticParams() {
-  return projects.map((project) => ({
+  const supabase = createClientClient()
+  const projectsList = await db.getProjects(supabase)
+  return projectsList.map((project) => ({
     id: project.id,
   }))
 }
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const project = projects.find((p) => p.id === id)
+  const supabase = await createServerClient()
+  const project = await db.getProjectBySlug(supabase, id)
 
   if (!project) {
     notFound()

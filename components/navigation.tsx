@@ -6,11 +6,13 @@ import { Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FaPinterest, FaInstagram, FaTiktok, FaFacebook, FaYoutube, FaBehance, FaWeixin, FaTelegram, FaGlobe, FaWhatsapp } from "react-icons/fa"
 import { getMediaUrl } from "@/lib/utils"
+import { useAuth } from "@/components/auth-provider"
 
 export function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const { user, profile } = useAuth()
 
   useEffect(() => {
     setMounted(true)
@@ -98,6 +100,24 @@ export function Navigation() {
             >
               Get in Touch
             </a>
+
+            {user ? (
+              <Link
+                href={profile?.role === 'admin' ? '/admin' : '/dashboard'}
+                className="inline-flex items-center justify-center px-6 py-2 border transition-all duration-300 font-medium rounded-md text-white hover:text-primary hover:border-primary/80"
+                style={{ borderColor: 'rgba(255,255,255,0.15)' }}
+              >
+                Portal
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center px-6 py-2 border transition-all duration-300 font-medium rounded-md text-white hover:text-primary hover:border-primary/80"
+                style={{ borderColor: 'rgba(255,255,255,0.15)' }}
+              >
+                Login
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -151,6 +171,24 @@ export function Navigation() {
             >
               Get in Touch
             </a>
+
+            {user ? (
+              <Link
+                href={profile?.role === 'admin' ? '/admin' : '/dashboard'}
+                className="inline-flex items-center justify-center px-8 py-2 border border-zinc-800 text-white hover:border-primary/80 hover:text-primary transition-all duration-300 font-medium rounded-md w-full"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Portal
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center px-8 py-2 border border-zinc-800 text-white hover:border-primary/80 hover:text-primary transition-all duration-300 font-medium rounded-md w-full"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Login
+              </Link>
+            )}
           </div>
         )}
       </div>

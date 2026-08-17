@@ -1,18 +1,30 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
-import { courses } from "@/lib/courses-data"
+import { Course } from "@/lib/courses-data"
+import { createClient } from "@/lib/supabase/client"
+import { db } from "@/lib/supabase/db"
 import Link from "next/link"
 import { Clock, Users, Play, ArrowRight } from "lucide-react"
 
 import { getMediaUrl } from "@/lib/utils"
 
 export default function CoursesPage() {
+  const [courses, setCourses] = useState<Course[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
 
-  const uniqueCategories = [...new Set(courses.map(c => c.category))]
+  useEffect(() => {
+    const supabase = createClient()
+    async function loadCourses() {
+      const data = await db.getCourses(supabase)
+      setCourses(data)
+    }
+    loadCourses()
+  }, [])
+
+  const uniqueCategories = Array.from(new Set(courses.map(c => c.category)))
   const categories = ["All", ...uniqueCategories]
 
   const filteredCourses =

@@ -3,18 +3,30 @@
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
 import { CollageProjectCard } from "@/components/collage-project-card"
-import { projects } from "@/lib/projects-data"
+import { Project } from "@/lib/projects-data"
+import { createClient } from "@/lib/supabase/client"
+import { db } from "@/lib/supabase/db"
 import { useState, useEffect, useRef } from "react"
 import { Grid3x3, Square } from "lucide-react"
 
 type ViewMode = "grid" | "fullsize"
 
 export default function ProjectsPage() {
+  const [projects, setProjects] = useState<Project[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const projectRefs = useRef<(HTMLDivElement | null)[]>([])
 
-  const uniqueCategories = [...new Set(projects.map(p => p.category))]
+  useEffect(() => {
+    const supabase = createClient()
+    async function loadProjects() {
+      const data = await db.getProjects(supabase)
+      setProjects(data)
+    }
+    loadProjects()
+  }, [])
+
+  const uniqueCategories = Array.from(new Set(projects.map(p => p.category)))
   const categories = ["All", ...uniqueCategories]
 
   const filteredProjects =

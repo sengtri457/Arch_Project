@@ -82,8 +82,9 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "0.180.0",
     "three-stdlib": "latest",
-    "vaul": "^0.9.9",
-    "zod": "3.25.76"
+    "zod": "3.25.76",
+    "@supabase/supabase-js": "^2.48.0",
+    "@supabase/ssr": "^0.5.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",

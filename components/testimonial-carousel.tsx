@@ -3,29 +3,43 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { testimonials } from "@/lib/testimonials-data"
+import { Testimonial } from "@/lib/testimonials-data"
+import { createClient } from "@/lib/supabase/client"
+import { db } from "@/lib/supabase/db"
 
 export function TestimonialCarousel() {
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
 
+  useEffect(() => {
+    const supabase = createClient()
+    async function loadTestimonials() {
+      const data = await db.getTestimonials(supabase)
+      setTestimonials(data)
+    }
+    loadTestimonials()
+  }, [])
+
   // Auto-advance testimonials every 5 seconds
   useEffect(() => {
-    if (!isAutoPlaying) return
+    if (!isAutoPlaying || testimonials.length === 0) return
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % testimonials.length)
     }, 5000)
 
     return () => clearInterval(interval)
-  }, [isAutoPlaying])
+  }, [isAutoPlaying, testimonials])
 
   const handlePrevious = () => {
+    if (testimonials.length === 0) return
     setCurrentIndex((prev) => (prev - 1 + testimonials.length) % testimonials.length)
     setIsAutoPlaying(false)
   }
 
   const handleNext = () => {
+    if (testimonials.length === 0) return
     setCurrentIndex((prev) => (prev + 1) % testimonials.length)
     setIsAutoPlaying(false)
   }
@@ -83,36 +97,40 @@ export function TestimonialCarousel() {
 
         {/* Testimonial Cards Container */}
         <div className="relative min-h-[300px] flex items-center justify-center">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentTestimonial.id}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.5, ease: [0.22, 0.9, 0.33, 1] }}
-              className="max-w-2xl mx-auto"
-            >
-              {/* Quote mark accent */}
+          {currentTestimonial ? (
+            <AnimatePresence mode="wait">
               <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-                className="text-6xl text-primary mb-4 leading-none"
+                key={currentTestimonial.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.5, ease: [0.22, 0.9, 0.33, 1] }}
+                className="max-w-2xl mx-auto"
               >
-                "
+                {/* Quote mark accent */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                  className="text-6xl text-primary mb-4 leading-none"
+                >
+                  "
+                </motion.div>
+
+                {/* Testimonial text */}
+                <p className="text-lg md:text-xl text-gray-700 leading-relaxed mb-8 italic">{currentTestimonial.text}</p>
+
+                {/* Client info */}
+                <div className="space-y-1">
+                  <h4 className="text-xl font-semibold text-gray-900">{currentTestimonial.name}</h4>
+                  <p className="text-sm text-gray-600">{currentTestimonial.role}</p>
+                  <p className="text-sm text-gray-500">{currentTestimonial.organization}</p>
+                </div>
               </motion.div>
-
-              {/* Testimonial text */}
-              <p className="text-lg md:text-xl text-gray-700 leading-relaxed mb-8 italic">{currentTestimonial.text}</p>
-
-              {/* Client info */}
-              <div className="space-y-1">
-                <h4 className="text-xl font-semibold text-gray-900">{currentTestimonial.name}</h4>
-                <p className="text-sm text-gray-600">{currentTestimonial.role}</p>
-                <p className="text-sm text-gray-500">{currentTestimonial.organization}</p>
-              </div>
-            </motion.div>
-          </AnimatePresence>
+            </AnimatePresence>
+          ) : (
+            <div className="text-gray-400">Loading testimonials...</div>
+          )}
         </div>
 
         {/* Navigation buttons */}

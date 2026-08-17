@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { FaInstagram, FaLinkedin, FaTiktok, FaFacebook, FaYoutube, FaBehance, FaWeixin, FaTelegram, FaPinterest, FaGlobe, FaWhatsapp } from "react-icons/fa"
+import { createClient } from "@/lib/supabase/client"
+import { db } from "@/lib/supabase/db"
 
 export function ContactSection() {
   const [formData, setFormData] = useState({
@@ -16,13 +18,26 @@ export function ContactSection() {
     company: "",
     message: "",
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle form submission
-    console.log("Form submitted:", formData)
-    alert("Thank you for your message! We'll get back to you soon.")
-    setFormData({ name: "", email: "", company: "", message: "" })
+    setIsSubmitting(true)
+    try {
+      const supabase = createClient()
+      const result = await db.submitContactMessage(supabase, formData)
+      if (result.success) {
+        alert("Thank you for your message! We'll get back to you soon.")
+        setFormData({ name: "", email: "", company: "", message: "" })
+      } else {
+        alert(`Failed to submit message: ${result.error || 'Unknown error'}`)
+      }
+    } catch (err: any) {
+      console.error(err)
+      alert("Failed to submit message. Please check your network and try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -87,6 +102,7 @@ export function ContactSection() {
                   name="name"
                   type="text"
                   required
+                  disabled={isSubmitting}
                   value={formData.name}
                   onChange={handleChange}
                   className="w-full bg-card border-border text-foreground"
@@ -103,6 +119,7 @@ export function ContactSection() {
                   name="email"
                   type="email"
                   required
+                  disabled={isSubmitting}
                   value={formData.email}
                   onChange={handleChange}
                   className="w-full bg-card border-border text-foreground"
@@ -118,6 +135,7 @@ export function ContactSection() {
                   id="company"
                   name="company"
                   type="text"
+                  disabled={isSubmitting}
                   value={formData.company}
                   onChange={handleChange}
                   className="w-full bg-card border-border text-foreground"
@@ -133,6 +151,7 @@ export function ContactSection() {
                   id="message"
                   name="message"
                   required
+                  disabled={isSubmitting}
                   value={formData.message}
                   onChange={handleChange}
                   rows={6}
@@ -141,9 +160,9 @@ export function ContactSection() {
                 />
               </div>
 
-              <Button type="submit" size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+              <Button type="submit" size="lg" disabled={isSubmitting} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
                 <Send className="mr-2" size={20} />
-                Send Message
+                {isSubmitting ? "Sending..." : "Send Message"}
               </Button>
             </form>
           </div>

@@ -1,10 +1,24 @@
 "use client"
 
-import { limitedProjects } from "@/lib/projects-data"
+import { useState, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
+import { db } from "@/lib/supabase/db"
+import { Project } from "@/lib/projects-data"
 import { CollageProjectCard } from "@/components/collage-project-card"
 import FadeContent from "@/components/fade-content"
 
 export function WorksGallery() {
+  const [projects, setProjects] = useState<Project[]>([])
+
+  useEffect(() => {
+    const supabase = createClient()
+    async function loadProjects() {
+      const data = await db.getProjects(supabase, { featured: true, limit: 8 })
+      setProjects(data)
+    }
+    loadProjects()
+  }, [])
+
   // Create a collage layout matching the reference image:
   // Top row: 4 equal columns
   // Bottom row: Varied sizes for visual interest
@@ -48,7 +62,7 @@ export function WorksGallery() {
 
         {/* Uniform Grid Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {limitedProjects.map((project, index) => {
+          {projects.map((project, index) => {
             return (
               <FadeContent
                 key={project.id}

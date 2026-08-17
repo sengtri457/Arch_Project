@@ -13,6 +13,7 @@ interface CollageProjectCardProps {
 
 export function CollageProjectCard({ project, size = "large" }: CollageProjectCardProps) {
   const [isHovered, setIsHovered] = useState(false)
+  const [videoFailed, setVideoFailed] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const playPromiseRef = useRef<Promise<void> | null>(null)
   const hasVideos = project.videos && project.videos.length > 0
@@ -23,7 +24,7 @@ export function CollageProjectCard({ project, size = "large" }: CollageProjectCa
     return mp4Video || videos[0]
   }
   
-  const displayVideo = hasVideos && project.videos ? getBestVideo(project.videos) : (imageIsVideo ? project.image : null)
+  const displayVideo = hasVideos && project.videos && !videoFailed ? getBestVideo(project.videos) : (imageIsVideo && !videoFailed ? project.image : null)
   const displayImage = !displayVideo ? project.image : null
 
   useEffect(() => {
@@ -149,7 +150,8 @@ export function CollageProjectCard({ project, size = "large" }: CollageProjectCa
                 playsInline
                 preload="metadata"
                 onError={(e) => {
-                  console.error('Video failed to load:', getMediaUrl(displayVideo))
+                  console.warn('Video failed to load, falling back to cover image:', getMediaUrl(displayVideo || ''))
+                  setVideoFailed(true)
                 }}
               />
               <div className="absolute top-4 left-4 z-20 bg-black/60 backdrop-blur-sm rounded-full p-2 opacity-80">
