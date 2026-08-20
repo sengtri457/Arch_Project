@@ -2,12 +2,13 @@
 
 Use the SQL scripts below to set up your Supabase database catalog and configure permissions for the visual classroom system.
 
----
+***
 
 ## 🛠️ Step 1: Configure Row-Level Security (RLS)
+
 Run this block to allow students to read course syllabi (lessons list) and homework exercises publicly, while keeping classroom locks secure.
 
-```sql
+```SQL
 -- 1. Make syllabus/lessons list publicly readable
 DROP POLICY IF EXISTS "Students can view lessons of enrolled/purchased courses" ON public.lessons;
 CREATE POLICY "Allow public read access to lessons" ON public.lessons
@@ -28,12 +29,13 @@ ALTER TABLE public.courses
 ADD COLUMN IF NOT EXISTS price NUMERIC(10, 2) NOT NULL DEFAULT 49.99;
 ```
 
----
+***
 
 ## 🚀 Step 2: Seed InDesign & Photoshop Masterclasses
+
 Run this script to inject the new courses, lessons, and assignment templates into your database:
 
-```sql
+```SQL
 -- 1. Insert InDesign Masterclass
 INSERT INTO public.courses (course_id, title, slug, description, difficulty, software_used, thumbnail_url, price, is_published)
 VALUES (
@@ -147,3 +149,4 @@ VALUES
 )
 ON CONFLICT (exercise_id) DO NOTHING;
 ```
+
