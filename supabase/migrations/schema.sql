@@ -73,6 +73,11 @@ CREATE TABLE IF NOT EXISTS public.projects (
     is_featured BOOLEAN DEFAULT false,
     is_published BOOLEAN DEFAULT true,
     created_by UUID NOT NULL REFERENCES public.profiles(id),
+    year TEXT,
+    location TEXT,
+    price TEXT,
+    client TEXT,
+    scope TEXT,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -86,6 +91,13 @@ CREATE TABLE IF NOT EXISTS public.courses (
     required_plan_id INT REFERENCES public.subscription_plans(plan_id),
     difficulty TEXT CHECK (difficulty IN ('beginner', 'intermediate', 'advanced')),
     software_used TEXT,
+    price NUMERIC(10, 2) NOT NULL DEFAULT 49.99,
+    category TEXT,
+    duration TEXT,
+    features JSONB DEFAULT '[]',
+    instructor TEXT DEFAULT 'Bun Sambath',
+    students INT DEFAULT 0,
+    lessons INT DEFAULT 0,
     is_published BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -203,67 +215,90 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 -- 9. Setup RLS Policies
 
 -- Subscription plans: read by all
+DROP POLICY IF EXISTS "Allow public read access to plans" ON public.subscription_plans;
 CREATE POLICY "Allow public read access to plans" ON public.subscription_plans
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Admins manage plans" ON public.subscription_plans;
+CREATE POLICY "Admins manage plans" ON public.subscription_plans
+    FOR ALL USING (public.is_admin(auth.uid()));
+
 -- Profiles: Users can read/write their own profile; admins do all
+DROP POLICY IF EXISTS "Users read own profile" ON public.profiles;
 CREATE POLICY "Users read own profile" ON public.profiles
     FOR SELECT USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users update own profile" ON public.profiles;
 CREATE POLICY "Users update own profile" ON public.profiles
     FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Admins manage profiles" ON public.profiles;
 CREATE POLICY "Admins manage profiles" ON public.profiles
     FOR ALL USING (public.is_admin(auth.uid()));
 
 -- Projects
+DROP POLICY IF EXISTS "Public can view published projects" ON public.projects;
 CREATE POLICY "Public can view published projects" ON public.projects
     FOR SELECT USING (is_published = true);
 
+DROP POLICY IF EXISTS "Admins and instructors manage projects" ON public.projects;
 CREATE POLICY "Admins and instructors manage projects" ON public.projects
     FOR ALL USING (public.is_instructor_or_admin(auth.uid()));
 
 -- Courses
+DROP POLICY IF EXISTS "Public can view published courses" ON public.courses;
 CREATE POLICY "Public can view published courses" ON public.courses
     FOR SELECT USING (is_published = true);
 
+DROP POLICY IF EXISTS "Admins and instructors manage courses" ON public.courses;
 CREATE POLICY "Admins and instructors manage courses" ON public.courses
     FOR ALL USING (public.is_instructor_or_admin(auth.uid()));
 
 -- Lessons
+DROP POLICY IF EXISTS "Allow public read access to lessons" ON public.lessons;
 CREATE POLICY "Allow public read access to lessons" ON public.lessons
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Admins and instructors manage lessons" ON public.lessons;
 CREATE POLICY "Admins and instructors manage lessons" ON public.lessons
     FOR ALL USING (public.is_instructor_or_admin(auth.uid()));
 
 -- Submissions
+DROP POLICY IF EXISTS "Students view own submissions" ON public.exercise_submissions;
 CREATE POLICY "Students view own submissions" ON public.exercise_submissions
     FOR SELECT USING (student_id = auth.uid());
 
+DROP POLICY IF EXISTS "Students insert own submissions" ON public.exercise_submissions;
 CREATE POLICY "Students insert own submissions" ON public.exercise_submissions
     FOR INSERT WITH CHECK (student_id = auth.uid());
 
+DROP POLICY IF EXISTS "Instructors and admins view all submissions" ON public.exercise_submissions;
 CREATE POLICY "Instructors and admins view all submissions" ON public.exercise_submissions
     FOR SELECT USING (public.is_instructor_or_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Instructors and admins grade submissions" ON public.exercise_submissions;
 CREATE POLICY "Instructors and admins grade submissions" ON public.exercise_submissions
     FOR UPDATE USING (public.is_instructor_or_admin(auth.uid()));
 
 -- Enrollments
+DROP POLICY IF EXISTS "Students view own enrollments" ON public.course_enrollments;
 CREATE POLICY "Students view own enrollments" ON public.course_enrollments
     FOR SELECT USING (student_id = auth.uid());
 
+DROP POLICY IF EXISTS "Students create own enrollments" ON public.course_enrollments;
 CREATE POLICY "Students create own enrollments" ON public.course_enrollments
     FOR INSERT WITH CHECK (student_id = auth.uid());
 
+DROP POLICY IF EXISTS "Admins view all enrollments" ON public.course_enrollments;
 CREATE POLICY "Admins view all enrollments" ON public.course_enrollments
     FOR SELECT USING (public.is_instructor_or_admin(auth.uid()));
 
 -- Lesson Progress
+DROP POLICY IF EXISTS "Students manage own lesson progress" ON public.lesson_progress;
 CREATE POLICY "Students manage own lesson progress" ON public.lesson_progress
     FOR ALL USING (student_id = auth.uid()) WITH CHECK (student_id = auth.uid());
 
+DROP POLICY IF EXISTS "Admins view all lesson progress" ON public.lesson_progress;
 CREATE POLICY "Admins view all lesson progress" ON public.lesson_progress
     FOR SELECT USING (public.is_instructor_or_admin(auth.uid()));
 
@@ -285,3 +320,99 @@ JOIN public.profiles p ON p.id = e.student_id
 JOIN public.courses c ON c.course_id = e.course_id
 LEFT JOIN public.lesson_progress lp ON lp.student_id = e.student_id AND lp.course_id = e.course_id
 GROUP BY e.student_id, p.full_name, e.course_id, c.title, e.status, e.enrolled_at, e.last_accessed_at;
+
+-- Certificates Schema and RLS Policies (Phase 2 Addition)
+CREATE TABLE IF NOT EXISTS public.certificates (
+    certificate_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    course_id UUID NOT NULL REFERENCES public.courses(course_id) ON DELETE CASCADE,
+    certificate_number TEXT UNIQUE NOT NULL, -- e.g. AVA-2026-XXXX-YYYY
+    issued_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (student_id, course_id)
+);
+
+ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view certificates" ON public.certificates;
+CREATE POLICY "Anyone can view certificates" ON public.certificates
+    FOR SELECT USING (true);
+
+
+-- 11. Promo Codes Schema (Phase 4 Addition)a
+CREATE TABLE IF NOT EXISTS public.promo_codes (
+    code TEXT PRIMARY KEY,
+    discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
+    discount_value NUMERIC(10,2) NOT NULL,
+    max_redemptions INT, -- NULL = unlimited
+    redemptions_count INT DEFAULT 0,
+    expires_at TIMESTAMPTZ, -- NULL = never expires
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE public.promo_codes ENABLE ROW LEVEL SECURITY;
+
+-- Select policy: Anyone can check active codes during checkouts
+DROP POLICY IF EXISTS "Anyone can view active promo codes" ON public.promo_codes;
+CREATE POLICY "Anyone can view active promo codes" ON public.promo_codes
+    FOR SELECT USING (is_active = true AND (expires_at IS NULL OR expires_at > now()));
+
+-- Manage policy: Admins manage all promocodes
+DROP POLICY IF EXISTS "Admins manage promo codes" ON public.promo_codes;
+CREATE POLICY "Admins manage promo codes" ON public.promo_codes
+    FOR ALL USING (public.is_admin(auth.uid()));
+
+-- Link transactions table to promocodes
+ALTER TABLE public.payment_transactions 
+ADD COLUMN IF NOT EXISTS promo_code TEXT REFERENCES public.promo_codes(code) ON DELETE SET NULL;
+
+
+-- 12. Testimonials Table (Phase 5 Addition)
+CREATE TABLE IF NOT EXISTS public.testimonials (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    organization TEXT NOT NULL,
+    text TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE public.testimonials ENABLE ROW LEVEL SECURITY;
+
+-- Select policy: Anyone can view testimonials
+DROP POLICY IF EXISTS "Anyone can view testimonials" ON public.testimonials;
+CREATE POLICY "Anyone can view testimonials" ON public.testimonials
+    FOR SELECT USING (true);
+
+-- Manage policy: Admins manage testimonials
+DROP POLICY IF EXISTS "Admins manage testimonials" ON public.testimonials;
+CREATE POLICY "Admins manage testimonials" ON public.testimonials
+    FOR ALL USING (public.is_admin(auth.uid()));
+
+
+-- 13. Contact Inquiries Table (Phase 6 Addition)
+CREATE TABLE IF NOT EXISTS public.contact_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    company TEXT,
+    message TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE public.contact_messages ENABLE ROW LEVEL SECURITY;
+
+-- Insert policy: Anyone can submit contact messages
+DROP POLICY IF EXISTS "Anyone can insert contact messages" ON public.contact_messages;
+CREATE POLICY "Anyone can insert contact messages" ON public.contact_messages
+    FOR INSERT WITH CHECK (true);
+
+-- Manage policy: Only admins can view/manage contact messages
+DROP POLICY IF EXISTS "Admins manage contact messages" ON public.contact_messages;
+CREATE POLICY "Admins manage contact messages" ON public.contact_messages
+    FOR ALL USING (public.is_instructor_or_admin(auth.uid()));
+
+

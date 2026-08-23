@@ -38,7 +38,45 @@ function CheckoutContent() {
   const [paymentCompleted, setPaymentCompleted] = useState(false)
   const [courseTitle, setCourseTitle] = useState("")
 
+  // Promo Code States
+  const [promoCodeInput, setPromoCodeInput] = useState("")
+  const [appliedPromo, setAppliedPromo] = useState<any | null>(null)
+  const [promoError, setPromoError] = useState<string | null>(null)
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false)
+
   const supabase = createClient()
+
+  async function initializeCheckout(code?: string) {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ courseId, planId, promoCode: code || undefined })
+      })
+
+      const resData = await response.json()
+
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.error || "Failed to initialize checkout session")
+      }
+
+      setCheckoutData({
+        billNumber: resData.billNumber,
+        amount: resData.amount,
+        khqrPayload: resData.khqrPayload,
+        courseSlug: resData.courseSlug
+      })
+    } catch (err: any) {
+      console.error("Checkout loading error:", err)
+      setError(err.message || "An unexpected error occurred.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // 1. Redirect guests & fetch course details
   useEffect(() => {
@@ -84,38 +122,57 @@ function CheckoutContent() {
           setCourseTitle(plan.name)
         }
 
-        // Initialize transaction on backend (calls our Nest API route)
-        const response = await fetch("/api/checkout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ courseId, planId })
-        })
-
-        const resData = await response.json()
-
-        if (!response.ok || !resData.success) {
-          throw new Error(resData.error || "Failed to initialize checkout session")
-        }
-
-        setCheckoutData({
-          billNumber: resData.billNumber,
-          amount: resData.amount,
-          khqrPayload: resData.khqrPayload,
-          courseSlug: resData.courseSlug
-        })
-
+        await initializeCheckout()
       } catch (err: any) {
         console.error("Checkout loading error:", err)
         setError(err.message || "An unexpected error occurred.")
-      } finally {
         setLoading(false)
       }
     }
 
     loadProductAndInitialize()
   }, [user, authLoading, courseId, planId])
+
+  // Promo Code Validation Handler
+  const handleApplyPromo = async () => {
+    if (!promoCodeInput.trim()) return
+    try {
+      setIsValidatingPromo(true)
+      setPromoError(null)
+      const { data, error: promoErr } = await supabase
+        .from('promo_codes')
+        .select('*')
+        .eq('code', promoCodeInput.toUpperCase().trim())
+        .single()
+
+      if (promoErr || !data) {
+        setPromoError("Invalid promo code.")
+        return
+      }
+
+      if (!data.is_active) {
+        setPromoError("This promo code is inactive.")
+        return
+      }
+
+      if (data.expires_at && new Date(data.expires_at) < new Date()) {
+        setPromoError("This promo code has expired.")
+        return
+      }
+
+      if (data.max_redemptions !== null && data.redemptions_count >= data.max_redemptions) {
+        setPromoError("This promo code has reached its usage limit.")
+        return
+      }
+
+      setAppliedPromo(data)
+      await initializeCheckout(data.code)
+    } catch (err: any) {
+      setPromoError("Failed to validate promo code.")
+    } finally {
+      setIsValidatingPromo(false)
+    }
+  }
 
   // 2. Poll transaction status in real-time
   useEffect(() => {
@@ -222,6 +279,41 @@ function CheckoutContent() {
                   ${checkoutData?.amount.toFixed(2)} USD
                 </p>
               </div>
+              
+              {!paymentCompleted && (
+                <div className="border-t border-zinc-850/60 pt-3 space-y-2">
+                  <p className="text-[10px] uppercase font-bold text-zinc-500">Promo Code</p>
+                  {appliedPromo ? (
+                    <div className="flex justify-between items-center bg-zinc-950/80 p-2.5 rounded-xl border border-[#9ACD32]/25">
+                      <span className="text-xs font-semibold text-primary font-mono" style={{ color: '#9ACD32' }}>{appliedPromo.code} Applied</span>
+                      <span className="text-xs font-bold text-green-400">
+                        {appliedPromo.discount_type === 'percentage' ? `${appliedPromo.discount_value}% OFF` : `$${appliedPromo.discount_value} OFF`}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Enter coupon code"
+                        value={promoCodeInput}
+                        onChange={(e) => setPromoCodeInput(e.target.value)}
+                        className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 flex-grow uppercase font-mono"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleApplyPromo}
+                        disabled={isValidatingPromo || !promoCodeInput.trim()}
+                        className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white font-semibold px-4 h-8"
+                      >
+                        {isValidatingPromo ? "..." : "Apply"}
+                      </Button>
+                    </div>
+                  )}
+                  {promoError && (
+                    <p className="text-[10px] text-red-400 mt-1">{promoError}</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

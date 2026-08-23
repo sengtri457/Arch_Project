@@ -217,6 +217,30 @@ serve(async (req) => {
           `Warning: Failed to update user profile role: ${profileError.message}`,
         );
       }
+
+      // Increment promo code redemptions count if a promo was applied
+      if (dbTx.promo_code) {
+        const { data: promoData, error: promoSelectError } = await supabaseAdmin
+          .from("promo_codes")
+          .select("redemptions_count")
+          .eq("code", dbTx.promo_code)
+          .single();
+
+        if (!promoSelectError && promoData) {
+          const { error: promoUpdateError } = await supabaseAdmin
+            .from("promo_codes")
+            .update({
+              redemptions_count: (promoData.redemptions_count || 0) + 1,
+            })
+            .eq("code", dbTx.promo_code);
+
+          if (promoUpdateError) {
+            console.error(
+              `Warning: Failed to increment promo redemptions: ${promoUpdateError.message}`,
+            );
+          }
+        }
+      }
     }
 
     return new Response(

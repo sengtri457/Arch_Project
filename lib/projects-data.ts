@@ -1,5 +1,6 @@
 export interface Project {
   id: string
+  project_id?: string
   title: string
   category: string
   description: string

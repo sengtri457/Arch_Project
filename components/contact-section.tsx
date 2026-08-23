@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { FaInstagram, FaLinkedin, FaTiktok, FaFacebook, FaYoutube, FaBehance, FaWeixin, FaTelegram, FaPinterest, FaGlobe, FaWhatsapp } from "react-icons/fa"
-import { createClient } from "@/lib/supabase/client"
-import { db } from "@/lib/supabase/db"
 
 export function ContactSection() {
   const [formData, setFormData] = useState({
@@ -18,15 +16,25 @@ export function ContactSection() {
     company: "",
     message: "",
   })
+  const [honeypot, setHoneypot] = useState("")
+  const [formStartedAt, setFormStartedAt] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     try {
-      const supabase = createClient()
-      const result = await db.submitContactMessage(supabase, formData)
-      if (result.success) {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          company_website: honeypot,
+          started_at: formStartedAt,
+        }),
+      })
+      const result = await response.json()
+      if (response.ok && result.success) {
         alert("Thank you for your message! We'll get back to you soon.")
         setFormData({ name: "", email: "", company: "", message: "" })
       } else {
@@ -41,6 +49,9 @@ export function ContactSection() {
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (!formStartedAt) {
+      setFormStartedAt(Date.now())
+    }
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -159,6 +170,17 @@ export function ContactSection() {
                   placeholder="Tell us about your project..."
                 />
               </div>
+
+              <input
+                type="text"
+                name="company_website"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                className="hidden"
+              />
 
               <Button type="submit" size="lg" disabled={isSubmitting} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
                 <Send className="mr-2" size={20} />

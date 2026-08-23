@@ -21,6 +21,7 @@ export default function StudentDashboard() {
   const [loadingCourses, setLoadingCourses] = useState(true)
   const [subscriptionName, setSubscriptionName] = useState<string>("Free Student")
   const [watchHours, setWatchHours] = useState<number>(0)
+  const [certificates, setCertificates] = useState<any[]>([])
   const router = useRouter()
 
   useEffect(() => {
@@ -35,6 +36,8 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     if (!user) return
+    const userId = user.id
+    const userEmail = user.email || ''
     const supabase = createClient()
     async function loadEnrolledCourses() {
       try {
@@ -45,7 +48,7 @@ export default function StudentDashboard() {
         // Filter courses to only those the student has purchased or has subscription access to
         const accessChecks = await Promise.all(
           allCourses.map(async (course) => {
-            const hasAccess = await db.checkCourseAccess(supabase, user.id, course.course_id || course.id)
+            const hasAccess = await db.checkCourseAccess(supabase, userId, course.course_id || course.id)
             return { course, hasAccess }
           })
         )
@@ -64,7 +67,7 @@ export default function StudentDashboard() {
         const { data: completedProgress } = await supabase
           .from('lesson_progress')
           .select('lesson_id, course_id')
-          .eq('student_id', user.id)
+          .eq('student_id', userId)
           .eq('is_completed', true)
 
         // 4. Calculate progress percentage per course
@@ -93,7 +96,7 @@ export default function StudentDashboard() {
         const { data: gradedSubs } = await supabase
           .from('exercise_submissions')
           .select('score')
-          .eq('student_id', user.id)
+          .eq('student_id', userId)
           .eq('status', 'graded')
 
         if (gradedSubs && gradedSubs.length > 0) {
@@ -109,32 +112,46 @@ export default function StudentDashboard() {
         const { data: activeSub } = await supabase
           .from('user_subscriptions')
           .select('*, subscription_plans(name)')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .eq('status', 'active')
           .maybeSingle()
 
         if (activeSub?.subscription_plans) {
           const planInfo = activeSub.subscription_plans as any
           setSubscriptionName(planInfo.name || "Student Pro")
-        } else if (profile?.role === 'admin') {
-          setSubscriptionName('Admin')
         } else if (profile?.role === 'instructor') {
           setSubscriptionName('Instructor')
-        } else if (['sengtri@gmail.com', 'sengktri@gmail.com'].includes(user.email || '')) {
-          setSubscriptionName('Student Pro (Bypass)')
         } else {
-          setSubscriptionName('Free Student')
+          const bypassEmails = (process.env.NEXT_PUBLIC_BYPASS_EMAILS || '')
+            .split(',')
+            .map((e) => e.trim().toLowerCase())
+            .filter(Boolean)
+          if (bypassEmails.includes(userEmail.toLowerCase())) {
+            setSubscriptionName('Student Pro (Bypass)')
+          } else {
+            setSubscriptionName('Free Student')
+          }
         }
 
         // 7. Calculate watch hours
         const { data: watchLogs } = await supabase
           .from('lesson_progress')
           .select('seconds_watched')
-          .eq('student_id', user.id)
+          .eq('student_id', userId)
 
         if (watchLogs) {
           const totalSecs = watchLogs.reduce((sum, item) => sum + (item.seconds_watched || 0), 0)
           setWatchHours(parseFloat((totalSecs / 3600).toFixed(1)))
+        }
+
+        // 8. Fetch completed certificates
+        const { data: certsData } = await supabase
+          .from('certificates')
+          .select('*, courses(title)')
+          .eq('student_id', userId)
+
+        if (certsData) {
+          setCertificates(certsData)
         }
       } catch (err) {
         console.error(err)
@@ -322,6 +339,36 @@ export default function StudentDashboard() {
 
           {/* Right Block: Downloads / Asset Library */}
           <div className="space-y-6">
+            {/* Certifications Card */}
+            {certificates.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <Award className="w-6 h-6 text-primary" style={{ color: '#9ACD32' }} />
+                  Certifications
+                </h2>
+                <div className="bg-zinc-900/30 border border-zinc-800/60 p-6 rounded-xl space-y-4">
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    Congratulations on completing your visual curriculum! You have earned the following credentials:
+                  </p>
+                  <div className="space-y-3">
+                    {certificates.map((cert) => (
+                      <div key={cert.certificate_id} className="p-3.5 bg-zinc-900/60 border border-zinc-850 rounded-xl group hover:border-[#9ACD32]/50 transition-colors flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-white truncate">{(cert.courses as any)?.title || "Course Completed"}</h4>
+                          <p className="text-[9px] text-zinc-500 font-mono mt-0.5">{cert.certificate_number}</p>
+                        </div>
+                        <Link href={`/certificates/${cert.certificate_id}`} target="_blank" className="flex-shrink-0">
+                          <Button variant="ghost" size="sm" className="hover:bg-primary/10 text-primary hover:text-primary p-2">
+                            <Award className="w-4.5 h-4.5" style={{ color: '#9ACD32' }} />
+                          </Button>
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <h2 className="text-2xl font-bold text-white mb-2">Premium Assets</h2>
             <div className="bg-zinc-900/30 border border-zinc-800/60 p-6 rounded-xl space-y-5">
               <p className="text-sm text-zinc-400">

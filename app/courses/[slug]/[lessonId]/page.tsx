@@ -22,7 +22,9 @@ import {
   ArrowLeft, 
   ChevronRight,
   BookOpen,
-  Send
+  Send,
+  Award,
+  ArrowRight
 } from "lucide-react"
 
 interface LessonPageProps {
@@ -44,6 +46,9 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   // Loading & Permission States
   const [loadingCatalog, setLoadingCatalog] = useState(true)
   const [hasAccess, setHasAccess] = useState<boolean | null>(null)
+  const [showCertModal, setShowCertModal] = useState(false)
+  const [generatedCertId, setGeneratedCertId] = useState<string | null>(null)
+  const [generatingCert, setGeneratingCert] = useState(false)
 
   // Heartbeat progress locks
   const lastLoggedTime = useRef<number>(0)
@@ -58,6 +63,10 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const [submissionScore, setSubmissionScore] = useState<number | null>(null)
   const [submissionFeedback, setSubmissionFeedback] = useState<string | null>(null)
 
+  // Secure video delivery state
+  const [activeVideo, setActiveVideo] = useState<{ source: string; url: string } | null>(null)
+  const [loadingVideo, setLoadingVideo] = useState(false)
+
   // Redirect guests to login
   useEffect(() => {
     if (!loading && !user) {
@@ -68,6 +77,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   // Load Course and Access validations
   useEffect(() => {
     if (!user) return
+    const userId = user.id
 
     async function verifyAndLoad() {
       try {
@@ -83,7 +93,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
         setCourse(activeCourse)
 
         // 2. Validate Access permissions
-        const accessGranted = await db.checkCourseAccess(supabase, user.id, activeCourse.course_id || activeCourse.id)
+        const accessGranted = await db.checkCourseAccess(supabase, userId, activeCourse.course_id || activeCourse.id)
         setHasAccess(accessGranted)
         if (!accessGranted) {
           setLoadingCatalog(false)
@@ -102,10 +112,22 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
         const { data: progressRecords } = await supabase
           .from("lesson_progress")
           .select("lesson_id, is_completed, watched_seconds")
-          .eq("student_id", user.id)
+          .eq("student_id", userId)
           .eq("course_id", activeCourse.course_id || activeCourse.id)
 
         setProgressList(progressRecords || [])
+
+        // 5. Fetch completed certificate record if exists
+        const { data: certData } = await supabase
+          .from("certificates")
+          .select("certificate_id")
+          .eq("student_id", userId)
+          .eq("course_id", activeCourse.course_id || activeCourse.id)
+          .maybeSingle()
+
+        if (certData) {
+          setGeneratedCertId(certData.certificate_id)
+        }
       } catch (err) {
         console.error("Error loading classroom:", err)
       } finally {
@@ -114,6 +136,34 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     }
     verifyAndLoad()
   }, [user, slug, lessonId])
+
+  // Fetch playable video URL through the secured API whenever the lesson changes
+  useEffect(() => {
+    const lessonId = currentLesson?.lesson_id || currentLesson?.id
+    setActiveVideo(null)
+    if (!hasAccess || !lessonId) return
+
+    let cancelled = false
+    setLoadingVideo(true)
+
+    fetch(`/api/lessons/${lessonId}/video`)
+      .then(async (res) => {
+        if (res.ok) {
+          const json = await res.json()
+          if (!cancelled && json?.url) {
+            setActiveVideo({ source: json.source ?? 'direct', url: json.url })
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingVideo(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentLesson?.lesson_id, currentLesson?.id, hasAccess])
 
   // Handle lesson navigation in sidebar
   const handleSelectLesson = (targetLesson: any) => {
@@ -124,6 +174,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const handleTimeUpdate = async (currentTime: number, duration: number) => {
     if (!user || !course || !currentLesson || isUpdatingProgress.current) return
 
+    const activeCourseId = course.course_id || course.id
     const timeDiff = currentTime - lastLoggedTime.current
     const isFinished = duration > 0 && currentTime >= duration * 0.90 // 90% threshold for completion
 
@@ -137,7 +188,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
       try {
         await db.updateLessonProgress(supabase, {
           userId: user.id,
-          courseId: course.course_id || course.id,
+          courseId: activeCourseId,
           lessonId: currentLesson.lesson_id || currentLesson.id,
           watchedSeconds: currentTime,
           isCompleted: isLessonCompleted
@@ -146,21 +197,60 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
         // Update local sidebar checkmarks state instantly
         setProgressList((prev) => {
           const index = prev.findIndex((p) => p.lesson_id === currentLesson.lesson_id)
+          let newProgress = [...prev]
           if (index !== -1) {
-            return prev.map((p, idx) => 
+            newProgress = prev.map((p, idx) => 
               idx === index 
                 ? { ...p, watched_seconds: currentTime, is_completed: isLessonCompleted } 
                 : p
             )
           } else {
-            return [...prev, { lesson_id: currentLesson.lesson_id, is_completed: isLessonCompleted, watched_seconds: currentTime }]
+            newProgress = [...prev, { lesson_id: currentLesson.lesson_id, is_completed: isLessonCompleted, watched_seconds: currentTime }]
           }
+
+          // Check if all lessons are completed and trigger cert generation
+          if (isLessonCompleted && lessons.length > 0) {
+            const allCompleted = lessons.every(l => 
+              l.lesson_id === currentLesson.lesson_id || 
+              newProgress.some(p => p.lesson_id === l.lesson_id && p.is_completed)
+            )
+            if (allCompleted) {
+              triggerCertGeneration(activeCourseId)
+            }
+          }
+
+          return newProgress
         })
       } catch (err) {
         console.error("Error updating progress heartbeat:", err)
       } finally {
         isUpdatingProgress.current = false
       }
+    }
+  }
+
+  const triggerCertGeneration = async (cId: string) => {
+    if (generatingCert || generatedCertId) return
+    try {
+      setGeneratingCert(true)
+      setShowCertModal(true)
+      
+      const res = await fetch("/api/certificates/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId: cId })
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.certificateId) {
+          setGeneratedCertId(data.certificateId)
+        }
+      }
+    } catch (err) {
+      console.error("Failed to generate certificate:", err)
+    } finally {
+      setGeneratingCert(false)
     }
   }
 
@@ -174,6 +264,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   // Load Exercise & Submissions Details on Lesson Change
   useEffect(() => {
     if (!user || !currentLesson) return
+    const userId = user.id
 
     async function loadExerciseAndSubmission() {
       try {
@@ -189,7 +280,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
             .from("exercise_submissions")
             .select("status, score, instructor_feedback")
             .eq("exercise_id", activeExercise.exercise_id)
-            .eq("student_id", user.id)
+            .eq("student_id", userId)
             .single()
 
           if (!subError && existingSub) {
@@ -390,6 +481,15 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     )
   }
 
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-white gap-3">
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#9ACD32' }} />
+        <span>Redirecting to login...</span>
+      </div>
+    )
+  }
+
   // Access Denied Shield
   if (hasAccess === false) {
     return (
@@ -435,16 +535,36 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     return `${mins}m`
   }
 
-  // Fallback testing video URL if lesson has no videoUrl set in database
-  const activeVideoUrl = currentLesson?.video_url || "https://www.w3schools.com/html/mov_bbb.mp4"
-
-  // Mock attachments for the active lesson
-  const mockAttachments = [
-    { name: "Starter SketchUp Modeling File (.skp)", size: "24.8 MB", link: "#" },
-    { name: "D5 Render Interior Preset Settings", size: "4.2 MB", link: "#" }
-  ]
-
   const duration = currentLesson?.duration || 0
+
+  const renderPlayer = () => {
+    if (loadingVideo) {
+      return (
+        <div className="aspect-video w-full bg-black rounded-xl flex flex-col items-center justify-center gap-3 border border-zinc-850">
+          <Loader2 className="w-8 h-8 animate-spin text-zinc-500" />
+          <p className="text-xs text-zinc-500">Preparing secure stream...</p>
+        </div>
+      )
+    }
+    if (!activeVideo) {
+      return (
+        <div className="aspect-video w-full bg-black rounded-xl flex flex-col items-center justify-center gap-3 border border-zinc-850">
+          <Lock className="w-8 h-8 text-zinc-600" />
+          <p className="text-sm text-zinc-400 font-medium">Video for this lesson is not available yet</p>
+          <p className="text-xs text-zinc-600">Please contact your instructor if you believe this is an error.</p>
+        </div>
+      )
+    }
+    return (
+      <SecureVideoPlayer
+        videoUrl={activeVideo.url}
+        userEmail={user.email || "student@archtipsbox.com"}
+        userId={user.id}
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={handleVideoEnded}
+      />
+    )
+  }
 
   return (
     <main className="min-h-screen flex flex-col justify-between" style={{ backgroundColor: '#060010' }}>
@@ -454,13 +574,24 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
       <div className="flex-grow container mx-auto px-6 py-24 md:py-32 max-w-7xl relative z-10">
         
         {/* Course Directory Breadcrumb */}
-        <div className="flex items-center gap-2 mb-8">
-          <Link href="/dashboard" className="text-zinc-400 hover:text-white text-sm flex items-center gap-1.5 transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-            Dashboard
-          </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
-          <span className="text-sm font-semibold text-primary" style={{ color: '#9ACD32' }}>{course?.title}</span>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard" className="text-zinc-400 hover:text-white text-sm flex items-center gap-1.5 transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+              Dashboard
+            </Link>
+            <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+            <span className="text-sm font-semibold text-primary" style={{ color: '#9ACD32' }}>{course?.title}</span>
+          </div>
+          
+          {generatedCertId && (
+            <Link href={`/certificates/${generatedCertId}`} target="_blank">
+              <Button size="sm" className="bg-[#9ACD32]/10 hover:bg-[#9ACD32]/20 text-[#9ACD32] border border-[#9ACD32]/30 rounded-lg flex items-center gap-1.5 text-xs font-semibold py-4">
+                <Award className="w-3.5 h-3.5" />
+                View Certificate
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* Dynamic Split Screen Grid */}
@@ -469,13 +600,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
           {/* Main Classroom Panel (Left) */}
           <div className="lg:col-span-2 space-y-6">
             {/* Secure Video Player */}
-            <SecureVideoPlayer
-              videoUrl={activeVideoUrl}
-              userEmail={user.email || "student@archtipsbox.com"}
-              userId={user.id}
-              onTimeUpdate={handleTimeUpdate}
-              onEnded={handleVideoEnded}
-            />
+            {renderPlayer()}
 
             {/* Lesson Title and Descriptions */}
             <div className="bg-zinc-900/20 border border-zinc-850 p-6 rounded-2xl space-y-4">
@@ -493,7 +618,10 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
                   Lesson Attachments
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {mockAttachments.map((file, idx) => (
+                  {[
+                    { name: "Starter SketchUp Modeling File (.skp)", size: "24.8 MB", link: "#" },
+                    { name: "D5 Render Interior Preset Settings", size: "4.2 MB", link: "#" }
+                  ].map((file, idx) => (
                     <div 
                       key={idx} 
                       className="p-3 bg-zinc-900/50 border border-zinc-850 rounded-xl flex items-center justify-between group hover:border-zinc-700 transition-colors"
@@ -663,6 +791,50 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
 
         </div>
       </div>
+
+      {showCertModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto border border-primary/20" style={{ color: '#9ACD32', borderColor: 'rgba(154, 205, 50, 0.2)' }}>
+              <Award className="w-10 h-10 animate-bounce" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-3xl font-extrabold text-white">Course Completed!</h2>
+              <p className="text-zinc-400 text-sm leading-relaxed">
+                Congratulations! You have completed all lesson modules in **{course?.title || "this course"}**. Your certification has been successfully generated.
+              </p>
+            </div>
+            
+            <div className="space-y-3 pt-2">
+              {generatingCert ? (
+                <Button disabled className="w-full bg-zinc-850 text-zinc-500 py-6 rounded-xl font-bold flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Generating Certificate...
+                </Button>
+              ) : generatedCertId ? (
+                <Link href={`/certificates/${generatedCertId}`} target="_blank">
+                  <Button className="w-full bg-primary text-black hover:bg-primary/90 py-6 rounded-xl font-bold flex items-center justify-center gap-2" style={{ backgroundColor: '#9ACD32', color: '#000' }}>
+                    Claim Certificate
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </Link>
+              ) : (
+                <Button onClick={() => course && triggerCertGeneration(course.course_id || course.id)} className="w-full bg-zinc-800 text-zinc-300 py-6 rounded-xl font-bold">
+                  Retry Generation
+                </Button>
+              )}
+              
+              <Button 
+                onClick={() => setShowCertModal(false)} 
+                variant="ghost" 
+                className="w-full text-zinc-500 hover:text-zinc-300"
+              >
+                Back to Classroom
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </main>

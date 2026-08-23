@@ -3,9 +3,18 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { BakongKHQR, IndividualInfo, khqrData } from 'bakong-khqr'
+import { getClientIp, rateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   try {
+    const limiter = rateLimit(`checkout:${getClientIp(request)}`, 5, 60_000)
+    if (!limiter.ok) {
+      return NextResponse.json(
+        { error: 'Too many checkout attempts. Please wait a moment.' },
+        { status: 429, headers: { 'Retry-After': String(limiter.retryAfter) } }
+      )
+    }
+
     const cookieStore = await cookies()
     
     // 1. Initialize Supabase Server Client
@@ -17,9 +26,9 @@ export async function POST(request: Request) {
           getAll() {
             return cookieStore.getAll()
           },
-          setAll(cookiesToSet) {
+          setAll(cookiesToSet: any) {
             try {
-              cookiesToSet.forEach(({ name, value, options }) =>
+              cookiesToSet.forEach(({ name, value, options }: any) =>
                 cookieStore.set(name, value, options)
               )
             } catch {
@@ -38,9 +47,12 @@ export async function POST(request: Request) {
     }
 
     // 3. Extract request parameters
-    const { courseId, planId } = await request.json()
-    if (!courseId && !planId) {
-      return NextResponse.json({ error: 'Missing courseId or planId parameter' }, { status: 400 })
+    const { courseId, planId, promoCode } = await request.json()
+    if ((!courseId && !planId) || (courseId && planId)) {
+      return NextResponse.json({ error: 'Provide exactly one of courseId or planId' }, { status: 400 })
+    }
+    if (courseId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(courseId))) {
+      return NextResponse.json({ error: 'Invalid course ID format' }, { status: 400 })
     }
 
     let checkoutAmount = 49.99 // Default course purchase price
@@ -50,7 +62,10 @@ export async function POST(request: Request) {
 
     // 4. Determine cost and type
     if (planId) {
-      targetPlanId = parseInt(planId)
+      targetPlanId = parseInt(String(planId))
+      if (!Number.isInteger(targetPlanId) || targetPlanId < 1 || targetPlanId > 100) {
+        return NextResponse.json({ error: 'Invalid subscription plan ID' }, { status: 400 })
+      }
       // Fetch plan pricing
       const { data: plan, error: planErr } = await supabase
         .from('subscription_plans')
@@ -78,15 +93,48 @@ export async function POST(request: Request) {
       checkoutAmount = course.price ? parseFloat(course.price) : 49.99
     }
 
+    // Apply Promo Code discount if provided
+    let appliedPromoCode: string | null = null
+    if (promoCode) {
+      if (typeof promoCode !== 'string' || promoCode.trim().length > 50) {
+        return NextResponse.json({ error: 'Invalid promo code' }, { status: 400 })
+      }
+      const { data: promo, error: promoErr } = await supabase
+        .from('promo_codes')
+        .select('*')
+        .eq('code', promoCode.toUpperCase().trim())
+        .single()
+
+      if (!promoErr && promo) {
+        const isExpired = promo.expires_at && new Date(promo.expires_at) < new Date()
+        const isLimitReached = promo.max_redemptions !== null && promo.redemptions_count >= promo.max_redemptions
+        
+        if (promo.is_active && !isExpired && !isLimitReached) {
+          appliedPromoCode = promo.code
+          if (promo.discount_type === 'percentage') {
+            checkoutAmount = checkoutAmount * (1 - parseFloat(promo.discount_value) / 100)
+          } else {
+            checkoutAmount = Math.max(0, checkoutAmount - parseFloat(promo.discount_value))
+          }
+        }
+      }
+    }
+
     // 5. Generate unique bill number
     const billNumber = `BILL-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 
     // 6. Generate Bakong KHQR Payload
-    const khqrHelper = new BakongKHQR()
-    
-    const accountID = (process.env.BAKONG_ACCOUNT_ID || 'bun_sengtri@bkrt').trim()
-    const merchantName = (process.env.BAKONG_MERCHANT_NAME || 'SENGTREE bUN').replace(/"/g, '').trim()
+    const accountID = process.env.BAKONG_ACCOUNT_ID?.trim()
+    const merchantName = process.env.BAKONG_MERCHANT_NAME?.replace(/"/g, '').trim()
     const merchantCity = (process.env.BAKONG_MERCHANT_CITY || 'Phnom Penh').replace(/"/g, '').trim()
+
+    if (!accountID || !merchantName) {
+      console.error('Missing BAKONG_ACCOUNT_ID or BAKONG_MERCHANT_NAME environment variables')
+      return NextResponse.json({ error: 'Payment gateway is not configured' }, { status: 500 })
+    }
+
+    const khqrHelper = new BakongKHQR()
+
 
     const merchantInfo = new IndividualInfo(
       accountID,
@@ -140,7 +188,8 @@ export async function POST(request: Request) {
         amount: checkoutAmount,
         currency: 'USD',
         khqr_payload: qrPayload,
-        payment_status: 'pending'
+        payment_status: 'pending',
+        promo_code: appliedPromoCode
       })
       .select()
       .single()

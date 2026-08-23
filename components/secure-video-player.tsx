@@ -140,6 +140,9 @@ export function SecureVideoPlayer({
         onEnded={onEnded}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
+        onContextMenu={(e) => e.preventDefault()}
+        controlsList="nodownload noplaybackrate noremoteplayback"
+        disablePictureInPicture
         playsInline
       />
 

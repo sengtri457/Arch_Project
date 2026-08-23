@@ -150,3 +150,68 @@ VALUES
 ON CONFLICT (exercise_id) DO NOTHING;
 ```
 
+---
+
+## 🎓 Step 3: Certificate Table & Policies
+Run this query block to create the certificates schema table, setup row-level security policy, and reload schema cache:
+
+```sql
+CREATE TABLE IF NOT EXISTS public.certificates (
+    certificate_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    course_id UUID NOT NULL REFERENCES public.courses(course_id) ON DELETE CASCADE,
+    certificate_number TEXT UNIQUE NOT NULL, -- e.g. AVA-2026-XXXX-YYYY
+    issued_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (student_id, course_id)
+);
+
+-- Enable RLS
+ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Anyone can view certificates (allows validation and public sharing)
+DROP POLICY IF EXISTS "Anyone can view certificates" ON public.certificates;
+CREATE POLICY "Anyone can view certificates" ON public.certificates
+    FOR SELECT USING (true);
+
+-- Reload PostgREST schema cache
+NOTIFY pgrst, 'reload schema';
+```
+
+---
+
+## 🎟️ Step 4: Promo Codes Schema
+Run this query block to create the promo codes table, alter payments schema, and set security policies:
+
+```sql
+CREATE TABLE IF NOT EXISTS public.promo_codes (
+    code TEXT PRIMARY KEY,
+    discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
+    discount_value NUMERIC(10,2) NOT NULL,
+    max_redemptions INT, -- NULL = unlimited
+    redemptions_count INT DEFAULT 0,
+    expires_at TIMESTAMPTZ, -- NULL = never expires
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE public.promo_codes ENABLE ROW LEVEL SECURITY;
+
+-- Select policy: Anyone can check active codes during checkouts
+DROP POLICY IF EXISTS "Anyone can view active promo codes" ON public.promo_codes;
+CREATE POLICY "Anyone can view active promo codes" ON public.promo_codes
+    FOR SELECT USING (is_active = true AND (expires_at IS NULL OR expires_at > now()));
+
+-- Manage policy: Admins manage all promocodes
+DROP POLICY IF EXISTS "Admins manage promo codes" ON public.promo_codes;
+CREATE POLICY "Admins manage promo codes" ON public.promo_codes
+    FOR ALL USING (public.is_admin(auth.uid()));
+
+-- Link transactions table to promocodes
+ALTER TABLE public.payment_transactions 
+ADD COLUMN IF NOT EXISTS promo_code TEXT REFERENCES public.promo_codes(code) ON DELETE SET NULL;
+
+-- Reload PostgREST schema cache
+NOTIFY pgrst, 'reload schema';
+```
+

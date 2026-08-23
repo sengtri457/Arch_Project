@@ -19,12 +19,13 @@ const USE_LOCAL_MEDIA = process.env.NEXT_PUBLIC_USE_LOCAL_MEDIA === 'true'
  */
 export function getClassNameAsString(element: Element | null): string {
   if (!element) return ''
-  if (typeof element.className === 'string') {
-    return element.className
+  const className = element.className as any
+  if (typeof className === 'string') {
+    return className
   }
-  // If it's a DOMTokenList, convert to string
-  if (element.className && typeof element.className.toString === 'function') {
-    return element.className.toString()
+  // If it's a DOMTokenList or SVGAnimatedString, convert to string
+  if (className && typeof className.toString === 'function') {
+    return className.toString()
   }
   return ''
 }

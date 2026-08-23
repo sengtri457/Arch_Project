@@ -108,13 +108,7 @@ export const db = {
     try {
       let query = supabase
         .from('projects')
-        .select(`
-          *,
-          project_gallery(image_url, gallery_type),
-          project_details(software, features, challenges, solutions, client, scope, duration, area, bedrooms, bathrooms, floors),
-          project_videos(video_url),
-          project_testimonials(quote, author, role)
-        `)
+        .select('*')
         .eq('is_published', true)
 
       if (filters?.category && filters.category !== 'All') {
@@ -132,7 +126,51 @@ export const db = {
       if (error) throw error
       if (!data || data.length === 0) return mockProjects
 
-      return data.map(mapDbProjectToFrontend)
+      return data.map((dbProj: any) => {
+        const galleryUrls = Array.isArray(dbProj.gallery_images_json)
+          ? dbProj.gallery_images_json
+          : []
+
+        const gallery = {
+          exterior: galleryUrls,
+          interior: [] as string[],
+          details: [] as string[],
+          aerial: [] as string[]
+        }
+
+        const software = dbProj.software_used 
+          ? dbProj.software_used.split(',').map((s: string) => s.trim())
+          : []
+
+        return {
+          id: dbProj.slug,
+          project_id: dbProj.project_id,
+          title: dbProj.title,
+          category: dbProj.category || "Exterior",
+          description: dbProj.description || "",
+          image: dbProj.cover_image_url || "/placeholder.jpg",
+          year: dbProj.year || "2026",
+          location: dbProj.location || "Online",
+          price: dbProj.price || 0,
+          details: {
+            client: dbProj.client || "ArchViz Client",
+            scope: dbProj.scope || "Visualization",
+            software: software,
+            duration: "4 weeks",
+            area: undefined,
+            bedrooms: undefined,
+            bathrooms: undefined,
+            floors: undefined,
+            features: [],
+            challenges: [],
+            solutions: []
+          },
+          images: galleryUrls,
+          gallery,
+          videos: undefined,
+          testimonials: undefined
+        }
+      })
     } catch (err) {
       console.warn("Failed to fetch projects from Supabase, falling back to mock data:", err)
       return mockProjects
@@ -143,13 +181,7 @@ export const db = {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select(`
-          *,
-          project_gallery(image_url, gallery_type),
-          project_details(software, features, challenges, solutions, client, scope, duration, area, bedrooms, bathrooms, floors),
-          project_videos(video_url),
-          project_testimonials(quote, author, role)
-        `)
+        .select('*')
         .eq('slug', slug)
         .eq('is_published', true)
         .single()
@@ -157,7 +189,49 @@ export const db = {
       if (error) throw error
       if (!data) return mockProjects.find(p => p.id === slug) || null
 
-      return mapDbProjectToFrontend(data)
+      const galleryUrls = Array.isArray(data.gallery_images_json)
+        ? data.gallery_images_json
+        : []
+
+      const gallery = {
+        exterior: galleryUrls,
+        interior: [] as string[],
+        details: [] as string[],
+        aerial: [] as string[]
+      }
+
+      const software = data.software_used 
+        ? data.software_used.split(',').map((s: string) => s.trim())
+        : []
+
+      return {
+        id: data.slug,
+        project_id: data.project_id,
+        title: data.title,
+        category: data.category || "Exterior",
+        description: data.description || "",
+        image: data.cover_image_url || "/placeholder.jpg",
+        year: data.year || "2026",
+        location: data.location || "Online",
+        price: data.price || 0,
+        details: {
+          client: data.client || "ArchViz Client",
+          scope: data.scope || "Visualization",
+          software: software,
+          duration: "4 weeks",
+          area: undefined,
+          bedrooms: undefined,
+          bathrooms: undefined,
+          floors: undefined,
+          features: [],
+          challenges: [],
+          solutions: []
+        },
+        images: galleryUrls,
+        gallery,
+        videos: undefined,
+        testimonials: undefined
+      }
     } catch (err) {
       console.warn(`Failed to fetch project ${slug} from Supabase, falling back to mock data:`, err)
       return mockProjects.find(p => p.id === slug) || null
@@ -261,7 +335,7 @@ export const db = {
     try {
       const { data, error } = await supabase
         .from('lessons')
-        .select('*')
+        .select('lesson_id, course_id, title, duration_minutes, order_index, is_preview')
         .eq('course_id', courseId)
         .order('order_index', { ascending: true })
 
@@ -272,7 +346,7 @@ export const db = {
         lesson_id: l.lesson_id,
         course_id: l.course_id,
         title: l.title,
-        video_url: l.video_external_id,
+        video_url: null as string | null,
         duration: l.duration_minutes * 60, // Convert minutes to seconds for player
         is_preview: l.is_preview,
         order_index: l.order_index
@@ -332,10 +406,13 @@ export const db = {
 
   async checkCourseAccess(supabase: SupabaseClient, userId: string, courseId: string): Promise<boolean> {
     try {
-      // 0. Check if user belongs to bypass student list (for testing functionality before payments)
+      // 0. Check if user belongs to bypass list (configured via NEXT_PUBLIC_BYPASS_EMAILS, for testing only)
       const { data: { user } } = await supabase.auth.getUser()
-      const bypassEmails = ['sengtri457@gmail.com', 'sengktri@gmail.com', 'test-student@example.com']
-      if (user && bypassEmails.includes(user.email || '')) {
+      const bypassEmails = (process.env.NEXT_PUBLIC_BYPASS_EMAILS || '')
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean)
+      if (user && user.email && bypassEmails.includes(user.email.toLowerCase())) {
         // Automatically ensure they are enrolled in the course so database RLS doesn't block queries!
         try {
           const { data: existing } = await supabase
@@ -406,13 +483,16 @@ export const db = {
       if (requiredPlanId !== null && requiredPlanId !== undefined) {
         const { data: subscription } = await supabase
           .from('user_subscriptions')
-          .select('plan_id')
+          .select('plan_id, current_period_end')
           .eq('user_id', userId)
           .eq('status', 'active')
           .maybeSingle()
 
         if (subscription) {
-          // Hierarchical access: e.g. Mentorship (3) can access Student Pro (2) courses
+          const isExpired =
+            !subscription.current_period_end ||
+            new Date(subscription.current_period_end) <= new Date()
+          if (isExpired) return false
           return subscription.plan_id >= requiredPlanId
         }
       }

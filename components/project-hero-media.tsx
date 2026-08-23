@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Project } from "@/lib/types"
+import { Project } from "@/lib/projects-data"
 import { getMediaUrl } from "@/lib/utils"
 
 interface ProjectHeroMediaProps {

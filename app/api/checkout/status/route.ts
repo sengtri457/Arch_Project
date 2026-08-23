@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getClientIp, rateLimit } from '@/lib/rate-limit'
 
 export async function GET(request: Request) {
   try {
+    const limiter = rateLimit(`checkout-status:${getClientIp(request)}`, 30, 60_000)
+    if (!limiter.ok) {
+      return NextResponse.json(
+        { error: 'Too many status checks. Please wait a moment.' },
+        { status: 429, headers: { 'Retry-After': String(limiter.retryAfter) } }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const billNumber = searchParams.get('billNumber')
 
@@ -131,6 +140,22 @@ export async function GET(request: Request) {
         .from('profiles')
         .update({ role: 'student' })
         .eq('id', transaction.user_id)
+
+      // E. Increment promo code redemptions count if used
+      if (transaction.promo_code) {
+        const { data: promoData } = await supabaseAdmin
+          .from('promo_codes')
+          .select('redemptions_count')
+          .eq('code', transaction.promo_code)
+          .single()
+
+        if (promoData) {
+          await supabaseAdmin
+            .from('promo_codes')
+            .update({ redemptions_count: (promoData.redemptions_count || 0) + 1 })
+            .eq('code', transaction.promo_code)
+        }
+      }
 
       return NextResponse.json({ success: true, status: 'completed' })
     }
