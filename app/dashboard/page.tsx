@@ -10,7 +10,7 @@ import { Course } from "@/lib/courses-data"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { BookOpen, Award, Download, Clock, LogOut, Loader2, Sparkles } from "lucide-react"
+import { BookOpen, Award, Download, Clock, LogOut, Loader2, Sparkles, Settings } from "lucide-react"
 
 export default function StudentDashboard() {
   const { user, profile, loading, signOut } = useAuth()
@@ -22,6 +22,7 @@ export default function StudentDashboard() {
   const [subscriptionName, setSubscriptionName] = useState<string>("Free Student")
   const [watchHours, setWatchHours] = useState<number>(0)
   const [certificates, setCertificates] = useState<any[]>([])
+  const [labProgress, setLabProgress] = useState<Record<string, { graded: number; required: number }>>({})
   const router = useRouter()
 
   useEffect(() => {
@@ -91,6 +92,36 @@ export default function StudentDashboard() {
           })
         }
         setCourseProgress(progressMap)
+
+        // Lab verification counts per enrolled course (certificate gate)
+        try {
+          const enrolledCourseIds = enrolledCourses.map(c => c.course_id || c.id).filter(Boolean) as string[]
+          const lessonIds = (allLessons || []).filter(l => enrolledCourseIds.includes(l.course_id)).map(l => l.lesson_id)
+
+          if (lessonIds.length > 0) {
+            const [exRes, subRes] = await Promise.all([
+              supabase.from('exercises').select('exercise_id, lesson_id').in('lesson_id', lessonIds),
+              supabase.from('exercise_submissions').select('exercise_id').eq('student_id', userId).eq('status', 'graded')
+            ])
+            const gradedSet = new Set((subRes.data || []).map(s => s.exercise_id))
+            const lessonToCourse: Record<string, string> = {}
+            ;(allLessons || []).forEach(l => { lessonToCourse[l.lesson_id] = l.course_id })
+            const acc: Record<string, { graded: number; required: number }> = {}
+            enrolledCourseIds.forEach(id => { acc[id] = { graded: 0, required: 0 } })
+            ;(exRes.data || []).forEach(ex => {
+              const cid = lessonToCourse[ex.lesson_id]
+              if (cid && acc[cid]) {
+                acc[cid].required += 1
+                if (gradedSet.has(ex.exercise_id)) acc[cid].graded += 1
+              }
+            })
+            setLabProgress(acc)
+          } else {
+            setLabProgress({})
+          }
+        } catch (labErr) {
+          console.error("Failed to load lab progress:", labErr)
+        }
 
         // 5. Fetch graded submissions to calculate student's overall average grade
         const { data: gradedSubs } = await supabase
@@ -225,14 +256,23 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          <Button
-            onClick={handleLogout}
-            variant="ghost"
-            className="text-red-400 hover:text-red-300 hover:bg-red-950/20 border border-red-950/40 rounded-xl px-5"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link
+              href="/account"
+              className="inline-flex items-center justify-center gap-2 text-zinc-300 hover:text-white border border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 rounded-xl px-5 py-2.5 text-sm font-medium transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+              Account Settings
+            </Link>
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              className="text-red-400 hover:text-red-300 hover:bg-red-950/20 border border-red-950/40 rounded-xl px-5"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
 
         {/* Quick Stats Grid */}
@@ -320,11 +360,30 @@ export default function StudentDashboard() {
                             </div>
                             <span className="text-xs font-medium text-zinc-300">{percent}%</span>
                           </div>
+
+                          {(() => {
+                            const labs = labProgress[course.course_id || course.id]
+                            if (!labs || labs.required === 0) return null
+                            const verified = labs.graded >= labs.required
+                            return (
+                              <div
+                                className={`mt-2 inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                                  verified
+                                    ? "border-[#9ACD32]/40 bg-[#9ACD32]/10"
+                                    : "border-zinc-800 bg-zinc-900/60"
+                                }`}
+                                style={{ color: verified ? '#9ACD32' : '#a1a1aa' }}
+                              >
+                                Labs verified {labs.graded}/{labs.required}
+                                {!verified && " - grading pending"}
+                              </div>
+                            )
+                          })()}
                         </div>
                       </div>
 
                       <div className="flex-shrink-0 w-full md:w-auto text-right">
-                        <Link href={`/courses/${course.id}/start`}>
+                        <Link href={`/courses/${course.id}`}>
                           <Button className="w-full md:w-auto bg-primary text-primary-foreground hover:bg-primary/95 text-sm font-semibold rounded-lg px-6 py-5" style={{ backgroundColor: '#9ACD32', color: '#000' }}>
                             Resume
                           </Button>

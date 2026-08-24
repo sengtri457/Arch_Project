@@ -165,7 +165,7 @@ export default function CoursesPage() {
 
                       {/* CTA Button */}
                       <Link
-                        href={`/courses/${course.id}/start`}
+                        href={`/courses/${course.id}`}
                         className="mt-6 w-full inline-flex items-center justify-center px-6 py-3 text-white font-semibold rounded-lg transition-all group"
                         style={{ backgroundColor: isUnlocked ? '#2e7d32' : '#9ACD32' }}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = isUnlocked ? '#1b5e20' : '#8fbc2f'}

@@ -513,9 +513,11 @@ export const db = {
         .from('exercises')
         .select('*')
         .eq('lesson_id', lessonId)
-        .single()
+        .order('exercise_id')
+        .limit(1)
+        .maybeSingle()
 
-      if (error && error.code !== 'PGRST116') throw error
+      if (error) throw error
       return data || null
     } catch (err) {
       console.warn(`Failed to fetch exercise for lesson ${lessonId}:`, err)

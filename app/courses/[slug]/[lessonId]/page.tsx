@@ -24,7 +24,8 @@ import {
   BookOpen,
   Send,
   Award,
-  ArrowRight
+  ArrowRight,
+  RotateCcw
 } from "lucide-react"
 
 interface LessonPageProps {
@@ -49,10 +50,12 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const [showCertModal, setShowCertModal] = useState(false)
   const [generatedCertId, setGeneratedCertId] = useState<string | null>(null)
   const [generatingCert, setGeneratingCert] = useState(false)
+  const [certBlock, setCertBlock] = useState<{ labsGraded: number; labsRequired: number } | null>(null)
 
   // Heartbeat progress locks
   const lastLoggedTime = useRef<number>(0)
   const isUpdatingProgress = useRef<boolean>(false)
+  const autoCertAttempted = useRef<boolean>(false)
 
   // Exercise States
   const [exercise, setExercise] = useState<any | null>(null)
@@ -127,6 +130,22 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
 
         if (certData) {
           setGeneratedCertId(certData.certificate_id)
+          return
+        }
+
+        // 6. All videos already watched and no certificate yet? Re-check
+        //    eligibility so the certificate auto-issues once the instructor
+        //    has graded the final lab.
+        const allWatched =
+          courseLessons.length > 0 &&
+          courseLessons.every(
+            (lesson) => (progressRecords || []).some((p) => p.lesson_id === lesson.lesson_id && p.is_completed)
+          )
+
+        if (allWatched && !autoCertAttempted.current) {
+          autoCertAttempted.current = true
+          const courseId = activeCourse.course_id || activeCourse.id
+          setTimeout(() => triggerCertGeneration(courseId), 600)
         }
       } catch (err) {
         console.error("Error loading classroom:", err)
@@ -238,17 +257,24 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     try {
       setGeneratingCert(true)
       setShowCertModal(true)
-      
+      setCertBlock(null)
+
       const res = await fetch("/api/certificates/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ courseId: cId })
       })
-      
+
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.certificateId) {
           setGeneratedCertId(data.certificateId)
+          setCertBlock(null)
+        }
+      } else {
+        const errData = await res.json().catch(() => null)
+        if (errData && typeof errData.labsGraded === "number" && typeof errData.labsRequired === "number") {
+          setCertBlock({ labsGraded: errData.labsGraded, labsRequired: errData.labsRequired })
         }
       }
     } catch (err) {
@@ -413,30 +439,32 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
       let activeExerciseId = exercise?.exercise_id
       console.log("handleTelegramSubmit: Existing exercise ID found in state:", activeExerciseId)
 
-      // Autorescue: If no exercise row exists, create one
+      // Autorescue: If no exercise row exists, obtain it through the secure RPC
       if (!activeExerciseId) {
         console.log("handleTelegramSubmit: No exercise found. Triggering database auto-creation...")
-        const { data: newExercise, error: exerciseError } = await supabase
-          .from("exercises")
-          .insert({
-            lesson_id: activeLessonId,
-            title: `Practice Task for ${currentLesson.title}`,
-            brief_prompt: "Recreate the rendering setup shown in the visualization video and submit your workspace or output render image link.",
-            max_score: 100
-          })
-          .select()
-          .single()
+        const { data: ensuredExercise, error: exerciseError } = await supabase.rpc("ensure_lesson_exercise", {
+          p_lesson_id: activeLessonId,
+          p_title: `Practice Task for ${currentLesson.title}`
+        })
 
         if (exerciseError) {
-          console.error("handleTelegramSubmit: Database error during auto-creating exercise row:", exerciseError)
-          throw exerciseError
+          console.error(
+            "handleTelegramSubmit: Database error during auto-creating exercise row:",
+            exerciseError.code,
+            "|",
+            exerciseError.message,
+            "|",
+            exerciseError.details
+          )
+          throw new Error(exerciseError.message)
         }
-        activeExerciseId = newExercise.exercise_id
-        setExercise(newExercise)
+        activeExerciseId = (ensuredExercise as any).exercise_id
+        setExercise(ensuredExercise as any)
       }
 
       // Record in database as Telegram submission
-      const payloadFiles = [{ url: "Submitted via Telegram", notes: "Large files submitted directly via Telegram message." }]
+      const telegramChatUrl = "https://t.me/sxngtri"
+      const payloadFiles = [{ url: telegramChatUrl, notes: "Large files submitted directly via Telegram message." }]
       console.log("handleTelegramSubmit: Inserting submission into DB for exercise ID:", activeExerciseId, "payload:", payloadFiles)
       
       const result = await db.submitExercise(supabase, {
@@ -461,7 +489,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
           `Lesson Module: ${lessonTitle}\n\n` +
           `Hi Instructor! Here are my render files and source documents for review:`;
           
-        const telegramLink = `https://t.me/sxngtri?text=${encodeURIComponent(messageText)}`
+        const telegramLink = `${telegramChatUrl}?text=${encodeURIComponent(messageText)}`
         window.open(telegramLink, "_blank")
         console.log("handleTelegramSubmit: Submission created. Redirecting to Telegram:", telegramLink)
       } else {
@@ -669,6 +697,22 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
                       </div>
                     </div>
                   </div>
+                ) : submissionStatus === "revision_requested" ? (
+                  <div className="p-4 bg-orange-950/10 border border-orange-900/30 rounded-xl space-y-2.5">
+                    <div className="flex items-center gap-2 text-orange-400 font-semibold text-sm">
+                      <RotateCcw className="w-5 h-5" />
+                      Revision Requested
+                    </div>
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      The instructor reviewed your submission and asked for changes before it can be graded.
+                    </p>
+                    {submissionFeedback && (
+                      <p className="text-xs text-orange-300/90 italic bg-zinc-950/40 border border-orange-900/20 rounded-lg p-3">
+                        "{submissionFeedback}"
+                      </p>
+                    )}
+                    <p className="text-[11px] text-zinc-500">Update your work and resubmit below.</p>
+                  </div>
                 ) : submissionStatus === "submitted" || submissionStatus === "in_review" ? (
                   <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-center space-y-2">
                     <CheckCircle className="w-8 h-8 text-primary mx-auto" style={{ color: '#9ACD32' }} />
@@ -677,9 +721,16 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
                       Your work has been submitted successfully and is currently under review by the instructor.
                     </p>
                   </div>
-                ) : (
+                ) : null}
+
+                {(submissionStatus === null || submissionStatus === "revision_requested") && (
                   <>
                     <form onSubmit={handleSubmission} className="space-y-3.5">
+                      {submissionStatus === "revision_requested" && (
+                        <p className="text-xs text-orange-400 font-semibold">
+                          Resubmit your updated work below:
+                        </p>
+                      )}
                       <p className="text-xs text-zinc-400 leading-relaxed">
                         Recreate the lighting and material setups from this lesson. Upload your render outputs to Google Drive, Dropbox, or OneDrive, and paste the public link below for review:
                       </p>
@@ -804,10 +855,39 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
               <Award className="w-10 h-10 animate-bounce" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-3xl font-extrabold text-white">Course Completed!</h2>
-              <p className="text-zinc-400 text-sm leading-relaxed">
-                Congratulations! You have completed all lesson modules in **{course?.title || "this course"}**. Your certification has been successfully generated.
-              </p>
+              <h2 className="text-3xl font-extrabold text-white">
+                {certBlock ? "Almost There!" : "Course Completed!"}
+              </h2>
+              {certBlock ? (
+                <div className="text-zinc-400 text-sm leading-relaxed space-y-3">
+                  <p>All videos in **{course?.title || "this course"}** are watched. Your certificate unlocks once the instructor verifies your labs:</p>
+                  {certBlock.labsRequired === 0 ? (
+                    <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800 text-left text-xs text-amber-400">
+                      This course has no labs attached yet. Please contact your instructor - certificates require at least one graded lab.
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800 text-left">
+                      <div className="flex items-center justify-between text-xs font-semibold mb-2">
+                        <span className="text-zinc-300">Labs verified by instructor</span>
+                        <span style={{ color: '#9ACD32' }}>{certBlock.labsGraded} / {certBlock.labsRequired}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, Math.round((certBlock.labsGraded / certBlock.labsRequired) * 100))}%`, backgroundColor: '#9ACD32' }}
+                        />
+                      </div>
+                      <p className="mt-3 text-[11px] text-zinc-500 leading-relaxed">
+                        Submit every lab below its lesson, then wait for instructor grading. Reopen this course after grading to claim your certificate automatically.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  Congratulations! You have completed all lesson modules and verified labs in **{course?.title || "this course"}**. Your certification has been successfully generated.
+                </p>
+              )}
             </div>
             
             <div className="space-y-3 pt-2">

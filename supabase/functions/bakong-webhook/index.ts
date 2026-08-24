@@ -241,6 +241,49 @@ serve(async (req) => {
           }
         }
       }
+
+      // Send payment confirmation email via Resend
+      try {
+        const resendKey = Deno.env.get("RESEND_API_KEY");
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(
+          dbTx.user_id,
+        );
+        const to = userData?.user?.email ?? null;
+        const origin = Deno.env.get("SITE_URL") || "";
+
+        let itemName = "Your purchase";
+        let cta = origin ? `${origin}/dashboard` : "";
+        if (dbTx.course_id) {
+          itemName = "Course enrollment";
+        } else if (dbTx.plan_id) {
+          itemName = "Subscription plan";
+        }
+
+        if (resendKey && to) {
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${resendKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from:
+                Deno.env.get("EMAIL_FROM") ||
+                "Archtipsbox <onboarding@resend.dev>",
+              to: [to],
+              subject: `Payment confirmed - ${itemName}`,
+              html: `<div style="font-family:sans-serif;padding:24px;background:#09090b;color:#e4e4e7;border-radius:12px;">
+                <h2 style="color:#9ACD32;margin-top:0;">ARCHTIPSBOX</h2>
+                <p>Payment confirmed for <strong>${itemName}</strong> ($${Number(dbTx.amount).toFixed(2)} USD).</p>
+                <p>Reference: <code>${billNumber}</code></p>
+                ${cta ? `<a href="${cta}" style="background:#9ACD32;color:#000;font-weight:bold;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">Open my dashboard</a>` : ""}
+              </div>`,
+            }),
+          });
+        }
+      } catch (emailErr) {
+        console.error(`Warning: Receipt email failed:`, emailErr);
+      }
     }
 
     return new Response(

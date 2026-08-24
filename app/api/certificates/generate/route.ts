@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { sendEmail, certificateIssuedEmail } from '@/lib/email'
 
 export async function POST(request: Request) {
   try {
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
           getAll() {
             return cookieStore.getAll()
           },
-          setAll(cookiesToSet) {
+          setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
             try {
               cookiesToSet.forEach(({ name, value, options }) =>
                 cookieStore.set(name, value, options)
@@ -90,6 +91,45 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
+    // Validate lab requirement: every exercise in the course must have an
+    // instructor-graded submission before a certificate can be issued.
+    const lessonIds = (lessons || []).map((l: any) => l.lesson_id)
+
+    const { data: courseExercises } = lessonIds.length > 0
+      ? await supabaseAdmin
+          .from('exercises')
+          .select('exercise_id')
+          .in('lesson_id', lessonIds)
+      : { data: null }
+
+    const exerciseIds = (courseExercises || []).map((e: any) => e.exercise_id)
+    const labsRequired = exerciseIds.length
+
+    if (labsRequired === 0) {
+      return NextResponse.json({
+        error: 'This course does not include any graded labs yet. Certificates require at least one instructor-verified lab.',
+        labsRequired: 0,
+        labsGraded: 0
+      }, { status: 400 })
+    }
+
+    const { data: gradedSubmissions } = await supabaseAdmin
+      .from('exercise_submissions')
+      .select('exercise_id')
+      .eq('student_id', user.id)
+      .in('exercise_id', exerciseIds)
+      .eq('status', 'graded')
+
+    const labsGraded = new Set((gradedSubmissions || []).map((s: any) => s.exercise_id)).size
+
+    if (labsGraded < labsRequired) {
+      return NextResponse.json({
+        error: `Instructor verification pending. Labs verified ${labsGraded}/${labsRequired}.`,
+        labsRequired,
+        labsGraded
+      }, { status: 400 })
+    }
+
     // 6. Check if certificate already exists
     const { data: existingCert } = await supabaseAdmin
       .from('certificates')
@@ -124,6 +164,27 @@ export async function POST(request: Request) {
     }
 
     console.log(`Successfully generated certificate ${newCert.certificate_id} for student ${user.id}`)
+
+    try {
+      const { data: course } = await supabaseAdmin
+        .from('courses')
+        .select('title')
+        .eq('course_id', courseId)
+        .single()
+
+      const origin = new URL(request.url).origin
+      await sendEmail({
+        to: user.email!,
+        subject: `Certificate unlocked - ${course?.title || 'Course completed'}`,
+        html: certificateIssuedEmail({
+          courseTitle: course?.title || 'your masterclass',
+          certificateUrl: `${origin}/certificates/${newCert.certificate_id}`
+        })
+      })
+    } catch (emailErr) {
+      console.error('Certificate email failed:', emailErr)
+    }
+
     return NextResponse.json({ success: true, certificateId: newCert.certificate_id, isNew: true })
 
   } catch (err: any) {

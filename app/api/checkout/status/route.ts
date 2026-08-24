@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getClientIp, rateLimit } from '@/lib/rate-limit'
+import { sendEmail, paymentReceiptEmail } from '@/lib/email'
 
 export async function GET(request: Request) {
   try {
@@ -155,6 +156,51 @@ export async function GET(request: Request) {
             .update({ redemptions_count: (promoData.redemptions_count || 0) + 1 })
             .eq('code', transaction.promo_code)
         }
+      }
+
+      // F. Send receipt + access email
+      try {
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(transaction.user_id)
+        const userEmail = userData?.user?.email ?? null
+
+        const origin = new URL(request.url).origin
+        let itemName = 'Your purchase'
+        let ctaUrl = `${origin}/dashboard`
+        let ctaLabel = 'Go to my dashboard'
+
+        if (transaction.course_id) {
+          const { data: course } = await supabaseAdmin
+            .from('courses')
+            .select('title, slug')
+            .eq('course_id', transaction.course_id)
+            .single()
+          itemName = course?.title || 'Course enrollment'
+          ctaUrl = course?.slug ? `${origin}/courses/${course.slug}` : ctaUrl
+          ctaLabel = 'Start learning now'
+        } else if (transaction.plan_id) {
+          const { data: plan } = await supabaseAdmin
+            .from('subscription_plans')
+            .select('name')
+            .eq('plan_id', transaction.plan_id)
+            .single()
+          itemName = `${plan?.name || 'Subscription'} plan`
+        }
+
+        if (userEmail) {
+          await sendEmail({
+            to: userEmail,
+            subject: `Payment confirmed - ${itemName}`,
+            html: paymentReceiptEmail({
+              itemName,
+              amount: Number(transaction.amount),
+              billNumber: billNumber,
+              ctaUrl,
+              ctaLabel
+            })
+          })
+        }
+      } catch (emailErr) {
+        console.error('Receipt email failed:', emailErr)
       }
 
       return NextResponse.json({ success: true, status: 'completed' })

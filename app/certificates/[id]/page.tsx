@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { Button } from "@/components/ui/button"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
-import { Award, Printer, ArrowLeft, ShieldCheck } from "lucide-react"
+import { PrintCertificateButton } from "@/components/print-certificate-button"
+import { Award, ArrowLeft, ShieldCheck } from "lucide-react"
 import { notFound } from 'next/navigation'
 
 interface CertificatePageProps {
@@ -33,7 +34,8 @@ export default async function CertificateDetailPage({ params }: CertificatePageP
       certificate_id,
       certificate_number,
       issued_at,
-      profiles:student_id(full_name, email),
+      student_id,
+      profiles:student_id(full_name),
       courses:course_id(title, slug)
     `)
     .eq('certificate_id', id)
@@ -54,6 +56,7 @@ export default async function CertificateDetailPage({ params }: CertificatePageP
 
   return (
     <main className="min-h-screen flex flex-col justify-between bg-zinc-950 text-white relative" style={{ backgroundColor: '#060010' }}>
+      <style dangerouslySetInnerHTML={{ __html: "@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4 landscape;margin:0}}" }} />
       {/* Navigation header hidden during printing */}
       <div className="print:hidden">
         <Navigation />
@@ -70,18 +73,7 @@ export default async function CertificateDetailPage({ params }: CertificatePageP
             </Button>
           </Link>
           
-          <Button 
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                window.print()
-              }
-            }}
-            className="bg-[#9ACD32] hover:bg-[#9ACD32]/90 text-black font-bold flex items-center gap-1.5 text-xs py-5 px-5"
-            style={{ backgroundColor: '#9ACD32', color: '#000' }}
-          >
-            <Printer className="w-4 h-4" />
-            Print / Save PDF
-          </Button>
+          <PrintCertificateButton />
         </div>
 
         {/* Certificate Paper Frame */}

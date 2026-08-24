@@ -78,9 +78,18 @@ export function SecureVideoPlayer({
 
       const hls = new Hls({ capLevelToPlayerSize: true })
       instance = hls
+      let loggedMinorIssue = false
       hls.loadSource(videoUrl)
       hls.attachMedia(video)
       hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (!data.fatal) {
+          if (!loggedMinorIssue) {
+            loggedMinorIssue = true
+            console.warn("[HLS minor]", String(data.details), "- recovered automatically")
+          }
+          return
+        }
+
         console.error(
           '[HLS error]',
           String(data.type),

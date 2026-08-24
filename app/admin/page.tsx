@@ -10,6 +10,7 @@ import { Course } from "@/lib/courses-data"
 import { Project } from "@/lib/projects-data"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { 
   Users, 
   BookOpen, 
@@ -29,7 +30,8 @@ import {
   Tag,
   BarChart3,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from "lucide-react"
 import {
   BarChart,
@@ -47,17 +49,27 @@ import {
   Cell
 } from "recharts"
 
-type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos"
+type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "users"
 
 export default function AdminDashboard() {
   const { user, profile, loading, signOut } = useAuth()
   const [activeTab, setActiveTab] = useState<AdminTab>("overview")
+
+  useEffect(() => {
+    const tabParam = new URLSearchParams(window.location.search).get("tab")
+    const validTabs: AdminTab[] = ["overview", "analytics", "courses", "projects", "submissions", "crm", "plans", "promos", "inquiries", "users"]
+    if (tabParam && validTabs.includes(tabParam as AdminTab)) {
+      setActiveTab(tabParam as AdminTab)
+    }
+  }, [])
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false)
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [courses, setCourses] = useState<Course[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [messages, setMessages] = useState<any[]>([])
   const [submissions, setSubmissions] = useState<any[]>([])
+  const [submissionFilter, setSubmissionFilter] = useState<"pending" | "graded" | "all">("pending")
+  const [submissionSearch, setSubmissionSearch] = useState("")
   const [enrollments, setEnrollments] = useState<any[]>([])
   const [progressLogs, setProgressLogs] = useState<any[]>([])
   const [lessons, setLessons] = useState<any[]>([])
@@ -246,6 +258,16 @@ export default function AdminDashboard() {
     }
     loadAdminData()
   }, [user, profile])
+
+  // Filtered submissions for the Submissions tab
+  const filteredSubmissions = submissions.filter((sub: any) => {
+    if (submissionFilter === "pending" && sub.status === "graded") return false
+    if (submissionFilter === "graded" && sub.status !== "graded") return false
+    const name = (sub.profiles?.full_name || "").toLowerCase()
+    const q = submissionSearch.trim().toLowerCase()
+    if (q && !name.includes(q)) return false
+    return true
+  })
 
   // Promoting a user role to Admin or Instructor
   const handleUpdateRole = async (targetUserId: string, newRole: 'student' | 'instructor' | 'admin') => {
@@ -662,8 +684,21 @@ export default function AdminDashboard() {
               Code-free course creation, student enrollment CRM, and project showcase management.
             </p>
           </div>
-          <div className="text-sm bg-zinc-900 border border-zinc-850 px-4 py-2 rounded-lg text-zinc-300">
-            Welcome, <span className="font-semibold text-white">{profile.full_name}</span>
+          <div className="flex items-center gap-3">
+            <div className="text-sm bg-zinc-900 border border-zinc-850 px-4 py-2 rounded-lg text-zinc-300">
+              Welcome, <span className="font-semibold text-white">{profile.full_name}</span>
+            </div>
+            <Button
+              onClick={async () => {
+                await signOut()
+                router.push('/')
+              }}
+              variant="ghost"
+              className="text-red-400 hover:text-red-300 hover:bg-red-950/20 border border-red-950/40 rounded-lg px-4"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
           </div>
         </div>
 
@@ -845,6 +880,19 @@ export default function AdminDashboard() {
                       {messages.length}
                     </span>
                   )}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("users")}
+                  title="User Management"
+                  className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
+                    activeTab === "users"
+                      ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10"
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  {!sidebarCollapsed && <span>Users</span>}
                 </button>
               </div>
             </div>
@@ -1157,6 +1205,54 @@ export default function AdminDashboard() {
                 )}
 
                 {/* 3. COURSES BUILDER TAB */}
+                {activeTab === "users" && (
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">User Management</h2>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        {profiles.length} registered profiles. Changing a role takes effect on their next page load.
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-zinc-850 overflow-hidden divide-y divide-zinc-850">
+                      {profiles.map((p) => (
+                        <div key={p.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-950 border border-zinc-800 flex items-center justify-center shrink-0">
+                              {p.avatar_url ? (
+                                <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xs font-bold text-zinc-500">{(p.full_name || "?").charAt(0).toUpperCase()}</span>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-semibold text-white truncate">{p.full_name || "Unnamed user"}</h4>
+                              <p className="text-[11px] text-zinc-500 truncate">{(p as any).email || p.id}</p>
+                            </div>
+                          </div>
+
+                          <select
+                            value={p.role}
+                            onChange={(e) => handleUpdateRole(p.id, e.target.value as 'student' | 'instructor' | 'admin')}
+                            disabled={p.id === user?.id}
+                            className={`bg-zinc-950 border rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none shrink-0 ${
+                              p.role === "admin"
+                                ? "border-red-900/50 text-red-400"
+                                : p.role === "instructor"
+                                  ? "border-blue-900/50 text-blue-400"
+                                  : "border-zinc-800 text-zinc-400"
+                            } ${p.id === user?.id ? "opacity-50 cursor-not-allowed" : ""}`}
+                          >
+                            <option value="student">student</option>
+                            <option value="instructor">instructor</option>
+                            <option value="admin">admin</option>
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {activeTab === "courses" && (
                   <div className="space-y-6">
                     <div className="flex justify-between items-center">
@@ -1332,34 +1428,67 @@ export default function AdminDashboard() {
                   <div className="space-y-6">
                     <div>
                       <h2 className="text-2xl font-bold text-white">Student Homework Submissions</h2>
-                      <p className="text-zinc-400 text-sm mt-1">Review student render workspace uploads, allocate scores, and submit comments.</p>
+                      <p className="text-zinc-400 text-sm mt-1">Review student render workspace uploads, allocate scores, and submit comments. Open a submission for full context, attempt history, and grading.</p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {[
+                          { key: "pending", label: "Pending review" },
+                          { key: "graded", label: "Graded" },
+                          { key: "all", label: "All" }
+                        ].map(chip => (
+                          <button
+                            key={chip.key}
+                            onClick={() => setSubmissionFilter(chip.key as typeof submissionFilter)}
+                            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                              submissionFilter === chip.key
+                                ? "bg-[#9ACD32] text-black border-[#9ACD32]"
+                                : "border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700"
+                            }`}
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="text"
+                        value={submissionSearch}
+                        onChange={(e) => setSubmissionSearch(e.target.value)}
+                        placeholder="Search student name..."
+                        className="w-full sm:w-64 bg-zinc-950 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-700"
+                      />
                     </div>
 
                     {submissions.length === 0 ? (
                       <div className="text-center py-12 border border-dashed border-zinc-850 rounded-xl text-zinc-400">
                         No submissions recorded yet.
                       </div>
+                    ) : filteredSubmissions.length === 0 ? (
+                      <div className="text-center py-12 border border-dashed border-zinc-850 rounded-xl text-zinc-400">
+                        No submissions match this filter.
+                      </div>
                     ) : (
                       <div className="space-y-4">
-                        {submissions.map((sub: any) => {
+                        {filteredSubmissions.map((sub: any) => {
                           const files = Array.isArray(sub.submission_files_json) ? sub.submission_files_json : []
                           const fileObj = files[0] || {}
-                          
+
                           return (
                             <div key={sub.submission_id} className="bg-zinc-900/30 border border-zinc-850 p-5 rounded-xl space-y-4">
                               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-zinc-300">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-zinc-300 shrink-0">
                                     {sub.profiles?.full_name?.charAt(0).toUpperCase() || "S"}
                                   </div>
-                                  <div>
-                                    <h4 className="text-sm font-semibold text-white">{sub.profiles?.full_name || "Unknown Student"}</h4>
+                                  <div className="min-w-0">
+                                    <h4 className="text-sm font-semibold text-white truncate">{sub.profiles?.full_name || "Unknown Student"}</h4>
                                     <p className="text-xs text-zinc-500">{new Date(sub.submitted_at).toLocaleDateString()}</p>
                                   </div>
                                 </div>
                                 <span className={`px-2.5 py-1 text-xs font-semibold rounded-full uppercase border ${
-                                  sub.status === 'graded' 
-                                    ? 'bg-green-950/20 text-green-400 border-green-900/30' 
+                                  sub.status === 'graded'
+                                    ? 'bg-green-950/20 text-green-400 border-green-900/30'
                                     : 'bg-yellow-950/20 text-yellow-400 border-yellow-900/30'
                                 }`}>
                                   {sub.status}
@@ -1371,9 +1500,13 @@ export default function AdminDashboard() {
                                 <h3 className="text-sm text-white font-bold">{sub.exercises?.title || "Practice Task"}</h3>
                                 <div className="pt-2">
                                   <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Submitted Link:</p>
-                                  <a href={fileObj.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline break-all mt-1 inline-block" style={{ color: '#9ACD32' }}>
-                                    {fileObj.url || "No link provided"}
-                                  </a>
+                                  {fileObj.url && /^https?:\/\//i.test(String(fileObj.url)) ? (
+                                    <a href={String(fileObj.url)} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline break-all mt-1 inline-block" style={{ color: '#9ACD32' }}>
+                                      {fileObj.url}
+                                    </a>
+                                  ) : (
+                                    <span className="text-xs text-zinc-300 break-all mt-1 inline-block">{fileObj.url || "No link provided"}</span>
+                                  )}
                                 </div>
                                 {fileObj.notes && (
                                   <div className="pt-1">
@@ -1381,7 +1514,18 @@ export default function AdminDashboard() {
                                     <p className="text-xs text-zinc-300 italic mt-1 bg-zinc-900/20 p-2.5 rounded border border-zinc-850/40">{fileObj.notes}</p>
                                   </div>
                                 )}
+                                {files.length > 1 && (
+                                  <p className="text-[10px] text-zinc-500 pt-1">+{files.length - 1} more file(s) - open details to view all.</p>
+                                )}
                               </div>
+
+                              <div className="flex items-center justify-between gap-3">
+                                <Link href={`/admin/submissions/${sub.submission_id}`}>
+                                  <Button variant="outline" size="sm" className="border-[#9ACD32]/40 text-[#9ACD32] hover:bg-[#9ACD32]/10 rounded-lg text-xs font-semibold">
+                                    Open details
+                                    <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                                  </Button>
+                                </Link>
 
                               {/* Grading inputs */}
                               {sub.status !== 'graded' ? (
@@ -1430,6 +1574,7 @@ export default function AdminDashboard() {
                                   </div>
                                 </div>
                               )}
+                              </div>
 
                             </div>
                           )
