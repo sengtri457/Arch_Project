@@ -64,7 +64,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const [submissionFeedback, setSubmissionFeedback] = useState<string | null>(null)
 
   // Secure video delivery state
-  const [activeVideo, setActiveVideo] = useState<{ source: string; url: string } | null>(null)
+  const [activeVideo, setActiveVideo] = useState<{ source: string; format: 'hls' | 'direct'; url: string } | null>(null)
   const [loadingVideo, setLoadingVideo] = useState(false)
 
   // Redirect guests to login
@@ -151,7 +151,11 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
         if (res.ok) {
           const json = await res.json()
           if (!cancelled && json?.url) {
-            setActiveVideo({ source: json.source ?? 'direct', url: json.url })
+            setActiveVideo({
+              source: json.source ?? 'direct',
+              format: json.format === 'hls' ? 'hls' : 'direct',
+              url: json.url
+            })
           }
         }
       })
@@ -560,6 +564,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
         videoUrl={activeVideo.url}
         userEmail={user.email || "student@archtipsbox.com"}
         userId={user.id}
+        format={activeVideo.format}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleVideoEnded}
       />

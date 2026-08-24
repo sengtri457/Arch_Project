@@ -7,6 +7,7 @@ interface SecureVideoPlayerProps {
   videoUrl: string
   userEmail: string
   userId: string
+  format?: 'hls' | 'direct'
   onTimeUpdate?: (currentTime: number, duration: number) => void
   onEnded?: () => void
 }
@@ -15,6 +16,7 @@ export function SecureVideoPlayer({
   videoUrl,
   userEmail,
   userId,
+  format,
   onTimeUpdate,
   onEnded
 }: SecureVideoPlayerProps) {
@@ -29,6 +31,7 @@ export function SecureVideoPlayer({
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)
+  const [streamError, setStreamError] = useState<{ details: string; responseCode?: number } | null>(null)
 
   // Floating Watermark Position Loop
   useEffect(() => {
@@ -47,6 +50,75 @@ export function SecureVideoPlayer({
     const interval = setInterval(moveWatermark, 12000)
     return () => clearInterval(interval)
   }, [])
+
+  // HLS streams are attached imperatively via hls.js; direct files use the declarative src attribute
+  const isHlsStream = format === 'hls' && videoUrl.includes('.m3u8')
+
+  useEffect(() => {
+    if (!isHlsStream) return
+
+    const video = videoRef.current
+    if (!video || !videoUrl) return
+
+    setCurrentTime(0)
+    setDuration(0)
+    setStreamError(null)
+
+    let destroyed = false
+    let instance: { destroy: () => void } | null = null
+    let networkRetries = 0
+
+    import('hls.js').then(({ default: Hls }) => {
+      if (destroyed || !videoRef.current) return
+
+      if (!Hls.isSupported()) {
+        video.src = videoUrl
+        return
+      }
+
+      const hls = new Hls({ capLevelToPlayerSize: true })
+      instance = hls
+      hls.loadSource(videoUrl)
+      hls.attachMedia(video)
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        console.error(
+          '[HLS error]',
+          String(data.type),
+          '|',
+          String(data.details),
+          '| http:',
+          data.response?.code ?? 'n/a',
+          '| fatal:',
+          Boolean(data.fatal),
+          '|',
+          data.url || videoUrl
+        )
+
+        if (!data.fatal) return
+
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR && networkRetries < 3) {
+          networkRetries += 1
+          hls.startLoad()
+          return
+        }
+
+        setStreamError({
+          details: String(data.details ?? 'unknown'),
+          responseCode: data.response?.code
+        })
+        hls.destroy()
+        if (instance === hls) instance = null
+      })
+    })
+
+    return () => {
+      destroyed = true
+      if (instance) {
+        instance.destroy()
+        instance = null
+      }
+    }
+  }, [videoUrl, isHlsStream])
 
   // Video Time & Progress Updates
   const handleTimeUpdate = () => {
@@ -73,7 +145,13 @@ export function SecureVideoPlayer({
     } else {
       videoRef.current.play().then(() => {
         setIsPlaying(true)
-      }).catch(err => console.error("Error playing video:", err))
+      }).catch((err: DOMException) => {
+        if (err.name === 'AbortError') {
+          console.warn('Play request interrupted (benign):', err.message)
+          return
+        }
+        console.error("Error playing video:", err)
+      })
     }
   }
 
@@ -118,7 +196,7 @@ export function SecureVideoPlayer({
     <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden group border border-zinc-800">
       
       {/* 1. Dynamic Floating Anti-Piracy Watermark */}
-      <div 
+      <div
         className="absolute z-20 pointer-events-none select-none text-white/10 text-xs sm:text-sm font-semibold tracking-wider transition-all duration-1000 ease-in-out bg-black/20 backdrop-blur-[1px] px-3 py-1.5 rounded"
         style={{
           top: watermarkPos.top,
@@ -129,10 +207,18 @@ export function SecureVideoPlayer({
         {userEmail} ({userId.substring(0, 8)})
       </div>
 
+      {streamError && (
+        <div className="absolute inset-0 z-30 bg-black/90 flex flex-col items-center justify-center gap-2 text-center px-6">
+          <p className="text-sm font-semibold text-red-400">Playback stream failed</p>
+          <p className="text-xs text-zinc-300 font-mono">{streamError.details}{streamError.responseCode ? ` (HTTP ${streamError.responseCode})` : ''}</p>
+          <p className="text-xs text-zinc-500 max-w-md">403 = token/key mismatch or IP validation enabled · 404 = wrong video GUID or still encoding · no request = wrong BUNNY_STREAM_PULL_ZONE_HOST</p>
+        </div>
+      )}
+
       {/* 2. Video Player Element */}
       <video
         ref={videoRef}
-        src={videoUrl}
+        src={isHlsStream ? undefined : videoUrl}
         className="w-full h-full object-contain cursor-pointer"
         onClick={togglePlay}
         onTimeUpdate={handleTimeUpdate}

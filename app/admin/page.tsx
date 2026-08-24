@@ -105,7 +105,11 @@ export default function AdminDashboard() {
     category: "",
     duration: "",
     level: "",
-    price: "49.99"
+    price: "49.99",
+    instructor: "",
+    courseCategory: "",
+    requiredPlanId: "",
+    published: true
   })
 
   // Syllabus Lessons CRUD States
@@ -415,21 +419,31 @@ export default function AdminDashboard() {
       alert('Invalid slug. Use only lowercase letters, numbers and hyphens - e.g. "d5-masterclass". Do not paste a URL here.')
       return
     }
+    const slugOk = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(courseSlug)
+    if (!slugOk) {
+      alert('Invalid slug. Use only lowercase letters, numbers and hyphens - e.g. "d5-masterclass". Do not paste a URL here.')
+      return
+    }
+    const requiredPlanId = courseForm.requiredPlanId ? parseInt(courseForm.requiredPlanId) : null
+    const payload = {
+      title: courseForm.title.trim(),
+      slug: courseSlug,
+      description: courseForm.description,
+      thumbnail_url: courseForm.image,
+      software_used: courseForm.category,
+      difficulty: courseForm.level.toLowerCase().includes('adv') ? 'advanced' : 'intermediate',
+      price: parseFloat(courseForm.price),
+      instructor: courseForm.instructor.trim() || null,
+      category: courseForm.courseCategory.replace(/\s+/g, ' ').trim() || null,
+      required_plan_id: requiredPlanId && Number.isInteger(requiredPlanId) ? requiredPlanId : null,
+      is_published: courseForm.published
+    }
     try {
       if (editingCourse) {
         // Update
         const { error } = await supabase
           .from('courses')
-          .update({
-            title: courseForm.title,
-            slug: courseSlug,
-            description: courseForm.description,
-            thumbnail_url: courseForm.image,
-            software_used: courseForm.category, // using category input as mapper
-            difficulty: courseForm.level.toLowerCase().includes('adv') ? 'advanced' : 'intermediate',
-            price: parseFloat(courseForm.price),
-            is_published: true
-          })
+          .update(payload)
           .eq('course_id', editingCourse.course_id || editingCourse.id)
 
         if (error) throw error
@@ -438,16 +452,7 @@ export default function AdminDashboard() {
         // Create
         const { error } = await supabase
           .from('courses')
-          .insert({
-            title: courseForm.title,
-            slug: courseSlug,
-            description: courseForm.description,
-            thumbnail_url: courseForm.image,
-            software_used: courseForm.category,
-            difficulty: courseForm.level.toLowerCase().includes('adv') ? 'advanced' : 'intermediate',
-            price: parseFloat(courseForm.price),
-            is_published: true
-          })
+          .insert(payload)
 
         if (error) throw error
         alert("Course created successfully!")
@@ -1167,7 +1172,11 @@ export default function AdminDashboard() {
                             category: "",
                             duration: "",
                             level: "Intermediate",
-                            price: "49.99"
+                            price: "49.99",
+                            instructor: "",
+                            courseCategory: "",
+                            requiredPlanId: "",
+                            published: true
                           })
                           setShowCourseModal(true)
                         }}
@@ -1214,7 +1223,11 @@ export default function AdminDashboard() {
                                   category: course.software_used || "",
                                   duration: course.duration || "",
                                   level: course.level || course.difficulty || "Intermediate",
-                                  price: (course.price || "49.99").toString()
+                                  price: (course.price || "49.99").toString(),
+                                  instructor: course.instructor || "",
+                                  courseCategory: course.category || "",
+                                  requiredPlanId: (course as any).required_plan_id != null ? String((course as any).required_plan_id) : "",
+                                  published: (course as any).is_published !== false
                                 })
                                 setShowCourseModal(true)
                               }}
@@ -2079,6 +2092,36 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Instructor Name</label>
+                    <input
+                      type="text"
+                      value={courseForm.instructor}
+                      onChange={(e) => setCourseForm({ ...courseForm, instructor: e.target.value })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                      placeholder="e.g. Bun Sambath"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Category</label>
+                    <input
+                      type="text"
+                      value={courseForm.courseCategory}
+                      onChange={(e) => setCourseForm({ ...courseForm, courseCategory: e.target.value })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                      placeholder="e.g. Rendering, Post-Production"
+                      list="existing-course-categories"
+                    />
+                    <datalist id="existing-course-categories">
+                      {Array.from(new Set(courses.map((c: any) => c.category).filter(Boolean))).map((cat) => (
+                        <option key={String(cat)} value={String(cat)} />
+                      ))}
+                    </datalist>
+                    <p className="text-[10px] text-zinc-500 mt-1">Pick an existing one or type new - creates a filter tab on /courses.</p>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Thumbnail Image URL</label>
                   <input 
@@ -2125,6 +2168,36 @@ export default function AdminDashboard() {
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
                       placeholder="D5 Render, SketchUp"
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Access Requirement</label>
+                    <select
+                      value={courseForm.requiredPlanId}
+                      onChange={(e) => setCourseForm({ ...courseForm, requiredPlanId: e.target.value })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                    >
+                      <option value="">Direct purchase only</option>
+                      {plans.map((p) => (
+                        <option key={p.plan_id} value={String(p.plan_id)}>
+                          Requires plan: {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-zinc-500 mt-1">Subscription plans unlock this course automatically (higher plans included).</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Visibility</label>
+                    <select
+                      value={courseForm.published ? "published" : "draft"}
+                      onChange={(e) => setCourseForm({ ...courseForm, published: e.target.value === "published" })}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                    >
+                      <option value="published">Published (visible to students)</option>
+                      <option value="draft">Draft (hidden)</option>
+                    </select>
                   </div>
                 </div>
 

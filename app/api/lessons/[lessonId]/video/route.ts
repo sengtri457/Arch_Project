@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
-import { getBunnyConfig, signBunnyPlaybackUrl } from '@/lib/bunny'
+import { getBunnyConfig, signBunnyHlsUrl, signBunnyMp4Url } from '@/lib/bunny'
 import { getClientIp, rateLimit } from '@/lib/rate-limit'
 
 export async function GET(
@@ -67,9 +67,21 @@ export async function GET(
     return NextResponse.json({ error: 'Video delivery is not configured' }, { status: 500 })
   }
 
+  const clientIp = getClientIp(request)
+
+  if (config.format === 'hls') {
+    return NextResponse.json({
+      success: true,
+      source,
+      format: 'hls',
+      url: signBunnyHlsUrl(config, row.video_url, { clientIp })
+    })
+  }
+
   return NextResponse.json({
     success: true,
     source,
-    url: signBunnyPlaybackUrl(config, row.video_url, { clientIp: getClientIp(request) })
+    format: 'direct',
+    url: signBunnyMp4Url(config, row.video_url, { clientIp })
   })
 }

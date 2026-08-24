@@ -64,6 +64,7 @@
     "framer-motion": "latest",
     "gl-matrix": "latest",
     "gsap": "latest",
+    "hls.js": "^1.7.1",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
     "matter-js": "latest",
