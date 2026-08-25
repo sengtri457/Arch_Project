@@ -51,6 +51,7 @@ import {
   Globe,
   Award,
   Tag,
+  Quote,
   BarChart3,
   ChevronLeft,
   ChevronRight,
@@ -72,7 +73,7 @@ import {
   Cell
 } from "recharts"
 
-type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "users"
+type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "testimonials" | "users"
 
 export default function AdminDashboard() {
   const { user, profile, loading, signOut } = useAuth()
@@ -80,7 +81,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const tabParam = new URLSearchParams(window.location.search).get("tab")
-    const validTabs: AdminTab[] = ["overview", "analytics", "courses", "projects", "submissions", "crm", "plans", "promos", "inquiries", "users"]
+    const validTabs: AdminTab[] = ["overview", "analytics", "courses", "projects", "submissions", "crm", "plans", "promos", "testimonials", "inquiries", "users"]
     if (tabParam && validTabs.includes(tabParam as AdminTab)) {
       setActiveTab(tabParam as AdminTab)
     }
@@ -127,6 +128,17 @@ export default function AdminDashboard() {
     max: "",
     expiry: "",
     is_active: true
+  })
+
+  // Testimonials CRUD States
+  const [testimonials, setTestimonials] = useState<any[]>([])
+  const [showTestimonialModal, setShowTestimonialModal] = useState<boolean>(false)
+  const [editingTestimonialId, setEditingTestimonialId] = useState<string | null>(null)
+  const [testimonialForm, setTestimonialForm] = useState({
+    name: "",
+    role: "",
+    organization: "",
+    text: ""
   })
   
   // Courses CRUD States
@@ -272,6 +284,13 @@ export default function AdminDashboard() {
           .select('*')
           .order('created_at', { ascending: false })
         if (promosData) setPromos(promosData)
+
+        // 12. Fetch testimonials (homepage carousel content)
+        const { data: testimonialsData } = await supabase
+          .from('testimonials')
+          .select('*')
+          .order('created_at', { ascending: false })
+        if (testimonialsData) setTestimonials(testimonialsData)
         
       } catch (err) {
         console.error("Admin data loading error:", err)
@@ -453,6 +472,57 @@ export default function AdminDashboard() {
       window.location.reload()
     } catch (err: any) {
       alert(`Failed to delete promo code: ${err.message}`)
+    }
+  }
+
+  // Testimonials CRUD (homepage carousel - RLS already authorizes admin writes)
+  const handleSaveTestimonial = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const payload = {
+        name: testimonialForm.name.trim(),
+        role: testimonialForm.role.trim(),
+        organization: testimonialForm.organization.trim(),
+        text: testimonialForm.text.trim()
+      }
+      if (!payload.name || !payload.role || !payload.organization || !payload.text) {
+        alert("All fields are required.")
+        return
+      }
+
+      if (editingTestimonialId) {
+        const { error } = await supabase
+          .from('testimonials')
+          .update(payload)
+          .eq('id', editingTestimonialId)
+        if (error) throw error
+        alert("Testimonial updated successfully!")
+      } else {
+        const { error } = await supabase
+          .from('testimonials')
+          .insert(payload)
+        if (error) throw error
+        alert("Testimonial created successfully!")
+      }
+      setShowTestimonialModal(false)
+      window.location.reload()
+    } catch (err: any) {
+      alert(`Failed to save testimonial: ${err.message}`)
+    }
+  }
+
+  const handleDeleteTestimonial = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete the testimonial from ${name}?`)) return
+    try {
+      const { error } = await supabase
+        .from('testimonials')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+      alert("Testimonial deleted successfully!")
+      window.location.reload()
+    } catch (err: any) {
+      alert(`Failed to delete testimonial: ${err.message}`)
     }
   }
 
@@ -885,6 +955,19 @@ export default function AdminDashboard() {
                 >
                   <Tag className="w-4 h-4" />
                   {!sidebarCollapsed && <span>Promo Codes</span>}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("testimonials")}
+                  title="Homepage Testimonials"
+                  className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
+                    activeTab === "testimonials"
+                      ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10"
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                  }`}
+                >
+                  <Quote className="w-4 h-4" />
+                  {!sidebarCollapsed && <span>Testimonials</span>}
                 </button>
 
                 <button
@@ -2199,6 +2282,169 @@ export default function AdminDashboard() {
                               style={{ backgroundColor: '#9ACD32', color: '#000' }}
                             >
                               Create Promo
+                            </Button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TESTIMONIALS TAB */}
+                {activeTab === "testimonials" && (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h2 className="text-2xl font-bold text-white">Testimonials Manager</h2>
+                        <p className="text-zinc-400 text-sm mt-1">
+                          Manage client quotes shown in the homepage carousel. Newest appear first.
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => {
+                          setTestimonialForm({ name: "", role: "", organization: "", text: "" })
+                          setEditingTestimonialId(null)
+                          setShowTestimonialModal(true)
+                        }}
+                        className="bg-primary hover:bg-primary/90 text-black font-semibold flex items-center gap-1.5"
+                        style={{ backgroundColor: '#9ACD32', color: '#000' }}
+                      >
+                        <Plus className="w-4 h-4" /> Add Testimonial
+                      </Button>
+                    </div>
+
+                    {testimonials.length === 0 ? (
+                      <div className="text-center py-12 border border-dashed border-zinc-850 rounded-xl text-zinc-400">
+                        No testimonials yet. Click &quot;Add Testimonial&quot; to publish one!
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {testimonials.map((t) => (
+                          <div key={t.id} className="bg-zinc-900/40 border border-zinc-850 p-6 rounded-2xl flex flex-col justify-between space-y-4 hover:border-zinc-800 transition-colors">
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-start gap-3">
+                                <div>
+                                  <h4 className="text-sm font-bold text-white">{t.name}</h4>
+                                  <p className="text-xs text-zinc-500">{t.role} @ {t.organization}</p>
+                                </div>
+                                <span className="text-xs text-zinc-500 font-mono whitespace-nowrap">
+                                  {t.created_at ? new Date(t.created_at).toLocaleDateString() : ""}
+                                </span>
+                              </div>
+
+                              <p className="text-sm text-zinc-300 italic leading-relaxed line-clamp-4">
+                                &ldquo;{t.text}&rdquo;
+                              </p>
+                            </div>
+
+                            <div className="flex gap-3 mt-2">
+                              <Button
+                                onClick={() => {
+                                  setTestimonialForm({
+                                    name: t.name || "",
+                                    role: t.role || "",
+                                    organization: t.organization || "",
+                                    text: t.text || ""
+                                  })
+                                  setEditingTestimonialId(t.id)
+                                  setShowTestimonialModal(true)
+                                }}
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white font-semibold flex-1 border border-zinc-700 flex items-center justify-center gap-1.5"
+                              >
+                                <Edit3 className="w-4 h-4" /> Edit
+                              </Button>
+                              <Button
+                                onClick={() => handleDeleteTestimonial(t.id, t.name)}
+                                className="bg-red-950/20 hover:bg-red-950/40 text-red-400 font-semibold flex-1 border border-red-900/35"
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Create/Edit Testimonial Modal */}
+                    {showTestimonialModal && (
+                      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <form onSubmit={handleSaveTestimonial} className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto space-y-5 animate-in fade-in zoom-in-95 duration-150 custom-scrollbar text-zinc-300">
+                          <div>
+                            <h3 className="text-xl font-bold text-white">{editingTestimonialId ? "Edit Testimonial" : "New Testimonial"}</h3>
+                            <p className="text-xs text-zinc-500 mt-1">Shown in the homepage carousel once published.</p>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Client Name</label>
+                              <input
+                                type="text"
+                                required
+                                maxLength={100}
+                                value={testimonialForm.name}
+                                onChange={(e) => setTestimonialForm({ ...testimonialForm, name: e.target.value })}
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                                placeholder="e.g. Srey Pich"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Role</label>
+                                <input
+                                  type="text"
+                                  required
+                                  maxLength={100}
+                                  value={testimonialForm.role}
+                                  onChange={(e) => setTestimonialForm({ ...testimonialForm, role: e.target.value })}
+                                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                                  placeholder="Creative Director"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Organization</label>
+                                <input
+                                  type="text"
+                                  required
+                                  maxLength={120}
+                                  value={testimonialForm.organization}
+                                  onChange={(e) => setTestimonialForm({ ...testimonialForm, organization: e.target.value })}
+                                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                                  placeholder="Luxe Properties"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Quote (max 600 characters)</label>
+                              <textarea
+                                required
+                                rows={5}
+                                maxLength={600}
+                                value={testimonialForm.text}
+                                onChange={(e) => setTestimonialForm({ ...testimonialForm, text: e.target.value })}
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 resize-none"
+                                placeholder="What they said about working with you..."
+                              />
+                              <p className="text-[10px] text-zinc-500 mt-1">{testimonialForm.text.length}/600 characters</p>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-3 justify-end pt-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => setShowTestimonialModal(false)}
+                              className="text-zinc-400 hover:text-white"
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="submit"
+                              className="bg-primary text-black font-bold px-6"
+                              style={{ backgroundColor: '#9ACD32', color: '#000' }}
+                            >
+                              {editingTestimonialId ? "Save Changes" : "Publish Testimonial"}
                             </Button>
                           </div>
                         </form>
