@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { FaInstagram, FaLinkedin, FaTiktok, FaFacebook, FaYoutube, FaBehance, FaWeixin, FaTelegram, FaPinterest, FaGlobe, FaWhatsapp } from "react-icons/fa"
+import { RenderIcon } from "@/components/render-icon"
 
 export function ContactSection() {
   const [formData, setFormData] = useState({
@@ -205,7 +206,7 @@ export function ContactSection() {
                 return (
                   <div key={index} className="flex items-start gap-4">
                     <div className="flex items-center justify-center w-12 h-12 bg-primary/10 flex-shrink-0">
-                      <Icon className="text-primary" size={24} />
+                      <RenderIcon icon={info.icon} className="text-primary" size={24} />
                     </div>
                     <div>
                       <div className="text-sm text-muted-foreground mb-1">{info.label}</div>
@@ -261,7 +262,7 @@ export function ContactSection() {
                   className="text-white hover:text-primary transition-colors duration-300"
                   title="Visit our website"
                 >
-                  <FaGlobe className="w-8 h-8" />
+                  <RenderIcon icon={FaGlobe} className="w-8 h-8" />
                 </a>
                 
                 {/* Instagram */}
@@ -272,7 +273,7 @@ export function ContactSection() {
                   className="text-white hover:text-[#E4405F] transition-colors duration-300"
                   title="Instagram"
                 >
-                  <FaInstagram className="w-8 h-8" />
+                  <RenderIcon icon={FaInstagram} className="w-8 h-8" />
                 </a>
                 
                 {/* TikTok */}
@@ -283,7 +284,7 @@ export function ContactSection() {
                   className="text-white hover:text-[#69C9D0] transition-colors duration-300"
                   title="TikTok"
                 >
-                  <FaTiktok className="w-8 h-8" />
+                  <RenderIcon icon={FaTiktok} className="w-8 h-8" />
                 </a>
                 
                 {/* YouTube */}
@@ -294,7 +295,7 @@ export function ContactSection() {
                   className="text-white hover:text-[#FF0000] transition-colors duration-300"
                   title="YouTube"
                 >
-                  <FaYoutube className="w-8 h-8" />
+                  <RenderIcon icon={FaYoutube} className="w-8 h-8" />
                 </a>
                 
                 {/* Behance */}
@@ -305,7 +306,7 @@ export function ContactSection() {
                   className="text-white hover:text-[#1769FF] transition-colors duration-300"
                   title="Behance"
                 >
-                  <FaBehance className="w-8 h-8" />
+                  <RenderIcon icon={FaBehance} className="w-8 h-8" />
                 </a>
                 
                 {/* Pinterest */}
@@ -316,7 +317,7 @@ export function ContactSection() {
                   className="text-white hover:text-[#BD081C] transition-colors duration-300"
                   title="Pinterest"
                 >
-                  <FaPinterest className="w-8 h-8" />
+                  <RenderIcon icon={FaPinterest} className="w-8 h-8" />
                 </a>
                 
                 {/* Telegram */}
@@ -327,7 +328,7 @@ export function ContactSection() {
                   className="text-white hover:text-[#0088cc] transition-colors duration-300"
                   title="Telegram"
                 >
-                  <FaTelegram className="w-8 h-8" />
+                  <RenderIcon icon={FaTelegram} className="w-8 h-8" />
                 </a>
                 
                 {/* Gumroad */}
@@ -338,7 +339,7 @@ export function ContactSection() {
                   className="text-white hover:text-primary transition-colors duration-300"
                   title="Gumroad"
                 >
-                  <FaGlobe className="w-8 h-8" />
+                  <RenderIcon icon={FaGlobe} className="w-8 h-8" />
                 </a>
               </div>
             </div>

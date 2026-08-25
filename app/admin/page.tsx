@@ -8,6 +8,29 @@ import { createClient } from "@/lib/supabase/client"
 import { Profile } from "@/components/auth-provider"
 import { Course } from "@/lib/courses-data"
 import { Project } from "@/lib/projects-data"
+
+type AdminCourseRow = Course & {
+  thumbnail_url?: string | null
+  difficulty?: string | null
+  software_used?: string | null
+  slug?: string | null
+  instructor?: string | null
+  category?: string | null
+  required_plan_id?: number | null
+  is_published?: boolean | null
+}
+
+type AdminProjectRow = Project & {
+  cover_image_url?: string | null
+  slug?: string | null
+  software_used?: string | null
+  software?: string | null
+  is_featured?: boolean | null
+}
+
+type AdminProfileRow = Profile & {
+  email?: string | null
+}
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -63,9 +86,9 @@ export default function AdminDashboard() {
     }
   }, [])
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false)
-  const [profiles, setProfiles] = useState<Profile[]>([])
-  const [courses, setCourses] = useState<Course[]>([])
-  const [projects, setProjects] = useState<Project[]>([])
+  const [profiles, setProfiles] = useState<AdminProfileRow[]>([])
+  const [courses, setCourses] = useState<AdminCourseRow[]>([])
+  const [projects, setProjects] = useState<AdminProjectRow[]>([])
   const [messages, setMessages] = useState<any[]>([])
   const [submissions, setSubmissions] = useState<any[]>([])
   const [submissionFilter, setSubmissionFilter] = useState<"pending" | "graded" | "all">("pending")
@@ -598,6 +621,10 @@ export default function AdminDashboard() {
         if (error) throw error
         alert("Project updated successfully!")
       } else {
+        if (!user) {
+          alert("You must be signed in to publish a project.")
+          return
+        }
         // Create
         const { error } = await supabase
           .from('projects')
@@ -1091,7 +1118,7 @@ export default function AdminDashboard() {
                             <div className="flex justify-between items-start border-b border-zinc-800 pb-4">
                               <div>
                                 <h3 className="text-2xl font-bold text-white">{selectedStudent.full_name}</h3>
-                                <p className="text-xs text-zinc-500 mt-1">{selectedStudent.email}</p>
+                                <p className="text-xs text-zinc-500 mt-1">{(selectedStudent as AdminProfileRow).email || "Email hidden"}</p>
                               </div>
                               <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold border bg-zinc-855 text-zinc-400 border-zinc-800 uppercase">
                                 {selectedStudent.role}
@@ -1313,7 +1340,7 @@ export default function AdminDashboard() {
                                 setEditingCourse(course)
                                 setCourseForm({
                                   title: course.title,
-                                  slug: course.slug,
+                                  slug: course.slug || course.id || "",
                                   description: course.description || "",
                                   image: course.thumbnail_url || course.image || "",
                                   category: course.software_used || "",
@@ -1393,11 +1420,11 @@ export default function AdminDashboard() {
                                 setEditingProject(project)
                                 setProjectForm({
                                   title: project.title,
-                                  slug: project.slug,
+                                  slug: project.slug || project.id || "",
                                   description: project.description || "",
                                   image: project.cover_image_url || project.image || "",
                                   category: project.category || "Interior",
-                                  software: project.software_used || project.software || "",
+                                  software: (project.software_used ?? project.software ?? "") as string,
                                   is_featured: !!project.is_featured
                                 })
                                 setShowProjectModal(true)
@@ -1409,7 +1436,7 @@ export default function AdminDashboard() {
                               <Edit3 className="w-4 h-4" />
                             </Button>
                             <Button 
-                              onClick={() => handleDeleteProject(project.project_id)}
+                              onClick={() => { if (project.project_id) handleDeleteProject(project.project_id) }}
                               size="sm" 
                               variant="ghost" 
                               className="hover:bg-red-950/20 text-red-400 hover:text-red-400"
@@ -2678,3 +2705,4 @@ export default function AdminDashboard() {
     </main>
   )
 }
+

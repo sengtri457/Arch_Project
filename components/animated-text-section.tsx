@@ -1,6 +1,6 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { motion, type TargetAndTransition } from "framer-motion"
 import { ArrowUp } from "lucide-react"
 import { useEffect, useState, useRef } from "react"
 
@@ -114,9 +114,9 @@ export function AnimatedTextSection() {
                     delay: 0.5 + index * 0.2,
                     ease: [0.22, 1, 0.36, 1]
                   }}
-                  whileHover={{
-                    WebkitTextStroke: '1px #9ACD32',
-                  }}
+                  whileHover={
+                    { WebkitTextStroke: '1px #9ACD32' } as unknown as TargetAndTransition
+                  }
                   style={{
                     transition: 'all 0.3s ease',
                   }}

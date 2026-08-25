@@ -11,8 +11,35 @@ import { degToRad } from 'three/src/math/MathUtils.js';
 
 import './Beams.css';
 
-function extendMaterial(BaseMaterial, cfg) {
-  const physical = THREE.ShaderLib.physical;
+interface UniformInput {
+  value: unknown;
+  shared?: boolean;
+  mixed?: boolean;
+  linked?: boolean;
+}
+
+interface ExtendMaterialConfig {
+  header: string;
+  vertexHeader?: string;
+  fragmentHeader?: string;
+  vertex?: Record<string, string>;
+  fragment?: Record<string, string>;
+  material?: THREE.MeshStandardMaterialParameters & { fog?: boolean };
+  uniforms?: Record<string, unknown>;
+}
+
+interface PhysicalShaderEntry {
+  uniforms: Record<string, THREE.IUniform>;
+  vertexShader: string;
+  fragmentShader: string;
+  defines?: Record<string, string | number | boolean>;
+}
+
+function extendMaterial(
+  BaseMaterial: typeof THREE.MeshStandardMaterial,
+  cfg: ExtendMaterialConfig
+): THREE.ShaderMaterial {
+  const physical = THREE.ShaderLib.physical as unknown as PhysicalShaderEntry;
   const { vertexShader: baseVert, fragmentShader: baseFrag, uniforms: baseUniforms } = physical;
   const baseDefines = physical.defines ?? {};
 
@@ -27,38 +54,44 @@ function extendMaterial(BaseMaterial, cfg) {
   if ('envMapIntensity' in defaults) uniforms.envMapIntensity.value = defaults.envMapIntensity;
 
   Object.entries(cfg.uniforms ?? {}).forEach(([key, u]) => {
-    uniforms[key] = u !== null && typeof u === 'object' && 'value' in u ? u : { value: u };
+    uniforms[key] =
+      u !== null && typeof u === 'object' && 'value' in u ? (u as UniformInput) : { value: u };
   });
 
-  let vert = `${cfg.header}\n${cfg.vertexHeader ?? ''}\n${baseVert}`;
-  let frag = `${cfg.header}\n${cfg.fragmentHeader ?? ''}\n${baseFrag}`;
+  const vert = `${cfg.header}\n${cfg.vertexHeader ?? ''}\n${baseVert}`;
+  const frag = `${cfg.header}\n${cfg.fragmentHeader ?? ''}\n${baseFrag}`;
 
+  let processedVert = vert;
   for (const [inc, code] of Object.entries(cfg.vertex ?? {})) {
-    vert = vert.replace(inc, `${inc}\n${code}`);
-  }
-  for (const [inc, code] of Object.entries(cfg.fragment ?? {})) {
-    frag = frag.replace(inc, `${inc}\n${code}`);
+    processedVert = processedVert.replace(inc, `${inc}\n${code}`);
   }
 
-  const mat = new THREE.ShaderMaterial({
+  let processedFrag = frag;
+  for (const [inc, code] of Object.entries(cfg.fragment ?? {})) {
+    processedFrag = processedFrag.replace(inc, `${inc}\n${code}`);
+  }
+
+  return new THREE.ShaderMaterial({
     defines: { ...baseDefines },
     uniforms,
-    vertexShader: vert,
-    fragmentShader: frag,
+    vertexShader: processedVert,
+    fragmentShader: processedFrag,
     lights: true,
     fog: !!cfg.material?.fog
   });
-
-  return mat;
 }
 
-const CanvasWrapper = ({ children }) => (
+interface CanvasWrapperProps {
+  children: React.ReactNode;
+}
+
+const CanvasWrapper = ({ children }: CanvasWrapperProps) => (
   <Canvas dpr={[1, 2]} frameloop="always" className="beams-container">
     {children}
   </Canvas>
 );
 
-const hexToNormalizedRGB = hex => {
+const hexToNormalizedRGB = (hex: string): [number, number, number] => {
   const clean = hex.replace('#', '');
   const r = parseInt(clean.substring(0, 2), 16);
   const g = parseInt(clean.substring(2, 4), 16);
@@ -108,13 +141,6 @@ float cnoise(vec3 P){
   vec4 sz0 = step(gz0, vec4(0.0));
   gx0 -= sz0 * (step(0.0, gx0) - 0.5);
   gy0 -= sz0 * (step(0.0, gy0) - 0.5);
-  vec4 gx1 = ixy1 / 7.0;
-  vec4 gy1 = fract(floor(gx1) / 7.0) - 0.5;
-  gx1 = fract(gx1);
-  vec4 gz1 = vec4(0.5) - abs(gx1) - abs(gy1);
-  vec4 sz1 = step(gz1, vec4(0.0));
-  gx1 -= sz1 * (step(0.0, gx1) - 0.5);
-  gy1 -= sz1 * (step(0.0, gy1) - 0.5);
   vec3 g000 = vec3(gx0.x,gy0.x,gz0.x);
   vec3 g100 = vec3(gx0.y,gy0.y,gz0.y);
   vec3 g010 = vec3(gx0.z,gy0.z,gz0.z);
@@ -143,6 +169,17 @@ float cnoise(vec3 P){
 }
 `;
 
+interface BeamsProps {
+  beamWidth?: number;
+  beamHeight?: number;
+  beamNumber?: number;
+  lightColor?: string;
+  speed?: number;
+  noiseIntensity?: number;
+  scale?: number;
+  rotation?: number;
+}
+
 const Beams = ({
   beamWidth = 2,
   beamHeight = 15,
@@ -152,8 +189,9 @@ const Beams = ({
   noiseIntensity = 1.75,
   scale = 0.2,
   rotation = 0
-}) => {
-  const meshRef = useRef(null);
+}: BeamsProps) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+
   const beamMaterial = useMemo(
     () =>
       extendMaterial(THREE.MeshStandardMaterial, {
@@ -224,7 +262,13 @@ const Beams = ({
   );
 };
 
-function createStackedPlanesBufferGeometry(n, width, height, spacing, heightSegments) {
+function createStackedPlanesBufferGeometry(
+  n: number,
+  width: number,
+  height: number,
+  spacing: number,
+  heightSegments: number
+): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   const numVertices = n * (heightSegments + 1) * 2;
   const numFaces = n * heightSegments * 2;
@@ -272,27 +316,44 @@ function createStackedPlanesBufferGeometry(n, width, height, spacing, heightSegm
   return geometry;
 }
 
-const MergedPlanes = forwardRef(({ material, width, count, height }, ref) => {
-  const mesh = useRef(null);
-  useImperativeHandle(ref, () => mesh.current);
-  const geometry = useMemo(
-    () => createStackedPlanesBufferGeometry(count, width, height, 0, 100),
-    [count, width, height]
-  );
-  useFrame((_, delta) => {
-    mesh.current.material.uniforms.time.value += 0.1 * delta;
-  });
-  return <mesh ref={mesh} geometry={geometry} material={material} />;
-});
+interface MergedPlanesProps {
+  material: THREE.Material;
+  width: number;
+  count: number;
+  height: number;
+}
+
+const MergedPlanes = forwardRef<THREE.Mesh, MergedPlanesProps>(
+  ({ material, width, count, height }, ref) => {
+    const mesh = useRef<THREE.Mesh>(null);
+    useImperativeHandle(ref, () => mesh.current as THREE.Mesh);
+    const geometry = useMemo(
+      () => createStackedPlanesBufferGeometry(count, width, height, 0, 100),
+      [count, width, height]
+    );
+    useFrame((_, delta) => {
+      const mat = mesh.current?.material as THREE.ShaderMaterial | undefined;
+      if (!mat) return;
+      const timeUniform = mat.uniforms.time as THREE.IUniform | undefined;
+      if (timeUniform) timeUniform.value = (timeUniform.value as number) + 0.1 * delta;
+    });
+    return <mesh ref={mesh} geometry={geometry} material={material} />;
+  }
+);
 MergedPlanes.displayName = 'MergedPlanes';
 
-const PlaneNoise = forwardRef((props, ref) => (
+const PlaneNoise = forwardRef<THREE.Mesh, MergedPlanesProps>((props, ref) => (
   <MergedPlanes ref={ref} material={props.material} width={props.width} count={props.count} height={props.height} />
 ));
 PlaneNoise.displayName = 'PlaneNoise';
 
-const DirLight = ({ position, color }) => {
-  const dir = useRef(null);
+interface DirLightProps {
+  position: [number, number, number];
+  color: string;
+}
+
+const DirLight = ({ position, color }: DirLightProps) => {
+  const dir = useRef<THREE.DirectionalLight>(null);
   useEffect(() => {
     if (!dir.current) return;
     const cam = dir.current.shadow.camera;

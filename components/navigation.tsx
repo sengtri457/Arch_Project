@@ -1,5 +1,6 @@
 "use client"
 
+import { RenderIcon } from "@/components/render-icon"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Menu, X } from "lucide-react"
@@ -77,7 +78,7 @@ export function Navigation() {
                     className="text-white hover:text-primary transition-all duration-300 hover:scale-110"
                     aria-label={social.label}
                   >
-                    <IconComponent className="w-6 h-6" />
+                    <RenderIcon icon={IconComponent} className="w-6 h-6" />
                   </a>
                 )
               })}
@@ -158,7 +159,7 @@ export function Navigation() {
                     className="text-white hover:text-primary transition-all duration-300 hover:scale-110"
                     aria-label={social.label}
                   >
-                    <IconComponent className="w-5 h-5" />
+                    <RenderIcon icon={IconComponent} className="w-5 h-5" />
                   </a>
                 )
               })}
