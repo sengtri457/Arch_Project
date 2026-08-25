@@ -163,7 +163,9 @@ export async function GET(request: Request) {
         const { data: userData } = await supabaseAdmin.auth.admin.getUserById(transaction.user_id)
         const userEmail = userData?.user?.email ?? null
 
-        const origin = new URL(request.url).origin
+        const origin =
+          process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ||
+          new URL(request.url).origin
         let itemName = 'Your purchase'
         let ctaUrl = `${origin}/dashboard`
         let ctaLabel = 'Go to my dashboard'

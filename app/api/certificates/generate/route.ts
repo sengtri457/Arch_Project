@@ -172,7 +172,9 @@ export async function POST(request: Request) {
         .eq('course_id', courseId)
         .single()
 
-      const origin = new URL(request.url).origin
+      const origin =
+        process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ||
+        new URL(request.url).origin
       await sendEmail({
         to: user.email!,
         subject: `Certificate unlocked - ${course?.title || 'Course completed'}`,

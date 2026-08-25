@@ -120,6 +120,9 @@ export async function POST(request: Request) {
       }
     }
 
+    // Clamp to whole cents so KHQR never encodes >2-decimal amounts
+    checkoutAmount = Math.round(checkoutAmount * 100) / 100
+
     // 5. Generate unique bill number
     const billNumber = `BILL-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 

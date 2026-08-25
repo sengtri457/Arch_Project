@@ -60,9 +60,8 @@ serve(async (req) => {
       encoder.encode(bodyText),
     );
 
-    // For testing/development, you can relax verification checks if webhookSecret is set to 'development'
-    if (webhookSecret !== "development" && !verified) {
-      console.warn("Invalid webhook signature verified.");
+    if (!verified) {
+      console.warn("Invalid webhook signature.");
       return new Response(
         JSON.stringify({ success: false, message: "Unauthorized Signature" }),
         {
