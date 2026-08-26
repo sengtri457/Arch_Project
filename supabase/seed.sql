@@ -1,6 +1,6 @@
 -- Supabase Database Seeding File
 -- Generated automatically from static TypeScript data files
--- Date: 2026-08-21T15:49:22.225Z
+-- Date: 2026-08-26T07:52:49.079Z
 
 -- Enable pgcrypto extension
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -455,7 +455,8 @@ ON CONFLICT (exercise_id) DO UPDATE SET
 -- Project: Krohom Bookstore
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'Krohom Bookstore',
   'krohom-bookstore',
@@ -471,7 +472,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$25,000',
   'Krohom Bookstore',
-  'Exterior & Interior Visualization'
+  'Exterior & Interior Visualization',
+  '["Modern educational facilities","Community reading areas","Sustainable design","Natural lighting"]',
+  '["Integrating modern design with functional requirements","Optimizing natural light for reading areas"]',
+  '["Open plan layout","Skylights and large windows"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -485,12 +489,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: Raffle Bookstore
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'Raffle Bookstore',
   'raffle-bookstore',
@@ -506,7 +514,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$28,000',
   'Raffle Bookstore',
-  'Exterior & Interior Visualization'
+  'Exterior & Interior Visualization',
+  '["Classic architectural elements","Spacious reading halls","Modern amenities","Elegant facade"]',
+  '["Preserving architectural heritage style","Creating functional modern retail space"]',
+  '["Blend of classic and modern design","Strategic lighting"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -520,12 +531,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: Hill House
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'Hill House',
   'hill-house',
@@ -541,7 +556,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$18,000',
   'Private Client',
-  'Exterior Visualization'
+  'Exterior Visualization',
+  '["Contemporary residential architecture","Modern living spaces","Premium exterior finishes","Elegant home design","Strategic space utilization","Beautiful landscaping","Sustainable design elements"]',
+  '["Creating realistic residential building materials and textures","Achieving optimal lighting for different times of day","Showcasing architectural details accurately"]',
+  '["High-resolution material mapping and texture studies","Advanced daylight simulation and rendering","Detailed architectural element visualization"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -555,12 +573,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: KOH PICH COMMERCIAL COMPLEX
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'KOH PICH COMMERCIAL COMPLEX',
   'koh-pich-commercial-complex',
@@ -576,7 +598,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$58,000',
   'KOH PICH Development',
-  'Exterior Visualization'
+  'Exterior Visualization',
+  '["Mixed-use commercial development","Modern retail and office spaces","Premium exterior finishes","Strategic space utilization","Contemporary commercial architecture","Dynamic commercial atmosphere","Sustainable design elements"]',
+  '["Creating realistic commercial environments","Showcasing multiple program types effectively","Achieving optimal lighting for commercial spaces"]',
+  '["Advanced lighting simulation for commercial environments","Detailed storefront and office space visualization","Comprehensive material studies for commercial spaces"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -590,12 +615,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: LOTUS TOWER OFFICE BUILDING
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'LOTUS TOWER OFFICE BUILDING',
   'lotus-tower-office-building',
@@ -611,7 +640,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$45,000',
   'LOTUS Development Group',
-  'Exterior Visualization'
+  'Exterior Visualization',
+  '["Lotus-inspired architectural design","Contemporary tower architecture","Modern office spaces","Premium exterior finishes","Iconic urban landmark design","Advanced building systems","Sustainable design elements"]',
+  '["Creating realistic lotus-inspired architectural elements","Achieving optimal lighting for different times of day","Showcasing vertical architecture accurately"]',
+  '["High-resolution material mapping and texture studies","Advanced daylight simulation and rendering","Detailed architectural element visualization"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -625,12 +657,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: NOREA HEAD OFFICE
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'NOREA HEAD OFFICE',
   'norea-head-office',
@@ -646,7 +682,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$32,000',
   'NOREA Corporation',
-  'Exterior Visualization'
+  'Exterior Visualization',
+  '["Contemporary office architecture","Modern workspace design","Premium exterior finishes","Professional office facilities","Strategic space utilization","Corporate aesthetic","Sustainable design elements"]',
+  '["Creating realistic office building materials and textures","Achieving optimal lighting for different times of day","Showcasing architectural details accurately"]',
+  '["High-resolution material mapping and texture studies","Advanced daylight simulation and rendering","Detailed architectural element visualization"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -660,12 +699,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: THE NES Mall Complex
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'THE NES Mall Complex',
   'the-nes-mall-complex',
@@ -681,7 +724,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$38,000',
   'THE NES Development',
-  'Exterior Visualization'
+  'Exterior Visualization',
+  '["Modern retail architecture","Spacious shopping environments","Premium retail finishes","Strategic tenant layouts","Contemporary mall architecture","Dynamic commercial atmosphere","Elegant facade design"]',
+  '["Creating realistic retail environments","Showcasing multiple tenant spaces effectively","Achieving optimal lighting for commercial environments"]',
+  '["Advanced lighting simulation for retail environments","Detailed storefront and retail space visualization","Comprehensive material studies for commercial spaces"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -695,12 +741,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: GREENBASE Kindergarten
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'GREENBASE Kindergarten',
   'greenbase-kindergarten',
@@ -716,7 +766,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$22,000',
   'GREENBASE Education',
-  'Exterior & Interior Visualization'
+  'Exterior & Interior Visualization',
+  '["Child-friendly design","Spacious classrooms","Safe outdoor play areas","Modern educational facilities","Playful architectural elements","Nurturing learning environment","Sustainable design elements"]',
+  '["Creating child-appropriate educational environments","Balancing safety with engaging design","Showcasing playful architectural elements"]',
+  '["Age-appropriate space planning","Safe material selection and finishes","Engaging color schemes and design elements"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -730,12 +783,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: SB TOWER
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'SB TOWER',
   'sb-tower',
@@ -751,7 +808,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$52,000',
   'SB Development Group',
-  'Exterior & Interior Visualization & Animation'
+  'Exterior & Interior Visualization & Animation',
+  '["Contemporary tower architecture","Modern office spaces","Premium exterior finishes","Strategic vertical space utilization","Iconic urban landmark design","Advanced building systems","Sustainable design elements"]',
+  '["Creating realistic tower building materials and textures","Achieving optimal lighting for different times of day","Showcasing vertical architecture accurately","Producing photorealistic animations"]',
+  '["High-resolution material mapping and texture studies","Advanced daylight simulation and rendering","Detailed architectural element visualization","Dynamic camera movements for cinematic presentations"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -765,12 +825,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: APAC BUILDING
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'APAC BUILDING',
   'apac-building',
@@ -786,7 +850,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$55,000',
   'APAC Development',
-  'Exterior Visualization'
+  'Exterior Visualization',
+  '["Twin tower design","Contemporary architecture","Modern commercial spaces","Premium exterior finishes","Iconic urban landmark","Advanced building systems","Sustainable design elements"]',
+  '["Creating realistic twin tower materials and textures","Achieving optimal lighting for different times of day","Showcasing architectural symmetry accurately"]',
+  '["High-resolution material mapping and texture studies","Advanced daylight simulation and rendering","Detailed architectural element visualization"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -800,12 +867,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: WHITE BEACH HOTEL BY SB
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'WHITE BEACH HOTEL BY SB',
   'white-beach-hotel',
@@ -821,7 +892,10 @@ INSERT INTO public.projects (
   'Cambodia',
   '$48,000',
   'SB Hospitality Group',
-  'Exterior & Interior Visualization & Animation'
+  'Exterior & Interior Visualization & Animation',
+  '["Elegant curved building design","Stunning ocean views","Spacious guest rooms","World-class amenities","Beachfront location","Premium hospitality facilities","Sustainable design elements"]',
+  '["Creating realistic beachfront environments","Showcasing curved architectural elements","Achieving photorealistic water and lighting effects"]',
+  '["Advanced 3D modeling for curved structures","Comprehensive material and lighting studies","Dynamic camera movements and cinematic presentations"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -835,12 +909,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: WESTLINE UNIVERSITY
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'WESTLINE UNIVERSITY',
   'westline-university',
@@ -856,7 +934,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$42,000',
   'WESTLINE University',
-  'Exterior & Interior Visualization & Animation'
+  'Exterior & Interior Visualization & Animation',
+  '["Modern educational facilities","Spacious classrooms and lecture halls","Advanced research laboratories","Student common areas","Contemporary campus architecture","Sustainable design elements"]',
+  '["Creating realistic educational environments","Achieving photorealistic animations and renders","Balancing multiple functional requirements"]',
+  '["Advanced 3D modeling and animation techniques","Comprehensive material and lighting studies","Dynamic camera movements and cinematic presentations"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -870,12 +951,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: HIGH RISE BUILDING
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'HIGH RISE BUILDING',
   'high-rise-building',
@@ -891,7 +976,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$50,000',
   'High Rise Development Group',
-  'Exterior & Interior Visualization & Animation'
+  'Exterior & Interior Visualization & Animation',
+  '["Contemporary high-rise architecture","Modern office and residential spaces","Premium exterior finishes","Strategic vertical space utilization","Iconic urban landmark design","Advanced building systems","Sustainable design elements"]',
+  '["Creating realistic high-rise building materials and textures","Achieving optimal lighting for different times of day","Showcasing vertical architecture accurately","Producing photorealistic animations"]',
+  '["High-resolution material mapping and texture studies","Advanced daylight simulation and rendering","Detailed architectural element visualization","Dynamic camera movements for cinematic presentations"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -905,12 +993,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: THE CURVE K SHOPPING MALL
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'THE CURVE K SHOPPING MALL',
   'the-curve-k-shopping-mall',
@@ -926,7 +1018,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$35,000',
   'THE CURVE K Development',
-  'Exterior Visualization'
+  'Exterior Visualization',
+  '["Innovative curved architectural design","Modern retail spaces","Premium shopping environments","Strategic tenant layouts","Contemporary mall architecture","Dynamic commercial atmosphere","Elegant facade design"]',
+  '["Creating realistic curved architectural elements","Showcasing multiple retail spaces effectively","Achieving optimal lighting for commercial environments","Capturing the elegant curved facade design"]',
+  '["Advanced 3D modeling for curved structures","Comprehensive material and lighting studies","Detailed storefront and retail space visualization","Photorealistic rendering techniques"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -940,12 +1035,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: RUFER UNIVERSITY
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'RUFER UNIVERSITY',
   'rufer-university',
@@ -961,7 +1060,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$45,000',
   'RUFER University',
-  'Exterior & Interior Visualization & Animation'
+  'Exterior & Interior Visualization & Animation',
+  '["Innovative curved building design","Modern educational facilities","Spacious classrooms and lecture halls","Advanced research laboratories","Student common areas and cafeterias","Contemporary campus architecture","Sustainable design elements"]',
+  '["Creating realistic educational environments","Showcasing curved architectural elements","Achieving photorealistic animations and renders","Balancing multiple functional requirements"]',
+  '["Advanced 3D modeling for curved structures","Comprehensive material and lighting studies","Dynamic camera movements and cinematic presentations","Detailed interior and exterior visualization"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -975,12 +1077,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: HAFFITY SPORT SHOPPING CENTER
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'HAFFITY SPORT SHOPPING CENTER',
   'haffity-sport-shopping-center',
@@ -996,7 +1102,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$28,000',
   'HAFFITY Group',
-  'Exterior & Interior Visualization'
+  'Exterior & Interior Visualization',
+  '["Modern sports retail architecture","Spacious shopping environments","Dynamic design elements","Premium retail finishes","Strategic tenant layouts","Vibrant commercial atmosphere"]',
+  '["Creating realistic retail environments and storefronts","Showcasing multiple tenant spaces effectively","Achieving optimal lighting for shopping experiences"]',
+  '["Advanced lighting simulation for retail environments","Detailed storefront and interior visualization","Comprehensive material studies for commercial spaces"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -1010,12 +1119,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: KALMET OFFICE BUILDING
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'KALMET OFFICE BUILDING',
   'kalmet-office-building',
@@ -1031,7 +1144,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$25,000',
   'KALMET Group',
-  'Exterior & Interior Visualization'
+  'Exterior & Interior Visualization',
+  '["Modern office architecture","Contemporary facade design","Premium exterior finishes","Professional workspace design","Strategic lighting design","Corporate aesthetic"]',
+  '["Creating realistic office building materials and textures","Achieving optimal lighting for different times of day","Showcasing architectural details accurately"]',
+  '["High-resolution material mapping and texture studies","Advanced daylight simulation and rendering","Detailed architectural element visualization"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -1045,12 +1161,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: LIVERON SPORTCENTER
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'LIVERON SPORTCENTER',
   'liveron-sportcenter',
@@ -1066,7 +1186,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$22,000',
   'LIVERON Sports',
-  'Exterior Visualization'
+  'Exterior Visualization',
+  '["Modern sports facilities","Contemporary architectural design","Premium exterior finishes","Dynamic recreational spaces","State-of-the-art equipment areas","Vibrant athletic atmosphere"]',
+  '["Creating realistic sports facility environments","Showcasing athletic spaces effectively","Achieving optimal lighting for sports activities"]',
+  '["Advanced lighting simulation for sports environments","Detailed facility and space visualization","Comprehensive material studies for institutional spaces"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -1080,12 +1203,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: MIXED USE BUILDING
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'MIXED USE BUILDING',
   'mixed-use-building-04',
@@ -1101,7 +1228,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$48,000',
   'Mixed Use Development Group',
-  'Exterior & Interior Visualization & Animation'
+  'Exterior & Interior Visualization & Animation',
+  '["Mixed-use commercial and residential spaces","Contemporary architecture","Modern commercial and living environments","Premium exterior finishes","Strategic space utilization","Iconic urban landmark","Sustainable design elements"]',
+  '["Creating realistic mixed-use building materials and textures","Achieving optimal lighting for different program types","Showcasing multiple uses effectively","Producing photorealistic animations"]',
+  '["High-resolution material mapping and texture studies","Advanced daylight simulation and rendering","Detailed architectural element visualization","Dynamic camera movements for cinematic presentations"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -1115,12 +1245,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: TRIVIENNA MIXED USE BUILDING
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'TRIVIENNA MIXED USE BUILDING',
   'trivienna-mixed-use-building',
@@ -1136,7 +1270,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$45,000',
   'TRIVIENNA Development Group',
-  'Exterior & Interior Visualization & Animation'
+  'Exterior & Interior Visualization & Animation',
+  '["Mixed-use commercial and residential spaces","Contemporary architecture","Modern commercial and living environments","Premium exterior finishes","Strategic space utilization","Iconic urban landmark","Sustainable design elements"]',
+  '["Creating realistic mixed-use building materials and textures","Achieving optimal lighting for different program types","Showcasing multiple uses effectively","Producing photorealistic animations"]',
+  '["High-resolution material mapping and texture studies","Advanced daylight simulation and rendering","Detailed architectural element visualization","Dynamic camera movements for cinematic presentations"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -1150,12 +1287,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: The Peak Shopping Mall
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'The Peak Shopping Mall',
   'the-peak-shopping-mall',
@@ -1171,7 +1312,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$42,000',
   'The Peak Development',
-  'Exterior & Interior Visualization & Animation'
+  'Exterior & Interior Visualization & Animation',
+  '["Modern retail architecture","Spacious shopping environments","Premium retail finishes","Strategic tenant layouts","Contemporary mall architecture","Dynamic commercial atmosphere","Elegant facade design"]',
+  '["Creating realistic retail environments","Showcasing multiple tenant spaces effectively","Achieving optimal lighting for commercial environments","Producing photorealistic animations"]',
+  '["Advanced lighting simulation for retail environments","Detailed storefront and retail space visualization","Comprehensive material studies for commercial spaces","Dynamic camera movements for cinematic presentations"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -1185,12 +1329,16 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- Project: MCA CONDO COMPLEX
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   'MCA CONDO COMPLEX',
   'mca-condo-complex',
@@ -1206,7 +1354,10 @@ INSERT INTO public.projects (
   'Phnom Penh, Cambodia',
   '$35,000',
   'MCA Development',
-  'Exterior Visualization'
+  'Exterior Visualization',
+  '["Contemporary residential architecture","Modern living spaces","Premium exterior finishes","Elegant condo design","Strategic space utilization","Beautiful landscaping","Sustainable design elements"]',
+  '["Creating realistic residential building materials and textures","Achieving optimal lighting for different times of day","Showcasing architectural details accurately"]',
+  '["High-resolution material mapping and texture studies","Advanced daylight simulation and rendering","Detailed architectural element visualization"]'
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -1220,7 +1371,10 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 
 -- 6. Seed Testimonials
 INSERT INTO public.testimonials (name, role, organization, text)

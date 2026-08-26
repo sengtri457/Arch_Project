@@ -22,40 +22,40 @@ live website. Decisions gathered during brainstorming:
 
 ### 1.1 KHQR amount rounding
 
-`app/api/checkout/route.ts` (~line 115): percentage promo discounts produce amounts such as
+`app/api/checkout/route.ts` (\~line 115): percentage promo discounts produce amounts such as
 `47.4925`. Unrounded cents can be rejected by banking apps and break amount verification.
 
 Fix: after the promo-discount block, clamp to cents:
 
-```ts
+```TypeScript
 checkoutAmount = Math.round(checkoutAmount * 100) / 100
 ```
 
 ### 1.2 Canonical email/certificate links
 
-`app/api/checkout/status/route.ts` (line ~166) and
-`app/api/certificates/generate/route.ts` (line ~175) derive link origins from
+`app/api/checkout/status/route.ts` (line \~166) and
+`app/api/certificates/generate/route.ts` (line \~175) derive link origins from
 `new URL(request.url).origin`, which is non-deterministic across Vercel environments.
 
 Fix: prefer the canonical origin, fall back to request origin:
 
-```ts
+```TypeScript
 const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || new URL(request.url).origin
 ```
 
 ### 1.3 Webhook secret hardening
 
-`supabase/functions/bakong-webhook/index.ts` (line ~64): the branch
+`supabase/functions/bakong-webhook/index.ts` (line \~64): the branch
 `if (webhookSecret !== "development" && !verified)` lets any request bypass HMAC
 verification when the secret equals `"development"`. Remove the escape hatch so signature
 verification is unconditional; deploy a strong random `BAKONG_WEBHOOK_SECRET`.
 
 ## Section 2 - Environment matrix
 
-| Location | Variables | Notes |
-|---|---|---|
-| Vercel (Production + Preview scopes) | Everything from `.env.example`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL=https://<final-domain>`, `NEXT_PUBLIC_USE_LOCAL_MEDIA=false`, `RESEND_API_KEY`, `EMAIL_FROM`, `SUPABASE_SERVICE_ROLE_KEY`, `BAKONG_ACCOUNT_ID/ACCOUNT_TYPE/MERCHANT_ID/MERCHANT_NAME/MERCHANT_CITY/WEBHOOK_SECRET/API_URL/ACCESS_TOKEN`, `BUNNY_STREAM_*` | `NEXT_PUBLIC_BYPASS_EMAILS` stays EMPTY in every scope. Server-only secrets must never be NEXT_PUBLIC-prefixed. |
-| Supabase Edge Function secrets (dashboard or CLI) | `BAKONG_WEBHOOK_SECRET` (strong random), `SITE_URL=https://<final-domain>`, `RESEND_API_KEY`, `EMAIL_FROM` | Separate runtime; Vercel env vars do NOT reach Edge Functions. |
+| Location                                          | Variables                                                                                                                                                                                                                                                                                                                                                                    | Notes                                                                                                           |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Vercel (Production + Preview scopes)              | Everything from `.env.example`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL=https://<final-domain>`, `NEXT_PUBLIC_USE_LOCAL_MEDIA=false`, `RESEND_API_KEY`, `EMAIL_FROM`, `SUPABASE_SERVICE_ROLE_KEY`, `BAKONG_ACCOUNT_ID/ACCOUNT_TYPE/MERCHANT_ID/MERCHANT_NAME/MERCHANT_CITY/WEBHOOK_SECRET/API_URL/ACCESS_TOKEN`, `BUNNY_STREAM_*` | `NEXT_PUBLIC_BYPASS_EMAILS` stays EMPTY in every scope. Server-only secrets must never be NEXT_PUBLIC-prefixed. |
+| Supabase Edge Function secrets (dashboard or CLI) | `BAKONG_WEBHOOK_SECRET` (strong random), `SITE_URL=https://<final-domain>`, `RESEND_API_KEY`, `EMAIL_FROM`                                                                                                                                                                                                                                                                   | Separate runtime; Vercel env vars do NOT reach Edge Functions.                                                  |
 
 ## Section 3 - Supabase dashboard changes
 
@@ -78,9 +78,11 @@ No schema or SQL changes required.
 ## Section 5 - Verification gates
 
 Gate 0 (pre-deploy, local):
+
 - `pnpm typecheck && pnpm lint` both exit 0 (Vercel build ignores TS/ESLint errors, so build success alone proves nothing).
 
 Gate 1 (on `*.vercel.app`, prod env vars attached):
+
 - Signup -> confirmation email link opens correct host -> login succeeds.
 - Checkout creates `payment_transactions` row -> scan real QR at smallest viable amount ->
   polling confirms `completed` -> enrollment/subscription active -> profile role upgraded ->
@@ -91,6 +93,7 @@ Gate 1 (on `*.vercel.app`, prod env vars attached):
 - sitemap.xml / robots.txt show final domain.
 
 Gate 2 (post-flip, final domain):
+
 - Repeat auth + checkout smoke test against the apex domain.
 - Watch Vercel function logs and Supabase logs for 24h (checkout errors, webhook 401s,
   Bakong token failures).

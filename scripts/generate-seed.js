@@ -362,7 +362,8 @@ ON CONFLICT (exercise_id) DO UPDATE SET
     sql += `\n-- Project: ${proj.title}
 INSERT INTO public.projects (
   title, slug, description, software_used, category, cover_image_url, gallery_images_json, 
-  is_featured, is_published, created_by, year, location, price, client, scope
+  is_featured, is_published, created_by, year, location, price, client, scope,
+  features_json, challenges_json, solutions_json
 ) VALUES (
   ${sqlEscape(proj.title)},
   ${sqlEscape(proj.id)},
@@ -378,7 +379,10 @@ INSERT INTO public.projects (
   ${sqlEscape(proj.location)},
   ${sqlEscape(proj.price)},
   ${sqlEscape(proj.details.client)},
-  ${sqlEscape(proj.details.scope)}
+  ${sqlEscape(proj.details.scope)},
+  ${jsonEscape(proj.details.features || [])},
+  ${jsonEscape(proj.details.challenges || [])},
+  ${jsonEscape(proj.details.solutions || [])}
 )
 ON CONFLICT (slug) DO UPDATE SET
   title = EXCLUDED.title,
@@ -392,7 +396,10 @@ ON CONFLICT (slug) DO UPDATE SET
   location = EXCLUDED.location,
   price = EXCLUDED.price,
   client = EXCLUDED.client,
-  scope = EXCLUDED.scope;
+  scope = EXCLUDED.scope,
+  features_json = EXCLUDED.features_json,
+  challenges_json = EXCLUDED.challenges_json,
+  solutions_json = EXCLUDED.solutions_json;
 `;
   });
 

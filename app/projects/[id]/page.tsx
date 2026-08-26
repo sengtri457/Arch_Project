@@ -74,7 +74,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             <p className="text-xl text-muted-foreground leading-relaxed mb-8">{project.description}</p>
             
             {/* Project Features */}
-            {project.details.features && (
+            {project.details.features && project.details.features.length > 0 && (
               <div className="mb-8">
                 <h3 className="text-lg font-semibold text-foreground mb-4">Key Features</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -89,30 +89,35 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             )}
 
             {/* Project Challenges & Solutions */}
-            {project.details.challenges && project.details.solutions && (
+            {((project.details.challenges && project.details.challenges.length > 0) || 
+              (project.details.solutions && project.details.solutions.length > 0)) && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground mb-4">Challenges</h3>
-                  <ul className="space-y-2">
-                    {project.details.challenges.map((challenge, index) => (
-                      <li key={index} className="text-muted-foreground flex items-start">
-                        <span className="text-red-500 mr-2">•</span>
-                        {challenge}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground mb-4">Solutions</h3>
-                  <ul className="space-y-2">
-                    {project.details.solutions.map((solution, index) => (
-                      <li key={index} className="text-muted-foreground flex items-start">
-                        <span className="mr-2" style={{ color: '#9ACD32' }}>•</span>
-                        {solution}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {project.details.challenges && project.details.challenges.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-4">Challenges</h3>
+                    <ul className="space-y-2">
+                      {project.details.challenges.map((challenge, index) => (
+                        <li key={index} className="text-muted-foreground flex items-start">
+                          <span className="text-red-500 mr-2">•</span>
+                          {challenge}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {project.details.solutions && project.details.solutions.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-4">Solutions</h3>
+                    <ul className="space-y-2">
+                      {project.details.solutions.map((solution, index) => (
+                        <li key={index} className="text-muted-foreground flex items-start">
+                          <span className="mr-2" style={{ color: '#9ACD32' }}>•</span>
+                          {solution}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>

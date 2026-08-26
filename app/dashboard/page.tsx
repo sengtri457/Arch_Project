@@ -167,11 +167,11 @@ export default function StudentDashboard() {
         // 7. Calculate watch hours
         const { data: watchLogs } = await supabase
           .from('lesson_progress')
-          .select('seconds_watched')
+          .select('watched_seconds')
           .eq('student_id', userId)
 
         if (watchLogs) {
-          const totalSecs = watchLogs.reduce((sum, item) => sum + (item.seconds_watched || 0), 0)
+          const totalSecs = watchLogs.reduce((sum, item) => sum + (item.watched_seconds || 0), 0)
           setWatchHours(parseFloat((totalSecs / 3600).toFixed(1)))
         }
 

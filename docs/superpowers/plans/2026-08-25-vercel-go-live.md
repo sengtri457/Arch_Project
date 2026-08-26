@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Package manager is **pnpm only** (`packageManager` pins pnpm@10.10.0).
+- Package manager is **pnpm only** (`packageManager` pins pnpm\@10.10.0).
 - Verification for every code task: `pnpm typecheck && pnpm lint` must both exit 0. There is no unit-test framework in this repo (no test script in package.json); AGENTS.md defines typecheck+lint as the gate.
 - `NEXT_PUBLIC_BYPASS_EMAILS` stays EMPTY/unset in every environment.
 - Server-only secrets (`SUPABASE_SERVICE_ROLE_KEY`, `BAKONG_*`, `BUNNY_STREAM_TOKEN_SECURITY_KEY`, `RESEND_API_KEY`) must never get a `NEXT_PUBLIC_` prefix and must never be committed.
@@ -25,24 +25,27 @@
 ### Task 1: Round checkout amount to cents after promo discount
 
 **Files:**
-- Modify: `app/api/checkout/route.ts` (promo block ends at line ~121)
+
+- Modify: `app/api/checkout/route.ts` (promo block ends at line \~121)
 
 **Interfaces:**
+
 - Consumes: existing `checkoutAmount` number mutated by promo logic above.
+
 - Produces: `checkoutAmount` guaranteed to have at most 2 decimal places when passed to `new IndividualInfo(... { amount: checkoutAmount ... })` later in the same function.
 
 - [ ] **Step 1: Insert the clamp**
 
-In `app/api/checkout/route.ts`, locate the end of the promo-code block (immediately after the closing brace of `if (promoCode) { ... }`, currently line ~121, just before the `// 5. Generate unique bill number` comment). Insert:
+In `app/api/checkout/route.ts`, locate the end of the promo-code block (immediately after the closing brace of `if (promoCode) { ... }`, currently line \~121, just before the `// 5. Generate unique bill number` comment). Insert:
 
-```ts
+```TypeScript
     // Clamp to whole cents so KHQR never encodes >2-decimal amounts
     checkoutAmount = Math.round(checkoutAmount * 100) / 100
 ```
 
 The surrounding code must look like:
 
-```ts
+```TypeScript
       }
     }
 
@@ -63,7 +66,7 @@ Expected: exactly one match between the promo block and the bill-number generati
 
 - [ ] **Step 3: Commit (only if user approved committing)**
 
-```bash
+```Shell
 git add app/api/checkout/route.ts
 git commit -m "fix(checkout): clamp KHQR amount to whole cents after promo"
 ```
@@ -73,24 +76,27 @@ git commit -m "fix(checkout): clamp KHQR amount to whole cents after promo"
 ### Task 2: Canonical origin for receipt + certificate email links
 
 **Files:**
+
 - Modify: `app/api/checkout/status/route.ts:166`
 - Modify: `app/api/certificates/generate/route.ts:175`
 
 **Interfaces:**
+
 - Consumes: env var `NEXT_PUBLIC_SITE_URL` (optional string, no trailing slash guaranteed by normalization).
+
 - Produces: local `const origin: string` used downstream for `${origin}/dashboard`, `${origin}/courses/${slug}`, `${origin}/certificates/${id}` links. Downstream usage unchanged.
 
 - [ ] **Step 1: Edit checkout status route**
 
-In `app/api/checkout/status/route.ts`, replace line ~166:
+In `app/api/checkout/status/route.ts`, replace line \~166:
 
-```ts
+```TypeScript
         const origin = new URL(request.url).origin
 ```
 
 with:
 
-```ts
+```TypeScript
         const origin =
           process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
           new URL(request.url).origin
@@ -100,15 +106,15 @@ with:
 
 - [ ] **Step 2: Edit certificate route**
 
-In `app/api/certificates/generate/route.ts`, replace line ~175:
+In `app/api/certificates/generate/route.ts`, replace line \~175:
 
-```ts
+```TypeScript
       const origin = new URL(request.url).origin
 ```
 
 with:
 
-```ts
+```TypeScript
       const origin =
         process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
         new URL(request.url).origin
@@ -124,7 +130,7 @@ Expected: two matches — one in `checkout/status/route.ts`, one in `certificate
 
 - [ ] **Step 4: Commit (only if user approved committing)**
 
-```bash
+```Shell
 git add app/api/checkout/status/route.ts app/api/certificates/generate/route.ts
 git commit -m "fix(emails): prefer NEXT_PUBLIC_SITE_URL origin for payment/certificate links"
 ```
@@ -134,17 +140,20 @@ git commit -m "fix(emails): prefer NEXT_PUBLIC_SITE_URL origin for payment/certi
 ### Task 3: Remove webhook signature bypass in Bakong Edge Function
 
 **Files:**
+
 - Modify: `supabase/functions/bakong-webhook/index.ts:63-73`
 
 **Interfaces:**
+
 - Consumes: `webhookSecret = Deno.env.get("BAKONG_WEBHOOK_SECRET")` (unchanged).
+
 - Produces: unconditional HMAC rejection — any invalid signature returns 401 regardless of secret value.
 
 - [ ] **Step 1: Delete the escape hatch**
 
-Replace lines ~63-73 of `supabase/functions/bakong-webhook/index.ts`:
+Replace lines \~63-73 of `supabase/functions/bakong-webhook/index.ts`:
 
-```ts
+```TypeScript
     // For testing/development, you can relax verification checks if webhookSecret is set to 'development'
     if (webhookSecret !== "development" && !verified) {
       console.warn("Invalid webhook signature verified.");
@@ -160,7 +169,7 @@ Replace lines ~63-73 of `supabase/functions/bakong-webhook/index.ts`:
 
 with:
 
-```ts
+```TypeScript
     if (!verified) {
       console.warn("Invalid webhook signature.");
       return new Response(
@@ -181,12 +190,15 @@ Expected: no matches.
 - [ ] **Step 3: Deploy the updated function (operator action)**
 
 Either:
-```bash
+
+```Shell
 supabase functions deploy bakong-webhook --project-ref <project-ref>
 ```
+
 or paste the updated function body into Dashboard -> Edge Functions -> bakong-webhook and save.
 
 Before/at this step, set the Edge Function secrets (Dashboard -> Edge Functions -> Secrets, or CLI):
+
 ```
 BAKONG_WEBHOOK_SECRET=<long random string, e.g. openssl rand -hex 32>
 SITE_URL=https://<final-domain>
@@ -196,7 +208,7 @@ EMAIL_FROM=Archtipsbox <noreply@<final-domain>>
 
 - [ ] **Step 4: Commit repo change (only if user approved committing)**
 
-```bash
+```Shell
 git add supabase/functions/bakong-webhook/index.ts
 git commit -m "fix(webhook): require valid HMAC signature unconditionally"
 ```
@@ -208,10 +220,13 @@ Note: this file is outside ESLint scope; `pnpm lint` will not check it. Repo-wid
 ### Task 4: Vercel project + environment variables (operator)
 
 **Files:**
+
 - None (dashboard/CLI operations).
 
 **Interfaces:**
+
 - Consumes: values from `.env.example` and the user's real credentials from local `.env`.
+
 - Produces: a deployed Vercel project reachable at `https://<project>.vercel.app` with Production + Preview env scopes fully populated.
 
 - [ ] **Step 1: Run final local gates**
@@ -225,26 +240,26 @@ Vercel dashboard -> Add New Project -> import the Git repository. Framework pres
 
 - [ ] **Step 3: Set environment variables (Production AND Preview scopes)**
 
-| Key | Value |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | existing value from `.env` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | existing anon key |
-| `NEXT_PUBLIC_SITE_URL` | `https://<final-domain>` |
-| `NEXT_PUBLIC_USE_LOCAL_MEDIA` | `false` |
-| `NEXT_PUBLIC_BYPASS_EMAILS` | **leave unset entirely** |
-| `SUPABASE_SERVICE_ROLE_KEY` | service role key |
-| `RESEND_API_KEY` | Resend API key |
-| `EMAIL_FROM` | `Archtipsbox <noreply@<final-domain>>` |
-| `BAKONG_ACCOUNT_ID` / `BAKONG_ACCOUNT_TYPE` | merchant values |
-| `BAKONG_MERCHANT_ID` / `BAKONG_MERCHANT_NAME` / `BAKONG_MERCHANT_CITY` | merchant values |
-| `BAKONG_WEBHOOK_SECRET` | same strong random value as Edge Function secret |
-| `BAKONG_API_URL` | e.g. `https://api-bakong.nbc.gov.kh` |
-| `BAKONG_ACCESS_TOKEN` | current valid developer token |
-| `BUNNY_STREAM_PULL_ZONE_HOST` | pull zone host |
-| `BUNNY_STREAM_TOKEN_SECURITY_KEY` | token auth key |
-| `BUNNY_STREAM_FORMAT` | `hls` |
-| `BUNNY_STREAM_TTL_SECONDS` | `7200` |
-| `BUNNY_STREAM_BIND_TOKEN_IP` | keep matching pull-zone IP-validation setting |
+| Key                                                                    | Value                                            |
+| ---------------------------------------------------------------------- | ------------------------------------------------ |
+| `NEXT_PUBLIC_SUPABASE_URL`                                             | existing value from `.env`                       |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`                                        | existing anon key                                |
+| `NEXT_PUBLIC_SITE_URL`                                                 | `https://<final-domain>`                         |
+| `NEXT_PUBLIC_USE_LOCAL_MEDIA`                                          | `false`                                          |
+| `NEXT_PUBLIC_BYPASS_EMAILS`                                            | **leave unset entirely**                         |
+| `SUPABASE_SERVICE_ROLE_KEY`                                            | service role key                                 |
+| `RESEND_API_KEY`                                                       | Resend API key                                   |
+| `EMAIL_FROM`                                                           | `Archtipsbox <noreply@<final-domain>>`           |
+| `BAKONG_ACCOUNT_ID` / `BAKONG_ACCOUNT_TYPE`                            | merchant values                                  |
+| `BAKONG_MERCHANT_ID` / `BAKONG_MERCHANT_NAME` / `BAKONG_MERCHANT_CITY` | merchant values                                  |
+| `BAKONG_WEBHOOK_SECRET`                                                | same strong random value as Edge Function secret |
+| `BAKONG_API_URL`                                                       | e.g. `https://api-bakong.nbc.gov.kh`             |
+| `BAKONG_ACCESS_TOKEN`                                                  | current valid developer token                    |
+| `BUNNY_STREAM_PULL_ZONE_HOST`                                          | pull zone host                                   |
+| `BUNNY_STREAM_TOKEN_SECURITY_KEY`                                      | token auth key                                   |
+| `BUNNY_STREAM_FORMAT`                                                  | `hls`                                            |
+| `BUNNY_STREAM_TTL_SECONDS`                                             | `7200`                                           |
+| `BUNNY_STREAM_BIND_TOKEN_IP`                                           | keep matching pull-zone IP-validation setting    |
 
 - [ ] **Step 4: Trigger deploy and confirm it goes green**
 
@@ -255,16 +270,21 @@ Deploy from main. Expected: deployment succeeds; open the `*.vercel.app` URL and
 ### Task 5: Supabase Auth URL configuration (operator)
 
 **Files:**
+
 - None (dashboard operations).
 
 **Interfaces:**
+
 - Consumes: login redirect `${window.location.origin}/auth/callback` (`components/auth-provider.tsx:79`); `app/auth/callback/route.ts` exchange handler.
+
 - Produces: allow-list entries that make auth work on both the staging `*.vercel.app` host now and `<final-domain>` after flip.
 
 - [ ] **Step 1: Update URL Configuration**
 
 Supabase Dashboard -> Authentication -> URL Configuration:
+
 - Site URL: `https://<final-domain>`
+
 - Redirect URLs — add all of:
   - `https://<final-domain>/auth/callback`
   - `https://<final-domain-with-www>/auth/callback` (if www will be served)
@@ -276,12 +296,14 @@ Trigger a password-reset or signup confirmation to your own address. Expected: e
 
 ---
 
-### Task 6: Gate 1 — full flow verification on *.vercel.app (operator)
+### Task 6: Gate 1 — full flow verification on \*.vercel.app (operator)
 
 **Files:**
+
 - None (verification only).
 
 **Interfaces:**
+
 - Consumes: Tasks 1-5 complete; Vercel Preview/Production URL live.
 
 - [ ] **Step 1: Auth smoke**
@@ -291,6 +313,7 @@ Signup fresh account -> confirm email -> login lands on dashboard. Logout -> log
 - [ ] **Step 2: Payment smoke (real money, smallest viable amount)**
 
 Create a temporary cheapest course price or use smallest plan -> checkout -> scan KHQR with banking app -> stay on polling screen until it flips to success. Verify in Supabase:
+
 - `payment_transactions`: row `completed` with `external_tx_hash`, amount has <=2 decimals
 - `course_enrollments` / `user_subscriptions`: active row for buyer
 - `profiles.role` upgraded to `student`
@@ -312,10 +335,13 @@ While logged out: `/dashboard` redirects to `/login`, `/admin` redirects appropr
 ### Task 7: DNS cutover + Gate 2 (operator)
 
 **Files:**
+
 - None (registrar/DNS + verification).
 
 **Interfaces:**
+
 - Consumes: Gate 1 passed.
+
 - Produces: production site on `<final-domain>` with old hosting as rollback.
 
 - [ ] **Step 1: T-24h preparation**
@@ -333,9 +359,13 @@ Replace ONLY the web A/CNAME records with Vercel's values. Do not touch MX/TXT/S
 - [ ] **Step 4: Post-propagation checks**
 
 - `https://<final-domain>` serves the app over valid SSL (auto-provisioned).
+
 - Login + one checkout smoke test against apex domain.
+
 - sitemap.xml and robots.txt show `https://<final-domain>`.
+
 - Supabase Redirect URLs: remove the temporary `*.vercel.app` entry.
+
 - Watch Vercel logs + Supabase logs for 24h (checkout errors, webhook failures, video route errors).
 
 ---

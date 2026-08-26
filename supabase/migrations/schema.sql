@@ -78,6 +78,9 @@ CREATE TABLE IF NOT EXISTS public.projects (
     price TEXT,
     client TEXT,
     scope TEXT,
+    features_json JSONB DEFAULT '[]',
+    challenges_json JSONB DEFAULT '[]',
+    solutions_json JSONB DEFAULT '[]',
     created_at TIMESTAMPTZ DEFAULT now()
 );
 

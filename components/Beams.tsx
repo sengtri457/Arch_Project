@@ -9,6 +9,8 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { PerspectiveCamera } from '@react-three/drei';
 import { degToRad } from 'three/src/math/MathUtils.js';
 
+// The stylesheet is handled by the app bundler; TypeScript has no declaration for CSS imports.
+// CSS side-effect imports are intentionally resolved at build time.
 import './Beams.css';
 
 interface UniformInput {

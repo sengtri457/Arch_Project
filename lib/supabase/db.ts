@@ -161,9 +161,9 @@ export const db = {
             bedrooms: undefined,
             bathrooms: undefined,
             floors: undefined,
-            features: [],
-            challenges: [],
-            solutions: []
+            features: Array.isArray(dbProj.features_json) ? dbProj.features_json : [],
+            challenges: Array.isArray(dbProj.challenges_json) ? dbProj.challenges_json : [],
+            solutions: Array.isArray(dbProj.solutions_json) ? dbProj.solutions_json : []
           },
           images: galleryUrls,
           gallery,
@@ -223,9 +223,9 @@ export const db = {
           bedrooms: undefined,
           bathrooms: undefined,
           floors: undefined,
-          features: [],
-          challenges: [],
-          solutions: []
+          features: Array.isArray(data.features_json) ? data.features_json : [],
+          challenges: Array.isArray(data.challenges_json) ? data.challenges_json : [],
+          solutions: Array.isArray(data.solutions_json) ? data.solutions_json : []
         },
         images: galleryUrls,
         gallery,

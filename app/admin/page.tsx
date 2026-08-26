@@ -26,6 +26,11 @@ type AdminProjectRow = Project & {
   software_used?: string | null
   software?: string | null
   is_featured?: boolean | null
+  client?: string | null
+  scope?: string | null
+  features_json?: string[] | null
+  challenges_json?: string[] | null
+  solutions_json?: string[] | null
 }
 
 type AdminProfileRow = Profile & {
@@ -182,7 +187,15 @@ export default function AdminDashboard() {
     image: "",
     category: "",
     software: "",
-    is_featured: false
+    is_featured: false,
+    year: "",
+    location: "",
+    price: "",
+    client: "",
+    scope: "",
+    features: "",
+    challenges: "",
+    solutions: ""
   })
 
   const [loadingData, setLoadingData] = useState(true)
@@ -672,6 +685,10 @@ export default function AdminDashboard() {
       alert('Invalid slug. Use only lowercase letters, numbers and hyphens - e.g. "modern-concrete-villa". Do not paste a URL here.')
       return
     }
+    const featuresArr = projectForm.features.split(',').map((f: any) => f.trim()).filter(Boolean)
+    const challengesArr = projectForm.challenges.split(',').map((c: any) => c.trim()).filter(Boolean)
+    const solutionsArr = projectForm.solutions.split(',').map((s: any) => s.trim()).filter(Boolean)
+
     try {
       if (editingProject) {
         // Update
@@ -684,7 +701,15 @@ export default function AdminDashboard() {
             cover_image_url: projectForm.image,
             category: projectForm.category,
             software_used: projectForm.software,
-            is_featured: projectForm.is_featured
+            is_featured: projectForm.is_featured,
+            year: projectForm.year,
+            location: projectForm.location,
+            price: projectForm.price,
+            client: projectForm.client,
+            scope: projectForm.scope,
+            features_json: featuresArr,
+            challenges_json: challengesArr,
+            solutions_json: solutionsArr
           })
           .eq('project_id', editingProject.project_id)
 
@@ -706,7 +731,15 @@ export default function AdminDashboard() {
             category: projectForm.category,
             software_used: projectForm.software,
             is_featured: projectForm.is_featured,
-            created_by: user.id
+            created_by: user.id,
+            year: projectForm.year,
+            location: projectForm.location,
+            price: projectForm.price,
+            client: projectForm.client,
+            scope: projectForm.scope,
+            features_json: featuresArr,
+            challenges_json: challengesArr,
+            solutions_json: solutionsArr
           })
 
         if (error) throw error
@@ -1466,14 +1499,22 @@ export default function AdminDashboard() {
                       <Button 
                         onClick={() => {
                           setEditingProject(null)
-                          setProjectForm({
+                           setProjectForm({
                             title: "",
                             slug: "",
                             description: "",
                             image: "",
                             category: "Interior",
                             software: "SketchUp, D5 Render, Photoshop",
-                            is_featured: false
+                            is_featured: false,
+                            year: new Date().getFullYear().toString(),
+                            location: "Phnom Penh, Cambodia",
+                            price: "$20,000",
+                            client: "",
+                            scope: "Interior & Exterior Visualization",
+                            features: "",
+                            challenges: "",
+                            solutions: ""
                           })
                           setShowProjectModal(true)
                         }}
@@ -1501,14 +1542,28 @@ export default function AdminDashboard() {
                             <Button 
                               onClick={() => {
                                 setEditingProject(project)
-                                setProjectForm({
+                                 setProjectForm({
                                   title: project.title,
                                   slug: project.slug || project.id || "",
                                   description: project.description || "",
                                   image: project.cover_image_url || project.image || "",
                                   category: project.category || "Interior",
                                   software: (project.software_used ?? project.software ?? "") as string,
-                                  is_featured: !!project.is_featured
+                                  is_featured: !!project.is_featured,
+                                  year: project.year || "",
+                                  location: project.location || "",
+                                  price: project.price || "",
+                                  client: project.client || "",
+                                  scope: project.scope || "",
+                                  features: Array.isArray(project.features_json) 
+                                    ? project.features_json.join(', ') 
+                                    : (Array.isArray(project.details?.features) ? project.details.features.join(', ') : ""),
+                                  challenges: Array.isArray(project.challenges_json) 
+                                    ? project.challenges_json.join(', ') 
+                                    : (Array.isArray(project.details?.challenges) ? project.details.challenges.join(', ') : ""),
+                                  solutions: Array.isArray(project.solutions_json) 
+                                    ? project.solutions_json.join(', ') 
+                                    : (Array.isArray(project.details?.solutions) ? project.details.solutions.join(', ') : "")
                                 })
                                 setShowProjectModal(true)
                               }}
@@ -1752,7 +1807,7 @@ export default function AdminDashboard() {
                         const courseEnrollments = enrollments.filter(e => e.course_id === course.course_id || e.course_id === course.id)
                         const chartData = courseLessons.map((l, idx) => {
                           const progressForLesson = progressLogs.filter(p => p.lesson_id === l.lesson_id)
-                          const startedCount = progressForLesson.filter(p => p.seconds_watched > 0).length
+                          const startedCount = progressForLesson.filter(p => (p.watched_seconds || 0) > 0 || p.is_completed).length
                           const completedCount = progressForLesson.filter(p => p.is_completed).length
                           return {
                             name: `L${idx + 1}`,
@@ -1817,14 +1872,14 @@ export default function AdminDashboard() {
                                   <tbody className="divide-y divide-zinc-900/40 text-zinc-300">
                                     {courseLessons.map((l, index) => {
                                       const progressForLesson = progressLogs.filter(p => p.lesson_id === l.lesson_id)
-                                      const startedCount = progressForLesson.filter(p => p.seconds_watched > 0).length
+                                      const startedCount = progressForLesson.filter(p => (p.watched_seconds || 0) > 0 || p.is_completed).length
                                       const completedCount = progressForLesson.filter(p => p.is_completed).length
                                       
                                       const completionRate = startedCount > 0 
                                         ? Math.round((completedCount / startedCount) * 100) 
                                         : 0
 
-                                      const totalSeconds = progressForLesson.reduce((sum, p) => sum + (p.seconds_watched || 0), 0)
+                                      const totalSeconds = progressForLesson.reduce((sum, p) => sum + (p.watched_seconds || 0), 0)
                                       const avgSeconds = progressForLesson.length > 0 ? totalSeconds / progressForLesson.length : 0
                                       const avgMins = (avgSeconds / 60).toFixed(1)
 
@@ -2714,6 +2769,96 @@ export default function AdminDashboard() {
                     onChange={(e) => setProjectForm({ ...projectForm, software: e.target.value })} 
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
                     placeholder="SketchUp, Lumion, Photoshop"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Project Year</label>
+                    <input 
+                      type="text" 
+                      value={projectForm.year} 
+                      onChange={(e) => setProjectForm({ ...projectForm, year: e.target.value })} 
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                      placeholder="e.g. 2026"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Location</label>
+                    <input 
+                      type="text" 
+                      value={projectForm.location} 
+                      onChange={(e) => setProjectForm({ ...projectForm, location: e.target.value })} 
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                      placeholder="e.g. Phnom Penh, Cambodia"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Project Budget / Price</label>
+                    <input 
+                      type="text" 
+                      value={projectForm.price} 
+                      onChange={(e) => setProjectForm({ ...projectForm, price: e.target.value })} 
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                      placeholder="e.g. $25,000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Client</label>
+                    <input 
+                      type="text" 
+                      value={projectForm.client} 
+                      onChange={(e) => setProjectForm({ ...projectForm, client: e.target.value })} 
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                      placeholder="e.g. Krohom Bookstore"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Project Scope</label>
+                  <input 
+                    type="text" 
+                    value={projectForm.scope} 
+                    onChange={(e) => setProjectForm({ ...projectForm, scope: e.target.value })} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                    placeholder="e.g. Exterior & Interior Visualization"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Key Features (Comma separated)</label>
+                  <input 
+                    type="text" 
+                    value={projectForm.features} 
+                    onChange={(e) => setProjectForm({ ...projectForm, features: e.target.value })} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                    placeholder="Sustainable design, Natural lighting, Community areas"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Challenges (Comma separated)</label>
+                  <input 
+                    type="text" 
+                    value={projectForm.challenges} 
+                    onChange={(e) => setProjectForm({ ...projectForm, challenges: e.target.value })} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                    placeholder="Optimizing natural light, Narrow land size"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Solutions (Comma separated)</label>
+                  <input 
+                    type="text" 
+                    value={projectForm.solutions} 
+                    onChange={(e) => setProjectForm({ ...projectForm, solutions: e.target.value })} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                    placeholder="Open plan layout, Custom skylights"
                   />
                 </div>
 
