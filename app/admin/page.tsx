@@ -1663,7 +1663,7 @@ export default function AdminDashboard() {
                             <div>
                               <h4 className="font-bold text-white">{course.title}</h4>
                               <p className="text-xs text-zinc-400 mt-0.5">
-                                {lessons.filter(l => l.course_id === course.course_id).length} lessons • {course.duration || "Self-Paced"} • {course.level || course.difficulty || "Intermediate"}
+                                {course.lessons || 0} lessons • {course.duration || "Self-Paced"} • {course.level || course.difficulty || "Intermediate"}
                               </p>
                             </div>
                           </div>
