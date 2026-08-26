@@ -9,6 +9,22 @@ import { Profile } from "@/components/auth-provider"
 import { Course } from "@/lib/courses-data"
 import { Project } from "@/lib/projects-data"
 import { getMediaUrl } from "@/lib/utils"
+import Swal from "sweetalert2"
+
+const MySwal = Swal.mixin({
+  background: '#060010',
+  color: '#fff',
+  confirmButtonColor: '#9ACD32',
+  cancelButtonColor: '#27272a',
+  customClass: {
+    popup: 'border border-zinc-800 rounded-2xl shadow-2xl font-sans text-white bg-zinc-950',
+    title: 'text-white font-bold',
+    htmlContainer: 'text-zinc-300',
+    confirmButton: 'px-5 py-2.5 rounded-xl font-semibold text-black hover:opacity-90 transition-opacity',
+    cancelButton: 'px-5 py-2.5 rounded-xl font-semibold hover:bg-zinc-800 transition-colors'
+  },
+  buttonsStyling: true
+})
 
 type AdminCourseRow = Course & {
   thumbnail_url?: string | null
@@ -340,9 +356,9 @@ export default function AdminDashboard() {
       
       // Update local state
       setProfiles(prev => prev.map(p => p.id === targetUserId ? { ...p, role: newRole } : p))
-      alert(`User role successfully updated to ${newRole}!`)
+      MySwal.fire({ icon: 'success', title: 'Updated!', text: `User role successfully updated to ${newRole}!` })
     } catch (err: any) {
-      alert(`Failed to update user role: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to update user role: ${err.message}` })
     }
   }
 
@@ -370,9 +386,9 @@ export default function AdminDashboard() {
           ? { ...s, status: 'graded', score, instructor_feedback: feedback } 
           : s
       ))
-      alert("Submission successfully graded!")
+      MySwal.fire({ icon: 'success', title: 'Graded!', text: "Submission successfully graded!" })
     } catch (err: any) {
-      alert(`Failed to grade submission: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to grade submission: ${err.message}` })
     }
   }
 
@@ -404,9 +420,9 @@ export default function AdminDashboard() {
         is_active: editPlanActive
       } : p))
       setSelectedPlan(null)
-      alert("Plan details saved successfully!")
+      MySwal.fire({ icon: 'success', title: 'Saved!', text: "Plan details saved successfully!" })
     } catch (err: any) {
-      alert(`Failed to save plan: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to save plan: ${err.message}` })
     } finally {
       setIsSavingPlan(false)
     }
@@ -426,27 +442,37 @@ export default function AdminDashboard() {
           is_active: planForm.is_active
         })
       if (error) throw error
-      alert("Plan created successfully!")
+      await MySwal.fire({ icon: 'success', title: 'Created!', text: "Plan created successfully!" })
       setShowPlanModal(false)
       window.location.reload()
     } catch (err: any) {
-      alert(`Failed to create plan: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to create plan: ${err.message}` })
     }
   }
 
   // 1c. Delete Plan
   const handleDeletePlan = async (planId: number) => {
-    if (!confirm("Are you sure you want to delete this pricing plan? Existing user subscriptions may be affected!")) return
+    const result = await MySwal.fire({
+      title: 'Delete Plan?',
+      text: 'Are you sure you want to delete this pricing plan? Existing user subscriptions may be affected!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'No, cancel'
+    })
+    
+    if (!result.isConfirmed) return
+
     try {
       const { error } = await supabase
         .from('subscription_plans')
         .delete()
         .eq('plan_id', planId)
       if (error) throw error
-      alert("Plan deleted successfully!")
+      await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Plan deleted successfully!" })
       window.location.reload()
     } catch (err: any) {
-      alert(`Failed to delete plan: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete plan: ${err.message}` })
     }
   }
 
@@ -468,27 +494,37 @@ export default function AdminDashboard() {
           is_active: promoForm.is_active
         })
       if (error) throw error
-      alert("Promo code created successfully!")
+      await MySwal.fire({ icon: 'success', title: 'Created!', text: "Promo code created successfully!" })
       setShowPromoModal(false)
       window.location.reload()
     } catch (err: any) {
-      alert(`Failed to create promo code: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to create promo code: ${err.message}` })
     }
   }
 
   // 1e. Delete Promo Code
   const handleDeletePromo = async (code: string) => {
-    if (!confirm(`Are you sure you want to delete promo code ${code}?`)) return
+    const result = await MySwal.fire({
+      title: 'Delete Promo Code?',
+      text: `Are you sure you want to delete promo code ${code}?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'No, cancel'
+    })
+
+    if (!result.isConfirmed) return
+
     try {
       const { error } = await supabase
         .from('promo_codes')
         .delete()
         .eq('code', code)
       if (error) throw error
-      alert("Promo code deleted successfully!")
+      await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Promo code deleted successfully!" })
       window.location.reload()
     } catch (err: any) {
-      alert(`Failed to delete promo code: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete promo code: ${err.message}` })
     }
   }
 
@@ -503,7 +539,7 @@ export default function AdminDashboard() {
         text: testimonialForm.text.trim()
       }
       if (!payload.name || !payload.role || !payload.organization || !payload.text) {
-        alert("All fields are required.")
+        MySwal.fire({ icon: 'warning', title: 'Required Fields', text: "All fields are required." })
         return
       }
 
@@ -513,33 +549,43 @@ export default function AdminDashboard() {
           .update(payload)
           .eq('id', editingTestimonialId)
         if (error) throw error
-        alert("Testimonial updated successfully!")
+        await MySwal.fire({ icon: 'success', title: 'Updated!', text: "Testimonial updated successfully!" })
       } else {
         const { error } = await supabase
           .from('testimonials')
           .insert(payload)
         if (error) throw error
-        alert("Testimonial created successfully!")
+        await MySwal.fire({ icon: 'success', title: 'Created!', text: "Testimonial created successfully!" })
       }
       setShowTestimonialModal(false)
       window.location.reload()
     } catch (err: any) {
-      alert(`Failed to save testimonial: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to save testimonial: ${err.message}` })
     }
   }
 
   const handleDeleteTestimonial = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete the testimonial from ${name}?`)) return
+    const result = await MySwal.fire({
+      title: 'Delete Testimonial?',
+      text: `Are you sure you want to delete the testimonial from ${name}?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'No, cancel'
+    })
+
+    if (!result.isConfirmed) return
+
     try {
       const { error } = await supabase
         .from('testimonials')
         .delete()
         .eq('id', id)
       if (error) throw error
-      alert("Testimonial deleted successfully!")
+      await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Testimonial deleted successfully!" })
       window.location.reload()
     } catch (err: any) {
-      alert(`Failed to delete testimonial: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete testimonial: ${err.message}` })
     }
   }
 
@@ -548,12 +594,11 @@ export default function AdminDashboard() {
     e.preventDefault()
     const courseSlug = courseForm.slug.trim()
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(courseSlug)) {
-      alert('Invalid slug. Use only lowercase letters, numbers and hyphens - e.g. "d5-masterclass". Do not paste a URL here.')
-      return
-    }
-    const slugOk = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(courseSlug)
-    if (!slugOk) {
-      alert('Invalid slug. Use only lowercase letters, numbers and hyphens - e.g. "d5-masterclass". Do not paste a URL here.')
+      MySwal.fire({
+        icon: 'error',
+        title: 'Invalid Slug',
+        text: 'Invalid slug. Use only lowercase letters, numbers and hyphens - e.g. "d5-masterclass". Do not paste a URL here.'
+      })
       return
     }
     const requiredPlanId = courseForm.requiredPlanId ? parseInt(courseForm.requiredPlanId) : null
@@ -579,7 +624,7 @@ export default function AdminDashboard() {
           .eq('course_id', editingCourse.course_id || editingCourse.id)
 
         if (error) throw error
-        alert("Course updated successfully!")
+        await MySwal.fire({ icon: 'success', title: 'Updated!', text: "Course updated successfully!" })
       } else {
         // Create
         const { error } = await supabase
@@ -587,20 +632,30 @@ export default function AdminDashboard() {
           .insert(payload)
 
         if (error) throw error
-        alert("Course created successfully!")
+        await MySwal.fire({ icon: 'success', title: 'Created!', text: "Course created successfully!" })
       }
       
       setShowCourseModal(false)
       setEditingCourse(null)
       window.location.reload()
     } catch (err: any) {
-      alert(`Failed to save course: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to save course: ${err.message}` })
     }
   }
 
   // Delete Course
   const handleDeleteCourse = async (cId: string) => {
-    if (!confirm("Are you sure you want to delete this course? This will remove all lesson references.")) return
+    const result = await MySwal.fire({
+      title: 'Delete Course?',
+      text: 'Are you sure you want to delete this course? This will remove all lesson references.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'No, cancel'
+    })
+
+    if (!result.isConfirmed) return
+
     try {
       const { error } = await supabase
         .from('courses')
@@ -608,10 +663,14 @@ export default function AdminDashboard() {
         .eq('course_id', cId)
 
       if (error) throw error
-      alert("Course deleted successfully!")
+      await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Course deleted successfully!" })
       window.location.reload()
     } catch (err: any) {
-      alert(`Failed to delete course: ${err.message}`)
+      MySwal.fire({
+        icon: 'error',
+        title: 'Failed to Delete Course',
+        html: `Failed to delete course: ${err.message}<br/><br/><strong>Tip:</strong> If students have already submitted exercises for this course, you must delete their submissions or apply the cascade-delete database migration.`
+      })
     }
   }
 
@@ -622,10 +681,10 @@ export default function AdminDashboard() {
         const json = await res.json()
         setLessons(json.lessons || [])
       } else {
-        alert('Failed to reload lessons: admin API error')
+        MySwal.fire({ icon: 'error', title: 'Error', text: 'Failed to reload lessons: admin API error' })
       }
     } catch (err: any) {
-      alert(`Failed to reload lessons: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to reload lessons: ${err.message}` })
     }
   }
 
@@ -654,19 +713,33 @@ export default function AdminDashboard() {
         const errJson = await response.json().catch(() => ({}))
         throw new Error(errJson.error || 'Admin API error')
       }
-      alert(editingLesson ? "Lesson updated successfully!" : "Lesson added to syllabus successfully!")
+      await MySwal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: editingLesson ? "Lesson updated successfully!" : "Lesson added to syllabus successfully!"
+      })
 
       setShowLessonModal(false)
       setEditingLesson(null)
       await reloadLessons()
     } catch (err: any) {
-      alert(`Failed to save lesson: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to save lesson: ${err.message}` })
     }
   }
 
   // Delete Lesson
   const handleDeleteLesson = async (lId: string) => {
-    if (!confirm("Are you sure you want to delete this lesson module?")) return
+    const result = await MySwal.fire({
+      title: 'Delete Lesson?',
+      text: 'Are you sure you want to delete this lesson module?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'No, cancel'
+    })
+
+    if (!result.isConfirmed) return
+
     try {
       const response = await fetch(`/api/admin/lessons?lessonId=${encodeURIComponent(lId)}`, {
         method: 'DELETE'
@@ -675,10 +748,10 @@ export default function AdminDashboard() {
         const errJson = await response.json().catch(() => ({}))
         throw new Error(errJson.error || 'Admin API error')
       }
-      alert("Lesson deleted successfully!")
+      await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Lesson deleted successfully!" })
       await reloadLessons()
     } catch (err: any) {
-      alert(`Failed to delete lesson: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete lesson: ${err.message}` })
     }
   }
 
@@ -706,7 +779,7 @@ export default function AdminDashboard() {
 
       setLessonForm(prev => ({ ...prev, downloadable_asset_url: data.publicUrl }))
     } catch (err: any) {
-      alert(`Asset upload failed: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Upload Failed', text: `Asset upload failed: ${err.message}` })
     } finally {
       setUploadingLessonAsset(false)
     }
@@ -735,7 +808,7 @@ export default function AdminDashboard() {
 
       setProjectForm(prev => ({ ...prev, image: data.publicUrl }))
     } catch (err: any) {
-      alert(`Upload failed: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Upload Failed', text: `Upload failed: ${err.message}` })
     } finally {
       setUploadingImage(false)
     }
@@ -746,7 +819,11 @@ export default function AdminDashboard() {
     e.preventDefault()
     const projectSlug = projectForm.slug.trim()
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(projectSlug)) {
-      alert('Invalid slug. Use only lowercase letters, numbers and hyphens - e.g. "modern-concrete-villa". Do not paste a URL here.')
+      MySwal.fire({
+        icon: 'error',
+        title: 'Invalid Slug',
+        text: 'Invalid slug. Use only lowercase letters, numbers and hyphens - e.g. "modern-concrete-villa". Do not paste a URL here.'
+      })
       return
     }
     const featuresArr = projectForm.features.split(',').map((f: any) => f.trim()).filter(Boolean)
@@ -778,10 +855,10 @@ export default function AdminDashboard() {
           .eq('project_id', editingProject.project_id)
 
         if (error) throw error
-        alert("Project updated successfully!")
+        await MySwal.fire({ icon: 'success', title: 'Updated!', text: "Project updated successfully!" })
       } else {
         if (!user) {
-          alert("You must be signed in to publish a project.")
+          MySwal.fire({ icon: 'error', title: 'Authentication Error', text: "You must be signed in to publish a project." })
           return
         }
         // Create
@@ -807,20 +884,30 @@ export default function AdminDashboard() {
           })
 
         if (error) throw error
-        alert("Project published successfully!")
+        await MySwal.fire({ icon: 'success', title: 'Published!', text: "Project published successfully!" })
       }
 
       setShowProjectModal(false)
       setEditingProject(null)
       window.location.reload()
     } catch (err: any) {
-      alert(`Failed to save project: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to save project: ${err.message}` })
     }
   }
 
   // Delete Project
   const handleDeleteProject = async (pId: string) => {
-    if (!confirm("Are you sure you want to delete this project showcase?")) return
+    const result = await MySwal.fire({
+      title: 'Delete Project?',
+      text: 'Are you sure you want to delete this project showcase?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'No, cancel'
+    })
+
+    if (!result.isConfirmed) return
+
     try {
       const { error } = await supabase
         .from('projects')
@@ -828,10 +915,10 @@ export default function AdminDashboard() {
         .eq('project_id', pId)
 
       if (error) throw error
-      alert("Project deleted successfully!")
+      await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Project deleted successfully!" })
       window.location.reload()
     } catch (err: any) {
-      alert(`Failed to delete project: ${err.message}`)
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete project: ${err.message}` })
     }
   }
 
