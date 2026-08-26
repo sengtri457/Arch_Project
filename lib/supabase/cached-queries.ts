@@ -1,8 +1,15 @@
 import { unstable_cache } from "next/cache"
-import { createClient } from "./server"
+import { createClient } from "@supabase/supabase-js"
 import { db } from "./db"
 import { Project } from "@/lib/projects-data"
 import { Testimonial } from "@/lib/testimonials-data"
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+// Safe, static client that does not touch cookies() or headers().
+// Perfect for static prerendering / unstable_cache.
+const staticClient = createClient(supabaseUrl, supabaseAnonKey)
 
 /**
  * Fetches featured projects with caching.
@@ -10,8 +17,7 @@ import { Testimonial } from "@/lib/testimonials-data"
  */
 export const getCachedFeaturedProjects = unstable_cache(
   async (limit: number = 8): Promise<Project[]> => {
-    const supabase = await createClient()
-    return db.getProjects(supabase, { featured: true, limit })
+    return db.getProjects(staticClient, { featured: true, limit })
   },
   ["featured-projects"],
   {
@@ -26,8 +32,7 @@ export const getCachedFeaturedProjects = unstable_cache(
  */
 export const getCachedTestimonials = unstable_cache(
   async (): Promise<Testimonial[]> => {
-    const supabase = await createClient()
-    return db.getTestimonials(supabase)
+    return db.getTestimonials(staticClient)
   },
   ["testimonials"],
   {
