@@ -369,27 +369,28 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
       let activeExerciseId = exercise?.exercise_id
       console.log("handleSubmission: Existing exercise ID found in state:", activeExerciseId)
 
-      // Autorescue: If no exercise row exists in the database for this lesson, create one automatically
+      // Autorescue: If no exercise row exists in the database for this lesson, get or create it using the RLS-secure RPC
       if (!activeExerciseId) {
-        console.log("handleSubmission: No exercise found for lesson. Triggering database auto-creation...")
-        const { data: newExercise, error: exerciseError } = await supabase
-          .from("exercises")
-          .insert({
-            lesson_id: activeLessonId,
-            title: `Practice Task for ${currentLesson.title}`,
-            brief_prompt: "Recreate the rendering setup shown in the visualization video and submit your workspace or output render image link.",
-            max_score: 100
-          })
-          .select()
-          .single()
+        console.log("handleSubmission: No exercise found for lesson. Triggering database auto-creation via RPC...")
+        const { data: ensuredExercise, error: exerciseError } = await supabase.rpc("ensure_lesson_exercise", {
+          p_lesson_id: activeLessonId,
+          p_title: `Practice Task for ${currentLesson.title}`
+        })
 
         if (exerciseError) {
-          console.error("handleSubmission: Database error during auto-creating exercise row:", exerciseError)
-          throw exerciseError
+          console.error(
+            "handleSubmission: Database error during auto-creating exercise row:",
+            exerciseError.code,
+            "|",
+            exerciseError.message,
+            "|",
+            exerciseError.details
+          )
+          throw new Error(exerciseError.message)
         }
-        activeExerciseId = newExercise.exercise_id
-        setExercise(newExercise)
-        console.log("handleSubmission: Auto-created exercise row successfully:", newExercise)
+        activeExerciseId = (ensuredExercise as any).exercise_id
+        setExercise(ensuredExercise as any)
+        console.log("handleSubmission: Auto-created exercise row successfully:", ensuredExercise)
       }
 
       // Insert submission
@@ -431,6 +432,47 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
       return
     }
 
+    // 1. Immediately open a blank window/tab in the synchronous event listener thread.
+    // This satisfies the browser's user-gesture requirement and bypasses the popup blocker.
+    const telegramChatUrl = "https://t.me/sxngtri"
+    const newWindow = window.open("", "_blank")
+    if (newWindow) {
+      newWindow.document.write(`
+        <html>
+          <head>
+            <title>Redirecting to Telegram...</title>
+            <style>
+              body {
+                background-color: #09090b;
+                color: #ffffff;
+                font-family: sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                margin: 0;
+              }
+              .spinner {
+                border: 4px solid rgba(255, 255, 255, 0.1);
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                border-left-color: #0088cc;
+                animation: spin 1s linear infinite;
+                margin-bottom: 16px;
+              }
+              @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            </style>
+          </head>
+          <body>
+            <div class="spinner"></div>
+            <p>Recording your submission and opening Telegram...</p>
+          </body>
+        </html>
+      `)
+    }
+
     setIsSubmittingExercise(true)
     const activeLessonId = currentLesson.lesson_id || currentLesson.id
     console.log("handleTelegramSubmit: Preparing Telegram submit for lesson ID:", activeLessonId)
@@ -463,7 +505,6 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
       }
 
       // Record in database as Telegram submission
-      const telegramChatUrl = "https://t.me/sxngtri"
       const payloadFiles = [{ url: telegramChatUrl, notes: "Large files submitted directly via Telegram message." }]
       console.log("handleTelegramSubmit: Inserting submission into DB for exercise ID:", activeExerciseId, "payload:", payloadFiles)
       
@@ -488,15 +529,30 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
           `Project/Course: ${courseTitle}\n` +
           `Lesson Module: ${lessonTitle}\n\n` +
           `Hi Instructor! Here are my render files and source documents for review:`;
+
+        // Copy template text to clipboard to bypass Telegram username link query limitations
+        try {
+          await navigator.clipboard.writeText(messageText)
+          console.log("handleTelegramSubmit: Message template copied to clipboard.")
+        } catch (clipErr) {
+          console.warn("handleTelegramSubmit: Failed to copy template to clipboard:", clipErr)
+        }
           
         const telegramLink = `${telegramChatUrl}?text=${encodeURIComponent(messageText)}`
-        window.open(telegramLink, "_blank")
+        
+        if (newWindow) {
+          newWindow.location.href = telegramLink
+        } else {
+          window.open(telegramLink, "_blank")
+        }
         console.log("handleTelegramSubmit: Submission created. Redirecting to Telegram:", telegramLink)
       } else {
+        if (newWindow) newWindow.close()
         console.error("handleTelegramSubmit: Failed submission result error:", result.error)
         alert(`Failed to submit: ${result.error}`)
       }
     } catch (err: any) {
+      if (newWindow) newWindow.close()
       console.error("handleTelegramSubmit: Unexpected error caught:", err)
       alert(`Error: ${err.message || err}`)
     } finally {

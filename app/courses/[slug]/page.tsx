@@ -22,7 +22,7 @@ function anonClient() {
 async function getCourse(slug: string) {
   const { data } = await anonClient()
     .from("courses")
-    .select("course_id, title, slug, description, thumbnail_url, price, difficulty, duration, instructor, category, software_used, features")
+    .select("course_id, title, slug, description, thumbnail_url, price, difficulty, duration, instructor, category, software_used, features, lessons")
     .eq("slug", slug)
     .eq("is_published", true)
     .maybeSingle()
@@ -102,7 +102,7 @@ export default async function CourseLandingPage({ params }: PageProps) {
               {[
                 { icon: BarChart3, label: course.difficulty || "Intermediate" },
                 { icon: Clock, label: course.duration || `${totalMinutes} min` },
-                { icon: PlayCircle, label: `${curriculum.length} lessons` },
+                { icon: PlayCircle, label: `${(course as any).lessons || curriculum.length} lessons` },
                 { icon: User, label: course.instructor || "Archtipsbox Team" }
               ].map(({ icon: Icon, label }) => (
                 <div key={label} className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-3.5 flex items-center gap-2.5">

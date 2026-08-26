@@ -173,12 +173,13 @@ export default function AdminDashboard() {
     image: "",
     category: "",
     duration: "",
-    level: "",
+    level: "Beginner",
     price: "49.99",
     instructor: "",
     courseCategory: "",
     requiredPlanId: "",
-    published: true
+    published: true,
+    lessons: "0"
   })
 
   // Syllabus Lessons CRUD States
@@ -602,18 +603,21 @@ export default function AdminDashboard() {
       return
     }
     const requiredPlanId = courseForm.requiredPlanId ? parseInt(courseForm.requiredPlanId) : null
+    const difficultyVal = courseForm.level.toLowerCase().trim();
     const payload = {
       title: courseForm.title.trim(),
       slug: courseSlug,
       description: courseForm.description,
       thumbnail_url: courseForm.image,
       software_used: courseForm.category,
-      difficulty: courseForm.level.toLowerCase().includes('adv') ? 'advanced' : 'intermediate',
+      difficulty: ['beginner', 'intermediate', 'advanced'].includes(difficultyVal) ? difficultyVal : 'intermediate',
       price: parseFloat(courseForm.price),
       instructor: courseForm.instructor.trim() || null,
       category: courseForm.courseCategory.replace(/\s+/g, ' ').trim() || null,
       required_plan_id: requiredPlanId && Number.isInteger(requiredPlanId) ? requiredPlanId : null,
-      is_published: courseForm.published
+      is_published: courseForm.published,
+      duration: courseForm.duration.trim() || null,
+      lessons: parseInt(courseForm.lessons) || 0
     }
     try {
       if (editingCourse) {
@@ -1631,7 +1635,8 @@ export default function AdminDashboard() {
                             instructor: "",
                             courseCategory: "",
                             requiredPlanId: "",
-                            published: true
+                            published: true,
+                            lessons: "0"
                           })
                           setShowCourseModal(true)
                         }}
@@ -1689,7 +1694,8 @@ export default function AdminDashboard() {
                                   instructor: course.instructor || "",
                                   courseCategory: course.category || "",
                                   requiredPlanId: (course as any).required_plan_id != null ? String((course as any).required_plan_id) : "",
-                                  published: (course as any).is_published !== false
+                                  published: (course as any).is_published !== false,
+                                  lessons: (course.lessons || 0).toString()
                                 })
                                 setShowCourseModal(true)
                               }}
@@ -2842,7 +2848,7 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Level</label>
                     <select 
@@ -2856,14 +2862,25 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Syllabus Hours</label>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Duration</label>
                     <input 
                       type="text" 
                       required 
                       value={courseForm.duration} 
                       onChange={(e) => setCourseForm({ ...courseForm, duration: e.target.value })} 
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
-                      placeholder="e.g. 12 Hours"
+                      placeholder="e.g. 6 weeks"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Lessons</label>
+                    <input 
+                      type="number" 
+                      required 
+                      value={courseForm.lessons} 
+                      onChange={(e) => setCourseForm({ ...courseForm, lessons: e.target.value })} 
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 font-mono" 
+                      placeholder="e.g. 42"
                     />
                   </div>
                   <div>
