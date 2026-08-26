@@ -852,13 +852,59 @@ export default function AdminDashboard() {
   ]
   const COLORS = ['#9ACD32', '#8A2BE2', '#FF4500']
 
-  if (loading || !user || profile?.role !== 'admin') {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-white gap-3">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#9ACD32' }} />
-        <span>Authenticating admin access...</span>
-      </div>
+      <main className="min-h-screen flex flex-col justify-between animate-pulse" style={{ backgroundColor: '#060010' }}>
+        <Navigation />
+
+        {/* Main Panel Content */}
+        <div className="flex-grow container mx-auto px-6 py-24 md:py-32 max-w-7xl relative z-10">
+          
+          {/* Layout Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* Sidebar Skeleton */}
+            <div className="lg:col-span-3 bg-zinc-950 border border-zinc-850 p-4 sm:p-5 rounded-2xl space-y-3 w-full">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <div key={i} className="h-10 bg-zinc-900 border border-zinc-850/40 rounded-xl w-full" />
+              ))}
+            </div>
+
+            {/* Main Tab Board Content Skeleton */}
+            <div className="lg:col-span-9 bg-zinc-950 border border-zinc-850 p-6 sm:p-8 rounded-2xl min-h-[500px] space-y-8">
+              <div className="h-8 bg-zinc-900 rounded w-48" />
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-xl space-y-3">
+                    <div className="h-3 bg-zinc-805 rounded w-32" />
+                    <div className="h-8 bg-zinc-805 rounded w-16" />
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-zinc-900/40 border border-zinc-850 p-6 rounded-xl space-y-4">
+                  <div className="h-5 bg-zinc-805 rounded w-48" />
+                  <div className="h-64 bg-zinc-805 rounded w-full" />
+                </div>
+                <div className="bg-zinc-900/40 border border-zinc-850 p-6 rounded-xl space-y-4">
+                  <div className="h-5 bg-zinc-805 rounded w-48" />
+                  <div className="h-64 bg-zinc-805 rounded w-full" />
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <Footer />
+      </main>
     )
+  }
+
+  if (!user || profile?.role !== 'admin') {
+    return null
   }
 
   return (
@@ -1108,9 +1154,28 @@ export default function AdminDashboard() {
           {/* Main Tab Board Content */}
           <div className={`${sidebarCollapsed ? 'lg:col-span-11' : 'lg:col-span-9'} bg-zinc-950 border border-zinc-850 p-6 sm:p-8 rounded-2xl min-h-[500px] transition-all duration-300`}>
             {loadingData ? (
-              <div className="h-full flex items-center justify-center py-20 text-zinc-400 gap-3">
-                <Loader2 className="w-6 h-6 animate-spin" />
-                <span>Loading dashboard data...</span>
+              <div className="animate-pulse space-y-8">
+                <div className="h-8 bg-zinc-900 rounded w-48" />
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-xl space-y-3">
+                      <div className="h-3 bg-zinc-805 rounded w-32" />
+                      <div className="h-8 bg-zinc-805 rounded w-16" />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="bg-zinc-900/40 border border-zinc-850 p-6 rounded-xl space-y-4">
+                    <div className="h-5 bg-zinc-805 rounded w-48" />
+                    <div className="h-64 bg-zinc-805 rounded w-full" />
+                  </div>
+                  <div className="bg-zinc-900/40 border border-zinc-850 p-6 rounded-xl space-y-4">
+                    <div className="h-5 bg-zinc-805 rounded w-48" />
+                    <div className="h-64 bg-zinc-805 rounded w-full" />
+                  </div>
+                </div>
               </div>
             ) : (
               <>

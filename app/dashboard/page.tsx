@@ -198,13 +198,80 @@ export default function StudentDashboard() {
     router.push("/")
   }
 
-  if (loading || !user) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-white gap-3">
-        <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#9ACD32' }} />
-        <span>Loading your profile...</span>
-      </div>
+      <main className="min-h-screen flex flex-col justify-between" style={{ backgroundColor: '#060010' }}>
+        <Navigation />
+
+        {/* Main Content Area */}
+        <div className="flex-grow container mx-auto px-6 py-24 md:py-32 max-w-7xl relative animate-pulse">
+          {/* Soft background glow */}
+          <div className="absolute top-10 left-10 w-[400px] h-[400px] bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
+
+          {/* Profile Welcome Header Skeleton */}
+          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center bg-zinc-900/10 border border-zinc-850/80 p-8 rounded-2xl mb-12 gap-6 backdrop-blur-md shadow-xl">
+            <div className="flex items-center gap-5 w-full md:w-auto">
+              <div className="w-20 h-20 rounded-full bg-zinc-850" />
+              <div className="space-y-3 flex-grow">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 bg-zinc-850 rounded w-48" />
+                  <div className="h-5 bg-zinc-850 rounded w-24" />
+                </div>
+                <div className="h-4 bg-zinc-850 rounded w-36" />
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <div className="h-10 bg-zinc-850 rounded-xl w-full sm:w-36" />
+              <div className="h-10 bg-zinc-850 rounded-xl w-full sm:w-28" />
+            </div>
+          </div>
+
+          {/* Quick Stats Grid Skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-zinc-900/10 border border-zinc-850/80 p-6 rounded-2xl flex items-center gap-4 backdrop-blur-md">
+                <div className="w-12 h-12 rounded-xl bg-zinc-850" />
+                <div className="space-y-2 flex-grow">
+                  <div className="h-3 bg-zinc-850 rounded w-24" />
+                  <div className="h-7 bg-zinc-850 rounded w-12" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Learning Catalog Skeleton */}
+          <div className="space-y-6">
+            <div className="h-8 bg-zinc-850 rounded w-48 mb-6" />
+            <div className="space-y-4">
+              {[1, 2].map((i) => (
+                <div key={i} className="bg-zinc-900/10 border border-zinc-850/60 p-5 rounded-2xl flex flex-col md:flex-row gap-5 items-center justify-between backdrop-blur-md">
+                  <div className="flex flex-col md:flex-row items-center gap-5 w-full">
+                    <div className="w-full md:w-32 aspect-video bg-zinc-850 rounded-lg shrink-0" />
+                    <div className="w-full space-y-3">
+                      <div className="h-3 bg-zinc-850 rounded w-16" />
+                      <div className="h-5 bg-zinc-850 rounded w-2/3" />
+                      <div className="w-full flex items-center gap-3">
+                        <div className="flex-grow bg-zinc-850 h-2 rounded-full" />
+                        <div className="h-3 bg-zinc-850 rounded w-8" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="w-full md:w-auto shrink-0">
+                    <div className="h-10 bg-zinc-850 rounded-lg w-full md:w-24" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <Footer />
+      </main>
     )
+  }
+
+  if (!user) {
+    return null
   }
 
   // Sample static progress values (mocked for visual demonstration)
@@ -319,9 +386,25 @@ export default function StudentDashboard() {
             <h2 className="text-2xl font-bold text-white mb-2">My Learning Catalog</h2>
             
             {loadingCourses ? (
-              <div className="flex justify-center py-12 text-zinc-400 gap-2">
-                <Loader2 className="w-6 h-6 animate-spin" />
-                <span>Loading courses...</span>
+              <div className="space-y-4 animate-pulse">
+                {[1, 2].map((i) => (
+                  <div key={i} className="bg-zinc-900/10 border border-zinc-850/60 p-5 rounded-2xl flex flex-col md:flex-row gap-5 items-center justify-between backdrop-blur-md">
+                    <div className="flex flex-col md:flex-row items-center gap-5 w-full">
+                      <div className="w-full md:w-32 aspect-video bg-zinc-850 rounded-lg shrink-0" />
+                      <div className="w-full space-y-3">
+                        <div className="h-3 bg-zinc-850 rounded w-16" />
+                        <div className="h-5 bg-zinc-850 rounded w-2/3" />
+                        <div className="w-full flex items-center gap-3">
+                          <div className="flex-grow bg-zinc-850 h-2 rounded-full" />
+                          <div className="h-3 bg-zinc-850 rounded w-8" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="w-full md:w-auto shrink-0">
+                      <div className="h-10 bg-zinc-850 rounded-lg w-full md:w-24" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : courses.length === 0 ? (
               <div className="text-center py-16 border border-dashed border-zinc-800 rounded-xl text-zinc-400 space-y-4">
