@@ -94,40 +94,46 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
           return
         }
         setCourse(activeCourse)
+        const courseId = activeCourse.course_id || activeCourse.id
 
-        // 2. Validate Access permissions
-        const accessGranted = await db.checkCourseAccess(supabase, userId, activeCourse.course_id || activeCourse.id)
+        // 2. Fetch all other data in parallel
+        const [
+          accessGranted,
+          courseLessons,
+          progressRes,
+          certRes
+        ] = await Promise.all([
+          db.checkCourseAccess(supabase, userId, courseId),
+          db.getCourseLessons(supabase, courseId),
+          supabase
+            .from("lesson_progress")
+            .select("lesson_id, is_completed, watched_seconds")
+            .eq("student_id", userId)
+            .eq("course_id", courseId),
+          supabase
+            .from("certificates")
+            .select("certificate_id")
+            .eq("student_id", userId)
+            .eq("course_id", courseId)
+            .maybeSingle()
+        ])
+
         setHasAccess(accessGranted)
         if (!accessGranted) {
           setLoadingCatalog(false)
           return
         }
 
-        // 3. Fetch all course lessons
-        const courseLessons = await db.getCourseLessons(supabase, activeCourse.course_id || activeCourse.id)
         setLessons(courseLessons)
 
         // Select current lesson
         const matched = courseLessons.find((l) => l.lesson_id === lessonId || l.id === lessonId)
         setCurrentLesson(matched || courseLessons[0] || null)
 
-        // 4. Fetch watch progress records for sidebar checks
-        const { data: progressRecords } = await supabase
-          .from("lesson_progress")
-          .select("lesson_id, is_completed, watched_seconds")
-          .eq("student_id", userId)
-          .eq("course_id", activeCourse.course_id || activeCourse.id)
-
+        const progressRecords = progressRes.data
         setProgressList(progressRecords || [])
 
-        // 5. Fetch completed certificate record if exists
-        const { data: certData } = await supabase
-          .from("certificates")
-          .select("certificate_id")
-          .eq("student_id", userId)
-          .eq("course_id", activeCourse.course_id || activeCourse.id)
-          .maybeSingle()
-
+        const certData = certRes.data
         if (certData) {
           setGeneratedCertId(certData.certificate_id)
           return
@@ -144,7 +150,6 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
 
         if (allWatched && !autoCertAttempted.current) {
           autoCertAttempted.current = true
-          const courseId = activeCourse.course_id || activeCourse.id
           setTimeout(() => triggerCertGeneration(courseId), 600)
         }
       } catch (err) {

@@ -26,14 +26,9 @@ export default function CoursesPage() {
       // 2. Fetch logged in user to check access permissions
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const checks = await Promise.all(
-          data.map(async (course) => {
-            const hasAccess = await db.checkCourseAccess(supabase, user.id, course.course_id || course.id)
-            return { id: course.course_id || course.id, hasAccess }
-          })
-        )
+        const accessMap = await db.getUserCourseAccessMap(supabase, user.id, data)
         const unlocked = new Set<string>(
-          checks.filter(c => c.hasAccess).map(c => c.id)
+          Object.keys(accessMap).filter(key => accessMap[key])
         )
         setUnlockedCourseIds(unlocked)
       }

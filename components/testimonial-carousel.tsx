@@ -7,19 +7,24 @@ import { Testimonial } from "@/lib/testimonials-data"
 import { createClient } from "@/lib/supabase/client"
 import { db } from "@/lib/supabase/db"
 
-export function TestimonialCarousel() {
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([])
+interface TestimonialCarouselProps {
+  initialTestimonials?: Testimonial[]
+}
+
+export function TestimonialCarousel({ initialTestimonials }: TestimonialCarouselProps) {
+  const [testimonials, setTestimonials] = useState<Testimonial[]>(initialTestimonials || [])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
 
   useEffect(() => {
+    if (initialTestimonials && initialTestimonials.length > 0) return
     const supabase = createClient()
     async function loadTestimonials() {
       const data = await db.getTestimonials(supabase)
       setTestimonials(data)
     }
     loadTestimonials()
-  }, [])
+  }, [initialTestimonials])
 
   // Auto-advance testimonials every 5 seconds
   useEffect(() => {

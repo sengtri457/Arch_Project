@@ -526,6 +526,99 @@ export const db = {
     }
   },
 
+  async getUserCourseAccessMap(
+    supabase: SupabaseClient,
+    userId: string,
+    courses: any[]
+  ): Promise<Record<string, boolean>> {
+    try {
+      // 0. Check bypass emails
+      const { data: { user } } = await supabase.auth.getUser()
+      const bypassEmails = (process.env.NEXT_PUBLIC_BYPASS_EMAILS || '')
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean)
+      
+      const isBypass = !!(user && user.email && bypassEmails.includes(user.email.toLowerCase()))
+
+      // 1. Fetch profile, enrollments, and subscription in parallel
+      const [profileRes, enrollmentsRes, subRes] = await Promise.all([
+        supabase.from('profiles').select('role').eq('id', userId).maybeSingle(),
+        supabase.from('course_enrollments').select('course_id, status').eq('student_id', userId),
+        supabase.from('user_subscriptions').select('plan_id, current_period_end').eq('user_id', userId).eq('status', 'active').maybeSingle()
+      ])
+
+      const role = profileRes.data?.role
+      const isAdminOrInstructor = role === 'admin' || role === 'instructor'
+      
+      const activeEnrollments = new Set(
+        (enrollmentsRes.data || [])
+          .filter((e: any) => e.status === 'active')
+          .map((e: any) => e.course_id)
+      )
+
+      const sub = subRes.data
+      const isSubActive = sub && (!sub.current_period_end || new Date(sub.current_period_end) > new Date())
+      const activePlanId = isSubActive ? sub.plan_id : null
+
+      const accessMap: Record<string, boolean> = {}
+
+      for (const course of courses) {
+        const cId = course.course_id || course.id
+        
+        // Auto-enroll bypass emails if not enrolled
+        if (isBypass) {
+          if (cId && !activeEnrollments.has(cId)) {
+            try {
+              await supabase.from('course_enrollments').upsert({
+                student_id: userId,
+                course_id: cId,
+                status: 'active'
+              }, { onConflict: 'student_id,course_id' })
+            } catch (e) {
+              console.warn("Bypass auto-enrollment failed in map:", e)
+            }
+          }
+          accessMap[cId] = true
+          continue
+        }
+
+        if (isAdminOrInstructor) {
+          accessMap[cId] = true
+          continue
+        }
+
+        if (activeEnrollments.has(cId)) {
+          accessMap[cId] = true
+          continue
+        }
+
+        // Determine required plan level
+        let requiredPlanId = course.required_plan_id
+        if (requiredPlanId === null || requiredPlanId === undefined) {
+          if (course.slug === 'photoshop-masterclass') {
+            requiredPlanId = 3 // Mentorship
+          } else if (['d5-masterclass', 'enscape-masterclass', 'indesign-masterclass'].includes(course.slug || '')) {
+            requiredPlanId = 2 // Student Pro
+          }
+        }
+
+        if (requiredPlanId !== null && requiredPlanId !== undefined) {
+          accessMap[cId] = activePlanId !== null && activePlanId >= requiredPlanId
+        } else {
+          accessMap[cId] = false
+        }
+      }
+
+      return accessMap
+    } catch (err) {
+      console.warn(`Failed to build course access map for user ${userId}:`, err)
+      const fallbackMap: Record<string, boolean> = {}
+      courses.forEach(c => { fallbackMap[c.course_id || c.id] = false })
+      return fallbackMap
+    }
+  },
+
   async submitExercise(
     supabase: SupabaseClient,
     submission: { exerciseId: string; studentId: string; files: any[] }

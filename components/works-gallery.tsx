@@ -1,47 +1,12 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
-import { db } from "@/lib/supabase/db"
 import { Project } from "@/lib/projects-data"
 import { CollageProjectCard } from "@/components/collage-project-card"
 import FadeContent from "@/components/fade-content"
 
-export function WorksGallery() {
-  const [projects, setProjects] = useState<Project[]>([])
+interface WorksGalleryProps {
+  projects: Project[]
+}
 
-  useEffect(() => {
-    const supabase = createClient()
-    async function loadProjects() {
-      const data = await db.getProjects(supabase, { featured: true, limit: 8 })
-      setProjects(data)
-    }
-    loadProjects()
-  }, [])
-
-  // Create a collage layout matching the reference image:
-  // Top row: 4 equal columns
-  // Bottom row: Varied sizes for visual interest
-  const getLayout = (index: number): { colSpan: string; size: "large" | "small" } => {
-    if (index < 4) {
-      // Top row: 4 equal columns
-      return { colSpan: "md:col-span-1", size: "small" }
-    } else {
-      // Bottom row: varied layout
-      const bottomIndex = index - 4
-      if (bottomIndex === 0) {
-        // First item in bottom row: spans 2 columns
-        return { colSpan: "md:col-span-2", size: "large" }
-      } else if (bottomIndex === 1) {
-        // Second item: spans 1 column
-        return { colSpan: "md:col-span-1", size: "small" }
-      } else {
-        // Third item: spans 1 column
-        return { colSpan: "md:col-span-1", size: "small" }
-      }
-    }
-  }
-
+export function WorksGallery({ projects }: WorksGalleryProps) {
   return (
     <section 
       id="work" 
@@ -73,7 +38,7 @@ export function WorksGallery() {
                 initialOpacity={0}
               >
                 <div className="w-full h-full">
-                  <CollageProjectCard project={project} size="small" />
+                   <CollageProjectCard project={project} size="small" />
                 </div>
               </FadeContent>
             )
