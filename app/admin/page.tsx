@@ -2183,8 +2183,8 @@ export default function AdminDashboard() {
                           <div className="space-y-3">
                             <div className="flex justify-between items-start">
                               <h3 className="text-lg font-bold text-white uppercase tracking-wider">{plan.name}</h3>
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-[#9ACD32]/10 border border-[#9ACD32]/35 text-[#9ACD32]">
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-[#9ACD32]/10 border border-[#9ACD32]/35 text-[#9ACD32] whitespace-nowrap">
                                   Tier {plan.plan_id}
                                 </span>
                                 <Button
