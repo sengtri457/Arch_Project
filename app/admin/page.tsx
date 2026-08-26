@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Profile } from "@/components/auth-provider"
 import { Course } from "@/lib/courses-data"
 import { Project } from "@/lib/projects-data"
+import { getMediaUrl } from "@/lib/utils"
 
 type AdminCourseRow = Course & {
   thumbnail_url?: string | null
@@ -1494,7 +1495,14 @@ export default function AdminDashboard() {
                       {courses.map((course) => (
                         <div key={course.course_id || course.id} className="p-4 bg-zinc-900/40 border border-zinc-850 rounded-xl flex items-center justify-between hover:border-zinc-800 transition-colors">
                           <div className="flex items-center gap-4">
-                            <img src={course.thumbnail_url || course.image || "/images/placeholder.jpg"} alt="" className="w-16 h-10 object-cover rounded" />
+                            <img 
+                              src={getMediaUrl(course.thumbnail_url || course.image || "/images/placeholder.jpg")} 
+                              onError={(e) => {
+                                e.currentTarget.src = "/images/placeholder.jpg"
+                              }}
+                              alt="" 
+                              className="w-16 h-10 object-cover rounded" 
+                            />
                             <div>
                               <h4 className="font-bold text-white">{course.title}</h4>
                               <p className="text-xs text-zinc-400 mt-0.5">
@@ -1593,7 +1601,14 @@ export default function AdminDashboard() {
                       {projects.map((project) => (
                         <div key={project.project_id || project.id} className="p-4 bg-zinc-900/40 border border-zinc-850 rounded-xl flex items-center justify-between hover:border-zinc-800 transition-colors">
                           <div className="flex items-center gap-4">
-                            <img src={project.cover_image_url || project.image || "/images/placeholder.jpg"} alt="" className="w-16 h-10 object-cover rounded" />
+                            <img 
+                              src={getMediaUrl(project.cover_image_url || project.image || "/images/placeholder.jpg")} 
+                              onError={(e) => {
+                                e.currentTarget.src = "/images/placeholder.jpg"
+                              }}
+                              alt="" 
+                              className="w-16 h-10 object-cover rounded" 
+                            />
                             <div>
                               <h4 className="font-bold text-white">{project.title}</h4>
                               <p className="text-xs text-zinc-400 mt-0.5">
@@ -2841,7 +2856,10 @@ export default function AdminDashboard() {
                     {projectForm.image && (
                       <div className="relative w-28 h-16 rounded overflow-hidden border border-zinc-800 bg-zinc-950">
                         <img 
-                          src={projectForm.image} 
+                          src={getMediaUrl(projectForm.image)} 
+                          onError={(e) => {
+                            e.currentTarget.src = "/images/placeholder.jpg"
+                          }}
                           alt="Cover preview" 
                           className="w-full h-full object-cover"
                         />

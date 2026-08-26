@@ -35,10 +35,9 @@ export function getClassNameAsString(element: Element | null): string {
  * - Absolute URLs (http/https) are left unchanged
  * - Local paths starting with '/' are prepended with cloud storage URL
  * - Placeholder paths are left unchanged
- * - If USE_LOCAL_MEDIA is true, returns local paths for development
  */
 export function getMediaUrl(url: string): string {
-  if (!url) return url
+  if (!url) return '/placeholder.svg'
   
   // If it's already an absolute URL, return as is
   if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -46,8 +45,14 @@ export function getMediaUrl(url: string): string {
   }
   
   // If it's a placeholder, return as is (or you can handle it differently)
-  if (url === '/placeholder.svg' || url.startsWith('/placeholder.svg')) {
+  if (url === '/placeholder.svg' || url.startsWith('/placeholder.svg') || url === '/placeholder.jpg' || url.startsWith('/images/placeholder.jpg')) {
     return url
+  }
+
+  // Check if it's a dummy value (e.g. no extension, doesn't look like a path or link)
+  const isDummy = !url.includes('.') && !url.includes('/') && !url.startsWith('http')
+  if (isDummy) {
+    return '/placeholder.svg'
   }
   
   // If using local media, return the path as-is (Next.js serves public folder at root)
