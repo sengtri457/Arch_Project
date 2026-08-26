@@ -231,23 +231,24 @@ export default function StudentDashboard() {
         <div className="absolute top-10 left-10 w-[400px] h-[400px] bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
 
         {/* Profile Welcome Header */}
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center bg-zinc-900/50 border border-zinc-800/80 p-8 rounded-2xl mb-12 gap-6 backdrop-blur-sm">
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center bg-zinc-900/10 border border-zinc-850/80 p-8 rounded-2xl mb-12 gap-6 backdrop-blur-md shadow-xl">
           <div className="flex items-center gap-5">
             {profile?.avatar_url ? (
               <img
                 src={profile.avatar_url}
                 alt={profile.full_name}
                 className="w-20 h-20 rounded-full border-2 border-primary object-cover"
+                style={{ borderColor: '#9ACD32' }}
               />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-zinc-800 border-2 border-primary flex items-center justify-center text-2xl font-bold text-white">
+              <div className="w-20 h-20 rounded-full bg-zinc-900 border-2 border-primary flex items-center justify-center text-2xl font-bold text-white" style={{ borderColor: '#9ACD32' }}>
                 {profile?.full_name?.charAt(0).toUpperCase() || "S"}
               </div>
             )}
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <h1 className="text-3xl font-bold text-white">{profile?.full_name || "Student"}</h1>
-                <span className="px-3 py-0.5 text-xs font-semibold bg-primary/20 text-primary border border-primary/30 rounded-full flex items-center gap-1">
+                <span className="px-3 py-0.5 text-xs font-semibold bg-primary/20 text-primary border border-primary/30 rounded-full flex items-center gap-1" style={{ color: '#9ACD32', borderColor: '#9ACD32/30', backgroundColor: 'rgba(154, 205, 50, 0.1)' }}>
                   <Sparkles className="w-3 h-3" />
                   {subscriptionName}
                 </span>
@@ -277,33 +278,33 @@ export default function StudentDashboard() {
 
         {/* Quick Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          <div className="bg-zinc-900/40 border border-zinc-800/60 p-6 rounded-xl flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center" style={{ color: '#9ACD32' }}>
+          <div className="bg-zinc-900/10 border border-zinc-850/80 p-6 rounded-2xl flex items-center gap-4 backdrop-blur-md hover:border-zinc-800 transition-all duration-300">
+            <div className="w-12 h-12 rounded-xl bg-zinc-950 border border-zinc-850 flex items-center justify-center text-[#9ACD32]">
               <BookOpen className="w-6 h-6" />
             </div>
             <div>
               <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Active Courses</p>
-              <p className="text-2xl font-bold text-white">{courses.length}</p>
+              <p className="text-2xl font-bold text-white mt-0.5">{courses.length}</p>
             </div>
           </div>
 
-          <div className="bg-zinc-900/40 border border-zinc-800/60 p-6 rounded-xl flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center" style={{ color: '#9ACD32' }}>
+          <div className="bg-zinc-900/10 border border-zinc-850/80 p-6 rounded-2xl flex items-center gap-4 backdrop-blur-md hover:border-zinc-800 transition-all duration-300">
+            <div className="w-12 h-12 rounded-xl bg-zinc-950 border border-zinc-850 flex items-center justify-center text-[#9ACD32]">
               <Clock className="w-6 h-6" />
             </div>
             <div>
               <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Watch Progress</p>
-              <p className="text-2xl font-bold text-white">{watchHours} Hours</p>
+              <p className="text-2xl font-bold text-white mt-0.5">{watchHours} Hours</p>
             </div>
           </div>
 
-          <div className="bg-zinc-900/40 border border-zinc-880 p-6 rounded-xl flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center" style={{ color: '#9ACD32' }}>
+          <div className="bg-zinc-900/10 border border-zinc-850/80 p-6 rounded-2xl flex items-center gap-4 backdrop-blur-md hover:border-zinc-800 transition-all duration-300">
+            <div className="w-12 h-12 rounded-xl bg-zinc-950 border border-zinc-850 flex items-center justify-center text-[#9ACD32]">
               <Award className="w-6 h-6" />
             </div>
             <div>
               <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Average Grade</p>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-2xl font-bold text-white mt-0.5">
                 {averageScore !== null ? `${averageScore}% (${gradedCount} Graded)` : "No grades yet"}
               </p>
             </div>
@@ -311,10 +312,10 @@ export default function StudentDashboard() {
         </div>
 
         {/* Main Content Layout (Courses + Resources Sidebar) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className={`grid grid-cols-1 ${certificates.length > 0 ? 'lg:grid-cols-3 gap-10' : 'lg:grid-cols-1'}`}>
           
           {/* Left Block: Enrolled Courses List */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className={certificates.length > 0 ? 'lg:col-span-2 space-y-6' : 'space-y-6'}>
             <h2 className="text-2xl font-bold text-white mb-2">My Learning Catalog</h2>
             
             {loadingCourses ? (
@@ -338,7 +339,7 @@ export default function StudentDashboard() {
                   return (
                     <div
                       key={course.id}
-                      className="bg-zinc-900/30 border border-zinc-800/60 hover:border-zinc-700/80 p-5 rounded-xl transition-all duration-300 flex flex-col md:flex-row gap-5 items-center justify-between group"
+                      className="bg-zinc-900/10 border border-zinc-850/60 hover:border-zinc-800 p-5 rounded-2xl transition-all duration-300 flex flex-col md:flex-row gap-5 items-center justify-between group backdrop-blur-md hover:shadow-lg hover:shadow-[#9ACD32]/2"
                     >
                       <div className="flex flex-col md:flex-row items-center gap-5 w-full">
                         <img
@@ -352,7 +353,7 @@ export default function StudentDashboard() {
                           
                           {/* Progress Line */}
                           <div className="w-full mt-3 flex items-center gap-3">
-                            <div className="flex-grow bg-zinc-800 h-2 rounded-full overflow-hidden">
+                            <div className="flex-grow bg-zinc-850 h-2 rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-primary transition-all duration-500"
                                 style={{ width: `${percent}%`, backgroundColor: '#9ACD32' }}
@@ -371,7 +372,7 @@ export default function StudentDashboard() {
                                   verified
                                     ? "border-[#9ACD32]/40 bg-[#9ACD32]/10"
                                     : "border-zinc-800 bg-zinc-900/60"
-                                }`}
+                                  }`}
                                 style={{ color: verified ? '#9ACD32' : '#a1a1aa' }}
                               >
                                 Labs verified {labs.graded}/{labs.required}
@@ -396,22 +397,21 @@ export default function StudentDashboard() {
             )}
           </div>
 
-          {/* Right Block: Downloads / Asset Library */}
-          <div className="space-y-6">
-            {/* Certifications Card */}
-            {certificates.length > 0 && (
+          {/* Right Block: Certifications Card */}
+          {certificates.length > 0 && (
+            <div className="space-y-6">
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                   <Award className="w-6 h-6 text-primary" style={{ color: '#9ACD32' }} />
                   Certifications
                 </h2>
-                <div className="bg-zinc-900/30 border border-zinc-800/60 p-6 rounded-xl space-y-4">
+                <div className="bg-zinc-900/10 border border-zinc-850/60 p-6 rounded-2xl space-y-4 backdrop-blur-md">
                   <p className="text-xs text-zinc-400 leading-relaxed">
                     Congratulations on completing your visual curriculum! You have earned the following credentials:
                   </p>
                   <div className="space-y-3">
                     {certificates.map((cert) => (
-                      <div key={cert.certificate_id} className="p-3.5 bg-zinc-900/60 border border-zinc-850 rounded-xl group hover:border-[#9ACD32]/50 transition-colors flex items-center justify-between gap-3">
+                      <div key={cert.certificate_id} className="p-3.5 bg-zinc-950 border border-zinc-850 rounded-xl group hover:border-[#9ACD32]/50 transition-colors flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <h4 className="text-xs font-bold text-white truncate">{(cert.courses as any)?.title || "Course Completed"}</h4>
                           <p className="text-[9px] text-zinc-500 font-mono mt-0.5">{cert.certificate_number}</p>
@@ -426,34 +426,8 @@ export default function StudentDashboard() {
                   </div>
                 </div>
               </div>
-            )}
-
-            <h2 className="text-2xl font-bold text-white mb-2">Premium Assets</h2>
-            <div className="bg-zinc-900/30 border border-zinc-800/60 p-6 rounded-xl space-y-5">
-              <p className="text-sm text-zinc-400">
-                Get full access to SketchUp resources, render presets, and maps tied to your visualization lessons.
-              </p>
-              
-              <div className="space-y-4">
-                {mockAssets.map((asset, index) => (
-                  <div key={index} className="flex items-center justify-between p-3.5 bg-zinc-900/60 border border-zinc-850 rounded-lg group hover:border-zinc-700 transition-colors">
-                    <div>
-                      <h4 className="text-sm font-semibold text-white truncate max-w-[200px]" title={asset.name}>
-                        {asset.name}
-                      </h4>
-                      <p className="text-xs text-zinc-500 mt-0.5">
-                        {asset.type} • {asset.size}
-                      </p>
-                    </div>
-                    <Button variant="ghost" size="sm" className="hover:bg-primary/10 text-primary hover:text-primary">
-                      <Download className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
             </div>
-          </div>
-
+          )}
         </div>
       </div>
 

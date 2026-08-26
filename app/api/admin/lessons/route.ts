@@ -110,6 +110,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid duration or order index' }, { status: 400 })
   }
 
+  const downloadableAssetUrl = typeof body.downloadable_asset_url === 'string' ? body.downloadable_asset_url.trim() : ''
+  if (downloadableAssetUrl.length > 500) {
+    return NextResponse.json({ error: 'Downloadable asset URL is too long' }, { status: 400 })
+  }
+
   const payload = {
     lesson_id: typeof body.lesson_id === 'string' && body.lesson_id ? body.lesson_id : undefined,
     course_id: courseId,
@@ -118,7 +123,8 @@ export async function POST(request: Request) {
     video_external_id: videoExternalId,
     duration_minutes: durationMinutes,
     order_index: orderIndex,
-    is_preview: Boolean(body.is_preview ?? false)
+    is_preview: Boolean(body.is_preview ?? false),
+    downloadable_asset_url: downloadableAssetUrl || null
   }
 
   const supabase = serviceClient()

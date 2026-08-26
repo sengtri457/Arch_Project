@@ -335,7 +335,7 @@ export const db = {
     try {
       const { data, error } = await supabase
         .from('lessons')
-        .select('lesson_id, course_id, title, duration_minutes, order_index, is_preview')
+        .select('lesson_id, course_id, title, duration_minutes, order_index, is_preview, downloadable_asset_url')
         .eq('course_id', courseId)
         .order('order_index', { ascending: true })
 
@@ -349,7 +349,8 @@ export const db = {
         video_url: null as string | null,
         duration: l.duration_minutes * 60, // Convert minutes to seconds for player
         is_preview: l.is_preview,
-        order_index: l.order_index
+        order_index: l.order_index,
+        downloadable_asset_url: l.downloadable_asset_url
       }))
     } catch (err) {
       console.warn(`Failed to fetch lessons for course ${courseId}:`, err)

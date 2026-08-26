@@ -645,31 +645,34 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
               </div>
 
               {/* Resource Downloads */}
-              <div className="border-t border-zinc-850 pt-5">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 mb-3 flex items-center gap-2">
-                  <Download className="w-4 h-4 text-primary" style={{ color: '#9ACD32' }} />
-                  Lesson Attachments
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {[
-                    { name: "Starter SketchUp Modeling File (.skp)", size: "24.8 MB", link: "#" },
-                    { name: "D5 Render Interior Preset Settings", size: "4.2 MB", link: "#" }
-                  ].map((file, idx) => (
+              {currentLesson?.downloadable_asset_url && (
+                <div className="border-t border-zinc-850 pt-5">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 mb-3 flex items-center gap-2">
+                    <Download className="w-4 h-4 text-primary" style={{ color: '#9ACD32' }} />
+                    Lesson Attachments
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div 
-                      key={idx} 
                       className="p-3 bg-zinc-900/50 border border-zinc-850 rounded-xl flex items-center justify-between group hover:border-zinc-700 transition-colors"
                     >
                       <div className="truncate max-w-[80%]">
-                        <h4 className="text-xs font-semibold text-white truncate">{file.name}</h4>
-                        <p className="text-[10px] text-zinc-500 mt-0.5">{file.size}</p>
+                        <h4 className="text-xs font-semibold text-white truncate">
+                          {decodeURIComponent(currentLesson.downloadable_asset_url.split('/').pop() || "Lesson Attachment / Resources")}
+                        </h4>
+                        <p className="text-[10px] text-zinc-500 mt-0.5">Attached Resource File</p>
                       </div>
-                      <Button variant="ghost" size="sm" className="hover:bg-primary/10 text-primary hover:text-primary">
-                        <Download className="w-4 h-4" />
-                      </Button>
+                      <a 
+                        href={currentLesson.downloadable_asset_url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="inline-flex items-center justify-center rounded-lg hover:bg-[#9ACD32]/10 text-[#9ACD32] p-2 transition-colors border border-transparent hover:border-[#9ACD32]/20"
+                      >
+                        <Download className="w-4.5 h-4.5" />
+                      </a>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Homework / Exercise Submission Box */}
               <div className="border-t border-zinc-850 pt-5 space-y-4">

@@ -174,7 +174,8 @@ export default function AdminDashboard() {
     video_url: "",
     duration: "600",
     index: "1",
-    source: "direct"
+    source: "direct",
+    downloadable_asset_url: ""
   })
 
   // Projects CRUD States
@@ -198,6 +199,7 @@ export default function AdminDashboard() {
     solutions: ""
   })
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadingLessonAsset, setUploadingLessonAsset] = useState(false)
 
   const [loadingData, setLoadingData] = useState(true)
   
@@ -642,7 +644,8 @@ export default function AdminDashboard() {
           video_source_type: lessonForm.source || 'direct',
           video_external_id: lessonForm.video_url,
           duration_minutes: Math.round(parseInt(lessonForm.duration) / 60),
-          order_index: parseInt(lessonForm.index)
+          order_index: parseInt(lessonForm.index),
+          downloadable_asset_url: lessonForm.downloadable_asset_url
         })
       })
 
@@ -675,6 +678,36 @@ export default function AdminDashboard() {
       await reloadLessons()
     } catch (err: any) {
       alert(`Failed to delete lesson: ${err.message}`)
+    }
+  }
+
+  // Upload Lesson Attachment File
+  const handleLessonAssetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingLessonAsset(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+      const fileName = `${Date.now()}-${sanitizedName}`
+      const filePath = `lesson-resources/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('projects')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage
+        .from('projects')
+        .getPublicUrl(filePath)
+
+      setLessonForm(prev => ({ ...prev, downloadable_asset_url: data.publicUrl }))
+    } catch (err: any) {
+      alert(`Asset upload failed: ${err.message}`)
+    } finally {
+      setUploadingLessonAsset(false)
     }
   }
 
@@ -2977,7 +3010,8 @@ export default function AdminDashboard() {
                         video_url: "",
                         duration: "600",
                         index: (courseLessons.length + 1).toString(),
-                        source: "direct"
+                        source: "direct",
+                        downloadable_asset_url: ""
                       })
                       setShowLessonModal(true)
                     }}
@@ -3009,7 +3043,8 @@ export default function AdminDashboard() {
                                 video_url: les.video_external_id || "",
                                 duration: ((les.duration_minutes || 10) * 60).toString(),
                                 index: (les.order_index || 1).toString(),
-                                source: les.video_source_type || "direct"
+                                source: les.video_source_type || "direct",
+                                downloadable_asset_url: les.downloadable_asset_url || ""
                               })
                               setShowLessonModal(true)
                             }}
@@ -3129,6 +3164,35 @@ export default function AdminDashboard() {
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-700 font-mono" 
                       placeholder="1"
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Downloadable Resource / Attachment (Optional)</label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        value={lessonForm.downloadable_asset_url} 
+                        onChange={(e) => setLessonForm({ ...lessonForm, downloadable_asset_url: e.target.value })} 
+                        className="flex-grow bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-700 font-mono text-[10px]" 
+                        placeholder="e.g. https://drive.google.com/... or leave blank"
+                      />
+                      <input
+                        type="file"
+                        onChange={handleLessonAssetUpload}
+                        className="hidden"
+                        id="lesson-asset-file"
+                        disabled={uploadingLessonAsset}
+                      />
+                      <label
+                        htmlFor="lesson-asset-file"
+                        className={`bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center justify-center cursor-pointer transition-colors border border-zinc-800 shrink-0 ${uploadingLessonAsset ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {uploadingLessonAsset ? 'Uploading...' : 'Choose File'}
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-zinc-500">Provide a link (Google Drive, Dropbox) or upload a file directly. Students will see this attachment on the lesson player view.</p>
                   </div>
                 </div>
               </div>
