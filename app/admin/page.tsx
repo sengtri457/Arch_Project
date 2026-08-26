@@ -197,6 +197,7 @@ export default function AdminDashboard() {
     challenges: "",
     solutions: ""
   })
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   const [loadingData, setLoadingData] = useState(true)
   
@@ -674,6 +675,35 @@ export default function AdminDashboard() {
       await reloadLessons()
     } catch (err: any) {
       alert(`Failed to delete lesson: ${err.message}`)
+    }
+  }
+
+  // Upload Project Image File
+  const handleProjectImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingImage(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+      const filePath = `covers/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('projects')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage
+        .from('projects')
+        .getPublicUrl(filePath)
+
+      setProjectForm(prev => ({ ...prev, image: data.publicUrl }))
+    } catch (err: any) {
+      alert(`Upload failed: ${err.message}`)
+    } finally {
+      setUploadingImage(false)
     }
   }
 
@@ -2749,15 +2779,42 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Cover Image URL</label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={projectForm.image} 
-                    onChange={(e) => setProjectForm({ ...projectForm, image: e.target.value })} 
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
-                    placeholder="https://images.unsplash.com/..."
-                  />
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Cover Image</label>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        required 
+                        value={projectForm.image} 
+                        onChange={(e) => setProjectForm({ ...projectForm, image: e.target.value })} 
+                        className="flex-grow bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                        placeholder="https://images.unsplash.com/..."
+                      />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProjectImageUpload}
+                        className="hidden"
+                        id="project-image-file"
+                        disabled={uploadingImage}
+                      />
+                      <label
+                        htmlFor="project-image-file"
+                        className={`bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center justify-center cursor-pointer transition-colors border border-zinc-800 shrink-0 ${uploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {uploadingImage ? 'Uploading...' : 'Choose File'}
+                      </label>
+                    </div>
+                    {projectForm.image && (
+                      <div className="relative w-28 h-16 rounded overflow-hidden border border-zinc-800 bg-zinc-950">
+                        <img 
+                          src={projectForm.image} 
+                          alt="Cover preview" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>
