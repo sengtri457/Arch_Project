@@ -163,24 +163,7 @@ export default function AdminDashboard() {
     text: ""
   })
   
-  // Courses CRUD States
-  const [showCourseModal, setShowCourseModal] = useState(false)
-  const [editingCourse, setEditingCourse] = useState<any | null>(null)
-  const [courseForm, setCourseForm] = useState({
-    title: "",
-    slug: "",
-    description: "",
-    image: "",
-    category: "",
-    duration: "",
-    level: "Beginner",
-    price: "49.99",
-    instructor: "",
-    courseCategory: "",
-    requiredPlanId: "",
-    published: true,
-    lessons: "0"
-  })
+  // Courses CRUD states are now handled on separate routes (/admin/courses/new and /admin/courses/[courseId]/edit)
 
   // Syllabus Lessons CRUD States
   const [showSyllabusModal, setShowSyllabusModal] = useState(false)
@@ -590,62 +573,7 @@ export default function AdminDashboard() {
     }
   }
 
-  // 2. Save Course (Create or Edit)
-  const handleSaveCourse = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const courseSlug = courseForm.slug.trim()
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(courseSlug)) {
-      MySwal.fire({
-        icon: 'error',
-        title: 'Invalid Slug',
-        text: 'Invalid slug. Use only lowercase letters, numbers and hyphens - e.g. "d5-masterclass". Do not paste a URL here.'
-      })
-      return
-    }
-    const requiredPlanId = courseForm.requiredPlanId ? parseInt(courseForm.requiredPlanId) : null
-    const difficultyVal = courseForm.level.toLowerCase().trim();
-    const payload = {
-      title: courseForm.title.trim(),
-      slug: courseSlug,
-      description: courseForm.description,
-      thumbnail_url: courseForm.image,
-      software_used: courseForm.category,
-      difficulty: ['beginner', 'intermediate', 'advanced'].includes(difficultyVal) ? difficultyVal : 'intermediate',
-      price: parseFloat(courseForm.price),
-      instructor: courseForm.instructor.trim() || null,
-      category: courseForm.courseCategory.replace(/\s+/g, ' ').trim() || null,
-      required_plan_id: requiredPlanId && Number.isInteger(requiredPlanId) ? requiredPlanId : null,
-      is_published: courseForm.published,
-      duration: courseForm.duration.trim() || null,
-      lessons: parseInt(courseForm.lessons) || 0
-    }
-    try {
-      if (editingCourse) {
-        // Update
-        const { error } = await supabase
-          .from('courses')
-          .update(payload)
-          .eq('course_id', editingCourse.course_id || editingCourse.id)
 
-        if (error) throw error
-        await MySwal.fire({ icon: 'success', title: 'Updated!', text: "Course updated successfully!" })
-      } else {
-        // Create
-        const { error } = await supabase
-          .from('courses')
-          .insert(payload)
-
-        if (error) throw error
-        await MySwal.fire({ icon: 'success', title: 'Created!', text: "Course created successfully!" })
-      }
-      
-      setShowCourseModal(false)
-      setEditingCourse(null)
-      window.location.reload()
-    } catch (err: any) {
-      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to save course: ${err.message}` })
-    }
-  }
 
   // Delete Course
   const handleDeleteCourse = async (cId: string) => {
@@ -1621,25 +1549,7 @@ export default function AdminDashboard() {
                     <div className="flex justify-between items-center">
                       <h2 className="text-2xl font-bold text-white">Course Curriculum Builder</h2>
                       <Button 
-                        onClick={() => {
-                          setEditingCourse(null)
-                          setCourseForm({
-                            title: "",
-                            slug: "",
-                            description: "",
-                            image: "",
-                            category: "",
-                            duration: "",
-                            level: "Intermediate",
-                            price: "49.99",
-                            instructor: "",
-                            courseCategory: "",
-                            requiredPlanId: "",
-                            published: true,
-                            lessons: "0"
-                          })
-                          setShowCourseModal(true)
-                        }}
+                        onClick={() => router.push("/admin/courses/new")}
                         className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-1.5" 
                         style={{ backgroundColor: '#9ACD32', color: '#000' }}
                       >
@@ -1652,10 +1562,10 @@ export default function AdminDashboard() {
                       {courses.map((course) => (
                         <div key={course.course_id || course.id} className="p-4 bg-zinc-900/40 border border-zinc-850 rounded-xl flex items-center justify-between hover:border-zinc-800 transition-colors">
                           <div className="flex items-center gap-4">
-                            <img 
-                              src={getMediaUrl(course.thumbnail_url || course.image || "/images/placeholder.jpg")} 
+                             <img 
+                              src={getMediaUrl(course.thumbnail_url || course.image || "/placeholder.svg")} 
                               onError={(e) => {
-                                e.currentTarget.src = "/images/placeholder.jpg"
+                                e.currentTarget.src = "/placeholder.svg"
                               }}
                               alt="" 
                               className="w-16 h-10 object-cover rounded" 
@@ -1680,25 +1590,7 @@ export default function AdminDashboard() {
                               Manage Syllabus
                             </Button>
                             <Button 
-                              onClick={() => {
-                                setEditingCourse(course)
-                                setCourseForm({
-                                  title: course.title,
-                                  slug: course.slug || course.id || "",
-                                  description: course.description || "",
-                                  image: course.thumbnail_url || course.image || "",
-                                  category: course.software_used || "",
-                                  duration: course.duration || "",
-                                  level: course.level || course.difficulty || "Intermediate",
-                                  price: (course.price || "49.99").toString(),
-                                  instructor: course.instructor || "",
-                                  courseCategory: course.category || "",
-                                  requiredPlanId: (course as any).required_plan_id != null ? String((course as any).required_plan_id) : "",
-                                  published: (course as any).is_published !== false,
-                                  lessons: (course.lessons || 0).toString()
-                                })
-                                setShowCourseModal(true)
-                              }}
+                              onClick={() => router.push(`/admin/courses/${course.course_id || course.id}/edit`)}
                               size="sm" 
                               variant="ghost" 
                               className="hover:bg-zinc-800 text-zinc-350"
@@ -1760,9 +1652,9 @@ export default function AdminDashboard() {
                         <div key={project.project_id || project.id} className="p-4 bg-zinc-900/40 border border-zinc-850 rounded-xl flex items-center justify-between hover:border-zinc-800 transition-colors">
                           <div className="flex items-center gap-4">
                             <img 
-                              src={getMediaUrl(project.cover_image_url || project.image || "/images/placeholder.jpg")} 
+                              src={getMediaUrl(project.cover_image_url || project.image || "/placeholder.svg")} 
                               onError={(e) => {
-                                e.currentTarget.src = "/images/placeholder.jpg"
+                                e.currentTarget.src = "/placeholder.svg"
                               }}
                               alt="" 
                               className="w-16 h-10 object-cover rounded" 
@@ -2755,201 +2647,7 @@ export default function AdminDashboard() {
         {/* ==================== CRUD MODALS ======================== */}
         {/* ======================================================== */}
 
-        {/* 1. COURSE FORM MODAL */}
-        {showCourseModal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-            <form onSubmit={handleSaveCourse} className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-5 animate-in fade-in zoom-in-95 duration-150 custom-scrollbar text-zinc-350">
-              <div>
-                <h3 className="text-xl font-bold text-white">{editingCourse ? "Modify Masterclass" : "Create New Masterclass"}</h3>
-                <p className="text-xs text-zinc-500 mt-1">Specify metadata, pricing, and visual parameters for the course card.</p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Course Title</label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={courseForm.title} 
-                    onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })} 
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
-                    placeholder="e.g. D5 Render Masterclass"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Slug (URL string)</label>
-                    <input
-                      type="text"
-                      required
-                      value={courseForm.slug}
-                      onChange={(e) => setCourseForm({ ...courseForm, slug: e.target.value })}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 font-mono"
-                      placeholder="e.g. d5-masterclass"
-                      pattern="[a-z0-9]+(-[a-z0-9]+)*"
-                      title="Lowercase letters, numbers and hyphens only - never paste a URL here"
-                    />
-                    <p className="text-[10px] text-zinc-500 mt-1">Lowercase letters, numbers, hyphens only. This becomes the course URL - do NOT paste a link.</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Price (USD)</label>
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      required 
-                      value={courseForm.price} 
-                      onChange={(e) => setCourseForm({ ...courseForm, price: e.target.value })} 
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 font-mono" 
-                      placeholder="49.99"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Instructor Name</label>
-                    <input
-                      type="text"
-                      value={courseForm.instructor}
-                      onChange={(e) => setCourseForm({ ...courseForm, instructor: e.target.value })}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
-                      placeholder="e.g. Bun Sambath"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Category</label>
-                    <input
-                      type="text"
-                      value={courseForm.courseCategory}
-                      onChange={(e) => setCourseForm({ ...courseForm, courseCategory: e.target.value })}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
-                      placeholder="e.g. Rendering, Post-Production"
-                      list="existing-course-categories"
-                    />
-                    <datalist id="existing-course-categories">
-                      {Array.from(new Set(courses.map((c: any) => c.category).filter(Boolean))).map((cat) => (
-                        <option key={String(cat)} value={String(cat)} />
-                      ))}
-                    </datalist>
-                    <p className="text-[10px] text-zinc-500 mt-1">Pick an existing one or type new - creates a filter tab on /courses.</p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Thumbnail Image URL</label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={courseForm.image} 
-                    onChange={(e) => setCourseForm({ ...courseForm, image: e.target.value })} 
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
-                    placeholder="https://images.unsplash.com/..."
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Level</label>
-                    <select 
-                      value={courseForm.level} 
-                      onChange={(e) => setCourseForm({ ...courseForm, level: e.target.value })} 
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
-                    >
-                      <option>Beginner</option>
-                      <option>Intermediate</option>
-                      <option>Advanced</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Duration</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={courseForm.duration} 
-                      onChange={(e) => setCourseForm({ ...courseForm, duration: e.target.value })} 
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
-                      placeholder="e.g. 6 weeks"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Lessons</label>
-                    <input 
-                      type="number" 
-                      required 
-                      value={courseForm.lessons} 
-                      onChange={(e) => setCourseForm({ ...courseForm, lessons: e.target.value })} 
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 font-mono" 
-                      placeholder="e.g. 42"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Software Used</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={courseForm.category} 
-                      onChange={(e) => setCourseForm({ ...courseForm, category: e.target.value })} 
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
-                      placeholder="D5 Render, SketchUp"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Access Requirement</label>
-                    <select
-                      value={courseForm.requiredPlanId}
-                      onChange={(e) => setCourseForm({ ...courseForm, requiredPlanId: e.target.value })}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
-                    >
-                      <option value="">Direct purchase only</option>
-                      {plans.map((p) => (
-                        <option key={p.plan_id} value={String(p.plan_id)}>
-                          Requires plan: {p.name}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[10px] text-zinc-500 mt-1">Subscription plans unlock this course automatically (higher plans included).</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Visibility</label>
-                    <select
-                      value={courseForm.published ? "published" : "draft"}
-                      onChange={(e) => setCourseForm({ ...courseForm, published: e.target.value === "published" })}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
-                    >
-                      <option value="published">Published (visible to students)</option>
-                      <option value="draft">Draft (hidden)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Description Summary</label>
-                  <textarea 
-                    rows={3} 
-                    required 
-                    value={courseForm.description} 
-                    onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })} 
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 resize-none" 
-                    placeholder="Brief description of the course contents and objectives..."
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 justify-end pt-2">
-                <Button type="button" variant="ghost" onClick={() => setShowCourseModal(false)} className="text-zinc-400 hover:text-white">
-                  Cancel
-                </Button>
-                <Button type="submit" className="bg-primary text-black font-bold px-6" style={{ backgroundColor: '#9ACD32', color: '#000' }}>
-                  {editingCourse ? "Save Changes" : "Create Course"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        )}
+        {/* Course Form Modal removed - handled on separate pages */}
 
         {/* 2. PROJECT FORM MODAL */}
         {showProjectModal && (
@@ -3032,7 +2730,7 @@ export default function AdminDashboard() {
                         <img 
                           src={getMediaUrl(projectForm.image)} 
                           onError={(e) => {
-                            e.currentTarget.src = "/images/placeholder.jpg"
+                            e.currentTarget.src = "/placeholder.svg"
                           }}
                           alt="Cover preview" 
                           className="w-full h-full object-cover"
