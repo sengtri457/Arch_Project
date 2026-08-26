@@ -2197,9 +2197,14 @@ export default function AdminDashboard() {
                                 </Button>
                               </div>
                             </div>
-                            <p className="text-2xl font-extrabold text-white">
-                              ${plan.price_usd} <span className="text-xs font-normal text-zinc-500">/ {plan.billing_interval}</span>
-                            </p>
+                            <div className="flex items-baseline gap-1 text-white">
+                              <span className="text-3xl font-extrabold tracking-tight">
+                                ${plan.price_usd % 1 === 0 ? plan.price_usd : parseFloat(plan.price_usd.toString()).toFixed(2)}
+                              </span>
+                              <span className="text-xs font-normal text-zinc-500">
+                                / {plan.billing_interval === 'monthly' ? 'month' : plan.billing_interval === 'yearly' ? 'year' : 'one-time'}
+                              </span>
+                            </div>
                             <p className="text-xs text-zinc-400 leading-relaxed bg-zinc-950 p-3 rounded-lg border border-zinc-900">
                               {plan.plan_code === "FREE" 
                                 ? "Explore starter workflows." 

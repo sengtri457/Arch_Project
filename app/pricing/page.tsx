@@ -214,9 +214,11 @@ export default function PricingPage() {
                   {/* Price info */}
                   <div className="flex items-baseline gap-1">
                     <span className="text-4xl font-extrabold text-white">
-                      ${parseFloat(plan.price_usd.toString()).toFixed(2)}
+                      ${plan.price_usd % 1 === 0 ? plan.price_usd : parseFloat(plan.price_usd.toString()).toFixed(2)}
                     </span>
-                    <span className="text-zinc-500 text-sm">/ {plan.billing_interval}</span>
+                    <span className="text-zinc-500 text-sm font-medium">
+                      / {plan.billing_interval === 'monthly' ? 'month' : plan.billing_interval === 'yearly' ? 'year' : 'one-time'}
+                    </span>
                   </div>
 
                   <hr className="border-zinc-800/80" />
