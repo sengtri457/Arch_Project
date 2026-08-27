@@ -8,7 +8,7 @@ import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
-import { ArrowLeft, Plus, Trash2 } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Upload, Loader2 } from "lucide-react"
 import Swal from "sweetalert2"
 
 const MySwal = Swal.mixin({
@@ -29,6 +29,7 @@ export default function EditCoursePage() {
   const [plans, setPlans] = useState<any[]>([])
   const [fetching, setFetching] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploadingIntro, setUploadingIntro] = useState(false)
   
   const [courseForm, setCourseForm] = useState({
     title: "",
@@ -43,7 +44,8 @@ export default function EditCoursePage() {
     courseCategory: "",
     requiredPlanId: "",
     published: true,
-    lessons: "0"
+    lessons: "0",
+    introductionUrl: ""
   })
 
   const [features, setFeatures] = useState<string[]>([])
@@ -90,7 +92,8 @@ export default function EditCoursePage() {
             courseCategory: course.category || "",
             requiredPlanId: course.required_plan_id != null ? String(course.required_plan_id) : "",
             published: course.is_published !== false,
-            lessons: (course.lessons || 0).toString()
+            lessons: (course.lessons || 0).toString(),
+            introductionUrl: course.introduction_url || ""
           })
 
           setFeatures(Array.isArray(course.features) ? course.features : [])
@@ -126,6 +129,34 @@ export default function EditCoursePage() {
     setFeatures(updated)
   }
 
+  const handleIntroductionUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingIntro(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+      const filePath = `introductions/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('projects')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage
+        .from('projects')
+        .getPublicUrl(filePath)
+
+      setCourseForm(prev => ({ ...prev, introductionUrl: data.publicUrl }))
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Upload Failed', text: `Upload failed: ${err.message}` })
+    } finally {
+      setUploadingIntro(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -157,7 +188,8 @@ export default function EditCoursePage() {
       is_published: courseForm.published,
       duration: courseForm.duration.trim() || null,
       lessons: parseInt(courseForm.lessons) || 0,
-      features: features.map(f => f.trim()).filter(Boolean)
+      features: features.map(f => f.trim()).filter(Boolean),
+      introduction_url: courseForm.introductionUrl.trim() || null
     }
 
     try {
@@ -376,6 +408,51 @@ export default function EditCoursePage() {
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
                 placeholder="https://images.unsplash.com/..."
               />
+            </div>
+
+            {/* Video Introduction */}
+            <div className="md:col-span-2 border-t border-zinc-800 pt-6">
+              <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">
+                Video Introduction (URL or Video File)
+              </label>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={courseForm.introductionUrl}
+                  onChange={(e) => setCourseForm({ ...courseForm, introductionUrl: e.target.value })}
+                  className="flex-grow bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                  placeholder="Paste YouTube, Vimeo, or MP4 URL..."
+                />
+                <div className="relative shrink-0">
+                  <input
+                    type="file"
+                    id="intro-upload"
+                    accept="video/*"
+                    onChange={handleIntroductionUpload}
+                    disabled={uploadingIntro}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="intro-upload"
+                    className={`bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-4 py-3 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors border border-zinc-800 h-full ${uploadingIntro ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {uploadingIntro ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        Upload Video
+                      </>
+                    )}
+                  </label>
+                </div>
+              </div>
+              <p className="text-[10px] text-zinc-500 mt-1">
+                Provide an external link (YouTube, Vimeo, MP4 file) or upload an introduction video file from your computer directly.
+              </p>
             </div>
 
             {/* Description Summary */}

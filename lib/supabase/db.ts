@@ -90,7 +90,8 @@ export function mapDbCourseToFrontend(dbCourse: any): Course {
     features: Array.isArray(dbCourse.features) ? dbCourse.features : [],
     instructor: dbCourse.instructor || "Bun Sambath",
     students: dbCourse.students || 0,
-    lessons: dbCourse.lessons || 0
+    lessons: dbCourse.lessons || 0,
+    introduction_url: dbCourse.introduction_url || null
   }
 }
 

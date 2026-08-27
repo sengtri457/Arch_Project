@@ -24,7 +24,7 @@ function anonClient() {
 async function getCourse(slug: string) {
   const { data } = await anonClient()
     .from("courses")
-    .select("course_id, title, slug, description, thumbnail_url, price, difficulty, duration, instructor, category, software_used, features, lessons")
+    .select("course_id, title, slug, description, thumbnail_url, price, difficulty, duration, instructor, category, software_used, features, lessons, introduction_url")
     .eq("slug", slug)
     .eq("is_published", true)
     .maybeSingle()
@@ -34,6 +34,34 @@ async function getCourse(slug: string) {
 async function getCurriculum(slug: string) {
   const { data } = await anonClient().rpc("get_course_curriculum", { p_slug: slug })
   return Array.isArray(data) ? data : []
+}
+
+function getEmbedUrl(url: string | undefined | null): string | null {
+  if (!url) return null
+  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    let videoId = ""
+    if (url.includes("youtube.com/watch")) {
+      const match = url.match(/[?&]v=([^&#]+)/)
+      videoId = match ? match[1] : ""
+    } else if (url.includes("youtu.be/")) {
+      const parts = url.split("youtu.be/")
+      const lastPart = parts[parts.length - 1]
+      videoId = lastPart.split(/[?#]/)[0]
+    } else if (url.includes("youtube.com/embed/")) {
+      const parts = url.split("youtube.com/embed/")
+      const lastPart = parts[parts.length - 1]
+      videoId = lastPart.split(/[?#]/)[0]
+    }
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : null
+  }
+
+  if (url.includes("vimeo.com")) {
+    const match = url.match(/vimeo\.com\/(\d+)/)
+    const videoId = match ? match[1] : ""
+    return videoId ? `https://player.vimeo.com/video/${videoId}` : null
+  }
+
+  return null
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -113,6 +141,31 @@ export default async function CourseLandingPage({ params }: PageProps) {
                 </div>
               ))}
             </div>
+
+            {course && (course as any).introduction_url && (
+              <section className="bg-zinc-900/30 border border-zinc-800/60 rounded-2xl p-6 space-y-4">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <PlayCircle className="w-5 h-5 animate-pulse" style={{ color: "#9ACD32" }} />
+                  Watch Video Introduction
+                </h2>
+                <div className="aspect-video w-full rounded-xl overflow-hidden border border-zinc-800 bg-black relative">
+                  {getEmbedUrl((course as any).introduction_url) ? (
+                    <iframe
+                      src={getEmbedUrl((course as any).introduction_url)!}
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      src={getMediaUrl((course as any).introduction_url)}
+                      controls
+                      className="w-full h-full object-contain"
+                    />
+                  )}
+                </div>
+              </section>
+            )}
 
             {features.length > 0 && (
               <section>

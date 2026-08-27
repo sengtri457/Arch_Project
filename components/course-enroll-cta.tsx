@@ -12,7 +12,7 @@ interface CourseEnrollCtaProps {
 }
 
 export function CourseEnrollCta({ courseId, slug }: CourseEnrollCtaProps) {
-  const [state, setState] = useState<"loading" | "guest" | "locked" | "owned">("loading")
+  const [state, setState] = useState<"loading" | "pending" | "guest" | "locked" | "owned">("loading")
 
   useEffect(() => {
     const supabase = createClient()

@@ -12,6 +12,7 @@ export interface Course {
   instructor: string
   students: number
   lessons: number
+  introduction_url?: string
 }
 
 export const courses: Course[] = [
