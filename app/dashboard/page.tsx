@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { BookOpen, Award, Clock, LogOut, Sparkles, Settings, Loader2 } from "lucide-react"
+import { motion } from "framer-motion"
 
 import { useEnrolledCourses, useDashboardProgress, useDashboardStats, useSubscription, useCertificates } from "@/lib/react-query/hooks/use-dashboard"
 
@@ -18,6 +19,21 @@ export default function StudentDashboard() {
   const userId = user?.id
   const userEmail = user?.email
   const role = profile?.role
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 80, damping: 15 } }
+  }
 
   const { data: enrolledCourses = [], isLoading: loadingCourses } = useEnrolledCourses(userId)
   const courseIds = enrolledCourses.map(c => c.course_id || c.id).filter(Boolean) as string[]
@@ -90,7 +106,12 @@ export default function StudentDashboard() {
         <div className="absolute top-10 left-10 w-[400px] h-[400px] bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
 
         {/* Profile Welcome Header */}
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center bg-zinc-900/10 border border-zinc-850/80 p-8 rounded-2xl mb-12 gap-6 backdrop-blur-md shadow-xl">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center bg-zinc-900/10 border border-zinc-850/80 p-8 rounded-2xl mb-12 gap-6 backdrop-blur-md shadow-xl"
+        >
           <div className="flex items-center gap-5">
             {profile?.avatar_url ? (
               <img
@@ -133,11 +154,20 @@ export default function StudentDashboard() {
               Sign Out
             </Button>
           </div>
-        </div>
+        </motion.div>
 
         {/* Quick Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          <div className="bg-zinc-900/10 border border-zinc-850/80 p-6 rounded-2xl flex items-center gap-4 backdrop-blur-md hover:border-zinc-800 transition-all duration-300">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12"
+        >
+          <motion.div
+            variants={itemVariants}
+            whileHover={{ y: -4, scale: 1.02 }}
+            className="bg-zinc-900/10 border border-zinc-850/80 p-6 rounded-2xl flex items-center gap-4 backdrop-blur-md hover:border-[#9ACD32]/30 hover:shadow-lg hover:shadow-[#9ACD32]/2 transition-all duration-300 cursor-default"
+          >
             <div className="w-12 h-12 rounded-xl bg-zinc-950 border border-zinc-850 flex items-center justify-center text-[#9ACD32]">
               <BookOpen className="w-6 h-6" />
             </div>
@@ -145,9 +175,13 @@ export default function StudentDashboard() {
               <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Active Courses</p>
               <p className="text-2xl font-bold text-white mt-0.5">{enrolledCourses.length}</p>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="bg-zinc-900/10 border border-zinc-850/80 p-6 rounded-2xl flex items-center gap-4 backdrop-blur-md hover:border-zinc-800 transition-all duration-300">
+          <motion.div
+            variants={itemVariants}
+            whileHover={{ y: -4, scale: 1.02 }}
+            className="bg-zinc-900/10 border border-zinc-850/80 p-6 rounded-2xl flex items-center gap-4 backdrop-blur-md hover:border-[#9ACD32]/30 hover:shadow-lg hover:shadow-[#9ACD32]/2 transition-all duration-300 cursor-default"
+          >
             <div className="w-12 h-12 rounded-xl bg-zinc-950 border border-zinc-850 flex items-center justify-center text-[#9ACD32]">
               <Clock className="w-6 h-6" />
             </div>
@@ -155,9 +189,13 @@ export default function StudentDashboard() {
               <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Watch Progress</p>
               <p className="text-2xl font-bold text-white mt-0.5">{stats?.watchHours ?? 0} Hours</p>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="bg-zinc-900/10 border border-zinc-850/80 p-6 rounded-2xl flex items-center gap-4 backdrop-blur-md hover:border-zinc-800 transition-all duration-300">
+          <motion.div
+            variants={itemVariants}
+            whileHover={{ y: -4, scale: 1.02 }}
+            className="bg-zinc-900/10 border border-zinc-850/80 p-6 rounded-2xl flex items-center gap-4 backdrop-blur-md hover:border-[#9ACD32]/30 hover:shadow-lg hover:shadow-[#9ACD32]/2 transition-all duration-300 cursor-default"
+          >
             <div className="w-12 h-12 rounded-xl bg-zinc-950 border border-zinc-850 flex items-center justify-center text-[#9ACD32]">
               <Award className="w-6 h-6" />
             </div>
@@ -167,8 +205,8 @@ export default function StudentDashboard() {
                 {stats?.averageScore !== null ? `${stats?.averageScore}% (${stats?.gradedCount} Graded)` : "No grades yet"}
               </p>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* Main Content Layout */}
         <div className={`grid grid-cols-1 ${certificates.length > 0 ? 'lg:grid-cols-3 gap-10' : 'lg:grid-cols-1'}`}>
@@ -208,14 +246,21 @@ export default function StudentDashboard() {
                 </Link>
               </div>
             ) : (
-              <div className="space-y-4">
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+                className="space-y-4"
+              >
                 {enrolledCourses.map((course) => {
                   const courseId = course.course_id || course.id
                   const percent = progressData?.courseProgress[courseId] ?? 0
                   const labs = progressData?.labProgress[courseId]
                   return (
-                    <div
+                    <motion.div
                       key={course.id}
+                      variants={itemVariants}
+                      whileHover={{ y: -3, scale: 1.005 }}
                       className="bg-zinc-900/10 border border-zinc-850/60 hover:border-zinc-800 p-5 rounded-2xl transition-all duration-300 flex flex-col md:flex-row gap-5 items-center justify-between group backdrop-blur-md hover:shadow-lg hover:shadow-[#9ACD32]/2"
                     >
                       <div className="flex flex-col md:flex-row items-center gap-5 w-full">
@@ -262,16 +307,21 @@ export default function StudentDashboard() {
                           </Button>
                         </Link>
                       </div>
-                    </div>
+                    </motion.div>
                   )
                 })}
-              </div>
+              </motion.div>
             )}
           </div>
 
           {/* Right: Certifications Card */}
           {certificates.length > 0 && (
-            <div className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="space-y-6"
+            >
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                   <Award className="w-6 h-6 text-primary" style={{ color: '#9ACD32' }} />
@@ -298,7 +348,7 @@ export default function StudentDashboard() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
