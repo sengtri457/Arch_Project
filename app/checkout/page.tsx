@@ -13,7 +13,9 @@ import {
   CreditCard, 
   AlertCircle, 
   Lock,
-  ArrowLeft 
+  ArrowLeft,
+  Copy,
+  ExternalLink
 } from "lucide-react"
 import Link from "next/link"
 
@@ -37,6 +39,8 @@ function CheckoutContent() {
 
   const [paymentCompleted, setPaymentCompleted] = useState(false)
   const [courseTitle, setCourseTitle] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState<"khqr" | "telegram">("khqr")
+  const [isCopied, setIsCopied] = useState(false)
 
   // Promo Code States
   const [promoCodeInput, setPromoCodeInput] = useState("")
@@ -244,12 +248,39 @@ function CheckoutContent() {
   return (
     <div className="flex-grow container mx-auto px-6 py-24 md:py-32 max-w-4xl relative z-10">
       {/* Breadcrumb back */}
-      <div className="mb-8">
+      <div className="mb-8 flex justify-between items-center">
         <button onClick={() => router.back()} className="text-zinc-400 hover:text-white text-sm flex items-center gap-1.5 transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Back
         </button>
       </div>
+
+      {!paymentCompleted && (
+        <div className="flex gap-3 mb-6 bg-zinc-900/20 p-1.5 border border-zinc-850 rounded-2xl">
+          <button
+            type="button"
+            onClick={() => setPaymentMethod("khqr")}
+            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-xs transition-all ${
+              paymentMethod === "khqr"
+                ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
+                : "text-zinc-400 border border-transparent hover:text-white"
+            }`}
+          >
+            Pay with KHQR (Scan QR)
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaymentMethod("telegram")}
+            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-xs transition-all ${
+              paymentMethod === "telegram"
+                ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
+                : "text-zinc-400 border border-transparent hover:text-white"
+            }`}
+          >
+            Pay via Telegram (Contact Instructor)
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-zinc-900/30 border border-zinc-850 p-8 rounded-3xl">
         {/* Left panel: Order Details */}
@@ -280,7 +311,7 @@ function CheckoutContent() {
                 </p>
               </div>
               
-              {!paymentCompleted && (
+              {!paymentCompleted && paymentMethod === "khqr" && (
                 <div className="border-t border-zinc-850/60 pt-3 space-y-2">
                   <p className="text-[10px] uppercase font-bold text-zinc-500">Promo Code</p>
                   {appliedPromo ? (
@@ -329,72 +360,129 @@ function CheckoutContent() {
               <Link href={checkoutData?.courseSlug ? `/courses/${checkoutData.courseSlug}/start` : "/dashboard"}>
                 <Button className="w-full bg-primary text-black font-semibold mt-1" style={{ backgroundColor: '#9ACD32', color: '#000' }}>
                   Go to Classroom Now
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </div>
+                </Button>
+              </Link>
+            </div>
+          )}
+        </div>
 
-          {/* Right panel: KHQR Code Display */}
-          <div className="flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-zinc-850/80 pt-8 md:pt-0 md:pl-8 space-y-5">
-            {!paymentCompleted ? (
-              <>
-                {/* Stylized KHQR Stand/Card */}
-                <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-zinc-200 w-[285px] text-black">
-                  {/* Red header with KHQR Logo */}
-                  <div className="bg-[#c62828] text-white px-5 py-4 flex justify-center items-center font-black tracking-widest text-xl">
-                    KHQR
-                  </div>
-                  
-                  {/* Merchant Name */}
-                  <div className="px-5 py-4 text-center">
-                    <p className="text-[10px] text-zinc-400 font-bold tracking-wider uppercase">Merchant Name</p>
-                    <p className="text-sm font-black text-zinc-800 tracking-wide mt-0.5">SENGTREE BUN</p>
-                  </div>
-                  
-                  {/* Dashed Separator */}
-                  <div className="border-t border-dashed border-zinc-300 mx-5 my-1" />
-                  
-                  {/* QR Code with absolute centered emblem */}
-                  <div className="p-6 flex items-center justify-center relative">
-                    <div className="relative">
-                      <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(checkoutData?.khqrPayload || "")}`}
-                        alt="Bakong KHQR Code"
-                        className="w-48 h-48 object-contain"
-                      />
-                      {/* Centered Dollar circular emblem */}
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-zinc-950 rounded-full border-2 border-white flex items-center justify-center shadow-md">
-                        <span className="text-white font-black text-sm">$</span>
-                      </div>
+        {/* Right panel: Payment method dynamic content */}
+        <div className="flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-zinc-850/80 pt-8 md:pt-0 md:pl-8 space-y-5">
+          {paymentCompleted ? (
+            <div className="flex flex-col items-center justify-center space-y-4 py-8">
+              <div className="w-20 h-20 rounded-full bg-green-950/30 border border-green-900/40 flex items-center justify-center text-green-400 animate-bounce">
+                <CheckCircle className="w-10 h-10" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Payment Confirmed</h3>
+              <p className="text-xs text-zinc-400 text-center max-w-[250px] leading-relaxed">
+                Thank you! Your transaction is verified. Preparing your visual curriculum sandbox...
+              </p>
+            </div>
+          ) : paymentMethod === "khqr" ? (
+            <>
+              {/* Stylized KHQR Stand/Card */}
+              <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-zinc-200 w-[285px] text-black">
+                {/* Red header with KHQR Logo */}
+                <div className="bg-[#c62828] text-white px-5 py-4 flex justify-center items-center font-black tracking-widest text-xl">
+                  KHQR
+                </div>
+                
+                {/* Merchant Name */}
+                <div className="px-5 py-4 text-center">
+                  <p className="text-[10px] text-zinc-400 font-bold tracking-wider uppercase">Merchant Name</p>
+                  <p className="text-sm font-black text-zinc-800 tracking-wide mt-0.5">SENGTREE BUN</p>
+                </div>
+                
+                {/* Dashed Separator */}
+                <div className="border-t border-dashed border-zinc-300 mx-5 my-1" />
+                
+                {/* QR Code with absolute centered emblem */}
+                <div className="p-6 flex items-center justify-center relative">
+                  <div className="relative">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(checkoutData?.khqrPayload || "")}`}
+                      alt="Bakong KHQR Code"
+                      className="w-48 h-48 object-contain"
+                    />
+                    {/* Centered Dollar circular emblem */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-zinc-950 rounded-full border-2 border-white flex items-center justify-center shadow-md">
+                      <span className="text-white font-black text-sm">$</span>
                     </div>
                   </div>
                 </div>
-                
-                <div className="text-center space-y-2 max-w-[280px]">
-                  <div className="flex items-center justify-center gap-2 text-xs font-semibold text-zinc-400">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" style={{ color: '#9ACD32' }} />
-                    Awaiting scan confirmation...
-                  </div>
-                  <p className="text-[11px] text-zinc-500 leading-relaxed">
-                    Open your **Bakong Wallet** or any Cambodian mobile banking app (ABA, Acleda, etc.), scan this KHQR code, and authorize payment to unlock instantly.
-                  </p>
+              </div>
+              
+              <div className="text-center space-y-2 max-w-[280px]">
+                <div className="flex items-center justify-center gap-2 text-xs font-semibold text-zinc-400">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" style={{ color: '#9ACD32' }} />
+                  Awaiting scan confirmation...
                 </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center space-y-4 py-8">
-                <div className="w-20 h-20 rounded-full bg-green-950/30 border border-green-900/40 flex items-center justify-center text-green-400 animate-bounce">
-                  <CheckCircle className="w-10 h-10" />
-                </div>
-                <h3 className="text-lg font-bold text-white">Payment Confirmed</h3>
-                <p className="text-xs text-zinc-400 text-center max-w-[250px] leading-relaxed">
-                  Thank you! Your transaction is verified. Preparing your visual curriculum sandbox...
+                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                  Open your **Bakong Wallet** or any Cambodian mobile banking app (ABA, Acleda, etc.), scan this KHQR code, and authorize payment to unlock instantly.
                 </p>
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <div className="w-full space-y-5">
+              <div className="bg-zinc-950/60 border border-zinc-850 p-5 rounded-2xl space-y-4">
+                <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                  Telegram Payment Steps
+                </h3>
+                
+                <ol className="text-xs text-zinc-400 space-y-3 list-decimal list-inside leading-relaxed">
+                  <li>
+                    Copy the template message containing your account details below.
+                  </li>
+                  <li>
+                    Click the button to open direct Telegram chat with instructor **Bun Sambath**.
+                  </li>
+                  <li>
+                    Send the copied message along with your **payment receipt/invoice**.
+                  </li>
+                  <li>
+                    Once the instructor verifies and unlocks it, the course will be **automatically unlocked** under your email address!
+                  </li>
+                </ol>
+              </div>
+
+              <div className="bg-zinc-950/40 border border-zinc-800 p-4 rounded-xl space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] uppercase font-bold text-zinc-500">Message Template</span>
+                  <button
+                    onClick={() => {
+                      const text = `Hi Bun Sambath, I paid for "${courseTitle}". Please unlock it for my email: "${user?.email || ''}". (Order ref: ${checkoutData?.billNumber})`;
+                      navigator.clipboard.writeText(text);
+                      setIsCopied(true);
+                      setTimeout(() => setIsCopied(false), 2000);
+                    }}
+                    className="text-[10px] text-primary hover:underline flex items-center gap-1"
+                    style={{ color: '#9ACD32' }}
+                  >
+                    <Copy className="w-3 h-3" />
+                    {isCopied ? "Copied!" : "Copy Message"}
+                  </button>
+                </div>
+                
+                <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-900 text-xs text-zinc-300 font-mono select-all leading-normal">
+                  Hi Bun Sambath, I paid for "{courseTitle}". Please unlock it for my email: "{user?.email || ''}". (Order ref: {checkoutData?.billNumber})
+                </div>
+              </div>
+
+              <a
+                href="https://t.me/sxngtri"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-sm bg-primary text-black transition-all hover:brightness-110 text-center"
+                style={{ backgroundColor: "#9ACD32", color: "#000" }}
+              >
+                Go to Telegram Chat
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+          )}
         </div>
       </div>
+    </div>
   )
 }
 

@@ -127,6 +127,16 @@ export function useAdminData(activeTab: string) {
     enabled: activeTab === "promos",
   })
 
+  const pendingEnrollments = useQuery({
+    queryKey: queryKeys.admin.pendingEnrollments,
+    queryFn: async () => {
+      const { data } = await supabase.from('pending_enrollments').select('*').order('created_at', { ascending: false })
+      return data || []
+    },
+    staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "manual_access",
+  })
+
   const testimonialsData = useQuery({
     queryKey: [...queryKeys.testimonials.all, "admin"],
     queryFn: async () => {
@@ -150,6 +160,7 @@ export function useAdminData(activeTab: string) {
     plans,
     promos,
     testimonialsData,
+    pendingEnrollments,
   ]
 
   const isLoading = allQueries.some((q) => q.isLoading)
@@ -168,6 +179,7 @@ export function useAdminData(activeTab: string) {
     plans: plans.data ?? [],
     promos: promos.data ?? [],
     testimonials: testimonialsData.data ?? [],
+    pendingEnrollments: pendingEnrollments.data ?? [],
     isLoading,
     isFetching,
     invalidateAll: () => {

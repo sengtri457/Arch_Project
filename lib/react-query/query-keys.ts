@@ -46,5 +46,6 @@ export const queryKeys = {
     certificates: ["admin", "certificates"] as const,
     plans: ["admin", "plans"] as const,
     promos: ["admin", "promos"] as const,
+    pendingEnrollments: ["admin", "pendingEnrollments"] as const,
   },
 }

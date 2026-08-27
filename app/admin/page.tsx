@@ -96,7 +96,7 @@ import {
   Cell
 } from "recharts"
 
-type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "testimonials" | "users"
+type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "testimonials" | "users" | "manual_access"
 
 function generateLessonAssetFileName(originalName: string): string {
   const sanitizedName = originalName.replace(/[^a-zA-Z0-9.-]/g, '_')
@@ -125,12 +125,13 @@ export default function AdminDashboard() {
   const plans = adminData.plans as any[]
   const promos = adminData.promos as any[]
   const testimonials = adminData.testimonials as any[]
+  const pendingEnrollments = adminData.pendingEnrollments as any[]
   const loadingData = adminData.isLoading
   const invalidateAll = adminData.invalidateAll
 
   useEffect(() => {
     const tabParam = new URLSearchParams(window.location.search).get("tab")
-    const validTabs: AdminTab[] = ["overview", "analytics", "courses", "projects", "submissions", "crm", "plans", "promos", "testimonials", "inquiries", "users"]
+    const validTabs: AdminTab[] = ["overview", "analytics", "courses", "projects", "submissions", "crm", "plans", "promos", "testimonials", "inquiries", "users", "manual_access"]
     if (tabParam && validTabs.includes(tabParam as AdminTab)) {
       setActiveTab(tabParam as AdminTab)
     }
@@ -217,6 +218,10 @@ export default function AdminDashboard() {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadingLessonAsset, setUploadingLessonAsset] = useState(false)
 
+  const [manualAccessEmail, setManualAccessEmail] = useState("")
+  const [manualAccessCourseId, setManualAccessCourseId] = useState("")
+  const [isSavingManualAccess, setIsSavingManualAccess] = useState(false)
+
   const router = useRouter()
   const supabase = createClient()
 
@@ -283,6 +288,81 @@ export default function AdminDashboard() {
       MySwal.fire({ icon: 'success', title: 'Graded!', text: "Submission successfully graded!" })
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to grade submission: ${err.message}` })
+    }
+  }
+
+  // 1f. Save Manual Access / Pending Enrollment
+  const handleSaveManualAccess = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!manualAccessEmail.trim() || !manualAccessCourseId) {
+      MySwal.fire({ icon: 'warning', title: 'Validation Error', text: 'Please fill in both email and course.' })
+      return
+    }
+    try {
+      setIsSavingManualAccess(true)
+      const emailVal = manualAccessEmail.trim().toLowerCase()
+      
+      const { error } = await supabase
+        .from('pending_enrollments')
+        .insert({
+          email: emailVal,
+          course_id: manualAccessCourseId,
+          status: 'pending'
+        })
+
+      if (error) throw error
+
+      invalidateAll()
+      setManualAccessEmail("")
+      setManualAccessCourseId("")
+      MySwal.fire({ icon: 'success', title: 'Access Granted!', text: 'Course access successfully registered.' })
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to grant course access: ${err.message}` })
+    } finally {
+      setIsSavingManualAccess(false)
+    }
+  }
+
+  // 1g. Revoke Manual Access / Delete Pending Enrollment
+  const handleDeleteManualAccess = async (pendingId: string, email: string, courseId: string) => {
+    const result = await MySwal.fire({
+      title: 'Revoke Course Access?',
+      text: `Are you sure you want to revoke manual access for ${email}? This will also delete any active enrollments for this course.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, revoke',
+      cancelButtonText: 'No, cancel'
+    })
+    
+    if (!result.isConfirmed) return
+
+    try {
+      // 1. Delete from pending_enrollments
+      const { error: pendingErr } = await supabase
+        .from('pending_enrollments')
+        .delete()
+        .eq('id', pendingId)
+      if (pendingErr) throw pendingErr
+
+      // 2. Also delete from active course_enrollments if they have one
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle()
+
+      if (profile) {
+        await supabase
+          .from('course_enrollments')
+          .delete()
+          .eq('student_id', profile.id)
+          .eq('course_id', courseId)
+      }
+
+      invalidateAll()
+      MySwal.fire({ icon: 'success', title: 'Revoked!', text: 'Access has been successfully revoked.' })
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to revoke access: ${err.message}` })
     }
   }
 
@@ -979,6 +1059,8 @@ export default function AdminDashboard() {
                 </span>
               )}
               <div className="space-y-1">
+                {/* Pricing Plans and Promo Codes have been removed as all courses are now free */}
+                {/*
                 <button
                   onClick={() => setActiveTab("plans")}
                   title="Pricing Plans"
@@ -1004,6 +1086,7 @@ export default function AdminDashboard() {
                   <Tag className="w-4 h-4" />
                   {!sidebarCollapsed && <span>Promo Codes</span>}
                 </button>
+                */}
 
                 <button
                   onClick={() => setActiveTab("testimonials")}
@@ -1051,6 +1134,19 @@ export default function AdminDashboard() {
                 >
                   <Users className="w-4 h-4" />
                   {!sidebarCollapsed && <span>Users</span>}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("manual_access")}
+                  title="Manual Access Control"
+                  className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
+                    activeTab === "manual_access"
+                      ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10"
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                  }`}
+                >
+                  <Lock className="w-4 h-4" />
+                  {!sidebarCollapsed && <span>Manual Access</span>}
                 </button>
               </div>
             </div>
@@ -1378,6 +1474,116 @@ export default function AdminDashboard() {
                         </div>
                       )
                     })()}
+                  </div>
+                )}
+
+                {activeTab === "manual_access" && (
+                  <div className="space-y-8">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">Manual Access Control</h2>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        Grant or revoke course access manually by student email. If the email doesn't have an account yet, they will automatically be enrolled when they sign up.
+                      </p>
+                    </div>
+
+                    {/* Grant access form */}
+                    <div className="bg-zinc-900/20 border border-zinc-850 p-6 rounded-2xl space-y-4">
+                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">Grant Course Access</h3>
+                      <form onSubmit={handleSaveManualAccess} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <div className="space-y-1.5">
+                          <label className="text-xs text-zinc-400 font-semibold">Student Email</label>
+                          <input
+                            type="email"
+                            required
+                            placeholder="student@example.com"
+                            value={manualAccessEmail}
+                            onChange={(e) => setManualAccessEmail(e.target.value)}
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs text-zinc-400 font-semibold">Select Course</label>
+                          <select
+                            required
+                            value={manualAccessCourseId}
+                            onChange={(e) => setManualAccessCourseId(e.target.value)}
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-zinc-400 focus:outline-none focus:border-zinc-700"
+                          >
+                            <option value="">-- Choose Course --</option>
+                            {courses.map((course) => (
+                              <option key={course.course_id} value={course.course_id}>
+                                {course.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <Button
+                          type="submit"
+                          disabled={isSavingManualAccess}
+                          className="bg-primary text-black font-semibold h-10 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                          style={{ backgroundColor: '#9ACD32', color: '#000' }}
+                        >
+                          {isSavingManualAccess ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Plus className="w-4 h-4" />
+                          )}
+                          {isSavingManualAccess ? "Processing..." : "Grant Access"}
+                        </Button>
+                      </form>
+                    </div>
+
+                    {/* Pending/Completed manual enrollments list */}
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">Granted Manual Access Logs</h3>
+                      
+                      {pendingEnrollments.length === 0 ? (
+                        <div className="p-8 text-center bg-zinc-900/10 border border-zinc-850 rounded-2xl text-zinc-500 text-xs italic">
+                          No manual course access records found.
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-zinc-850 overflow-hidden divide-y divide-zinc-850">
+                          {pendingEnrollments.map((record) => {
+                            const course = courses.find((c) => c.course_id === record.course_id);
+                            const courseTitle = course ? course.title : "Unknown Course";
+                            
+                            return (
+                              <div key={record.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-white">{record.email}</span>
+                                    <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${
+                                      record.status === 'completed' 
+                                        ? "bg-green-950/40 text-green-400 border border-green-900/30" 
+                                        : "bg-yellow-950/40 text-yellow-400 border border-yellow-900/30"
+                                    }`}>
+                                      {record.status}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-zinc-500">
+                                    Course: <span className="text-zinc-300 font-medium">{courseTitle}</span>
+                                  </p>
+                                  <p className="text-[10px] text-zinc-600">
+                                    Granted: {new Date(record.created_at).toLocaleString()}
+                                  </p>
+                                </div>
+
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => handleDeleteManualAccess(record.id, record.email, record.course_id)}
+                                  className="text-red-400 hover:text-red-300 hover:bg-red-950/20 px-3 py-1.5 h-auto text-xs font-semibold rounded-lg self-end sm:self-center flex items-center gap-1"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Revoke
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
