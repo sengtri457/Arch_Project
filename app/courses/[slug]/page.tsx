@@ -7,6 +7,7 @@ import { createClient } from "@supabase/supabase-js"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
 import { CourseEnrollCta } from "@/components/course-enroll-cta"
+import { VideoIntroductionPlayer } from "@/components/video-introduction-player"
 import { getMediaUrl } from "@/lib/utils"
 import { Lock, PlayCircle, Clock, BarChart3, User, Award, CheckCircle2 } from "lucide-react"
 
@@ -34,34 +35,6 @@ async function getCourse(slug: string) {
 async function getCurriculum(slug: string) {
   const { data } = await anonClient().rpc("get_course_curriculum", { p_slug: slug })
   return Array.isArray(data) ? data : []
-}
-
-function getEmbedUrl(url: string | undefined | null): string | null {
-  if (!url) return null
-  if (url.includes("youtube.com") || url.includes("youtu.be")) {
-    let videoId = ""
-    if (url.includes("youtube.com/watch")) {
-      const match = url.match(/[?&]v=([^&#]+)/)
-      videoId = match ? match[1] : ""
-    } else if (url.includes("youtu.be/")) {
-      const parts = url.split("youtu.be/")
-      const lastPart = parts[parts.length - 1]
-      videoId = lastPart.split(/[?#]/)[0]
-    } else if (url.includes("youtube.com/embed/")) {
-      const parts = url.split("youtube.com/embed/")
-      const lastPart = parts[parts.length - 1]
-      videoId = lastPart.split(/[?#]/)[0]
-    }
-    return videoId ? `https://www.youtube.com/embed/${videoId}` : null
-  }
-
-  if (url.includes("vimeo.com")) {
-    const match = url.match(/vimeo\.com\/(\d+)/)
-    const videoId = match ? match[1] : ""
-    return videoId ? `https://player.vimeo.com/video/${videoId}` : null
-  }
-
-  return null
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -149,20 +122,11 @@ export default async function CourseLandingPage({ params }: PageProps) {
                   Watch Video Introduction
                 </h2>
                 <div className="aspect-video w-full rounded-xl overflow-hidden border border-zinc-800 bg-black relative">
-                  {getEmbedUrl((course as any).introduction_url) ? (
-                    <iframe
-                      src={getEmbedUrl((course as any).introduction_url)!}
-                      className="w-full h-full border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <video
-                      src={getMediaUrl((course as any).introduction_url)}
-                      controls
-                      className="w-full h-full object-contain"
-                    />
-                  )}
+                  <VideoIntroductionPlayer 
+                    introductionUrl={getMediaUrl((course as any).introduction_url)}
+                    thumbnailUrl={course.thumbnail_url ? getMediaUrl(course.thumbnail_url) : undefined}
+                    title={course.title}
+                  />
                 </div>
               </section>
             )}

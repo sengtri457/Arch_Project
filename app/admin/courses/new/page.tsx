@@ -89,7 +89,11 @@ export default function NewCoursePage() {
 
       const { error: uploadError } = await supabase.storage
         .from('projects')
-        .upload(filePath, file, { contentType: file.type })
+        .upload(filePath, file, {
+          contentType: file.type,
+          cacheControl: '31536000',
+          upsert: true
+        })
 
       if (uploadError) throw uploadError
 
@@ -399,6 +403,8 @@ export default function NewCoursePage() {
               </div>
               <p className="text-[10px] text-zinc-500 mt-1">
                 Provide an external link (YouTube, Vimeo, MP4 file) or upload an introduction video file from your computer directly.
+                <br />
+                <span className="text-amber-500/90 font-medium font-sans">💡 Tip for Instant Playback:</span> Before uploading, encode the video using H.264 at 720p/1080p, and make sure &quot;Fast Start&quot; (Web Optimized) is checked in your encoder. This moves metadata to the front of the file so users can stream progressive downloads immediately.
               </p>
             </div>
 
