@@ -10,6 +10,7 @@ import { Course } from "@/lib/courses-data"
 import { Project } from "@/lib/projects-data"
 import { getMediaUrl } from "@/lib/utils"
 import Swal from "sweetalert2"
+import { useAdminData } from "@/lib/react-query/hooks/use-admin"
 
 const MySwal = Swal.mixin({
   background: '#060010',
@@ -111,6 +112,22 @@ export default function AdminDashboard() {
   const { user, profile, loading, signOut } = useAuth()
   const [activeTab, setActiveTab] = useState<AdminTab>("overview")
 
+  const adminData = useAdminData(activeTab)
+  const profiles = adminData.profiles as AdminProfileRow[]
+  const courses = adminData.courses as AdminCourseRow[]
+  const projects = adminData.projects as AdminProjectRow[]
+  const messages = adminData.messages as any[]
+  const submissions = adminData.submissions as any[]
+  const enrollments = adminData.enrollments as any[]
+  const progressLogs = adminData.progressLogs as any[]
+  const lessons = adminData.lessons as any[]
+  const certificates = adminData.certificates as any[]
+  const plans = adminData.plans as any[]
+  const promos = adminData.promos as any[]
+  const testimonials = adminData.testimonials as any[]
+  const loadingData = adminData.isLoading
+  const invalidateAll = adminData.invalidateAll
+
   useEffect(() => {
     const tabParam = new URLSearchParams(window.location.search).get("tab")
     const validTabs: AdminTab[] = ["overview", "analytics", "courses", "projects", "submissions", "crm", "plans", "promos", "testimonials", "inquiries", "users"]
@@ -119,21 +136,11 @@ export default function AdminDashboard() {
     }
   }, [])
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false)
-  const [profiles, setProfiles] = useState<AdminProfileRow[]>([])
-  const [courses, setCourses] = useState<AdminCourseRow[]>([])
-  const [projects, setProjects] = useState<AdminProjectRow[]>([])
-  const [messages, setMessages] = useState<any[]>([])
-  const [submissions, setSubmissions] = useState<any[]>([])
   const [submissionFilter, setSubmissionFilter] = useState<"pending" | "graded" | "all">("pending")
   const [submissionSearch, setSubmissionSearch] = useState("")
-  const [enrollments, setEnrollments] = useState<any[]>([])
-  const [progressLogs, setProgressLogs] = useState<any[]>([])
-  const [lessons, setLessons] = useState<any[]>([])
   const [selectedStudent, setSelectedStudent] = useState<Profile | null>(null)
-  const [certificates, setCertificates] = useState<any[]>([])
   
   // Plans & Pricing CRUD states
-  const [plans, setPlans] = useState<any[]>([])
   const [selectedPlan, setSelectedPlan] = useState<any | null>(null)
   const [editPlanName, setEditPlanName] = useState<string>("")
   const [editPlanCode, setEditPlanCode] = useState<string>("")
@@ -151,7 +158,6 @@ export default function AdminDashboard() {
   })
 
   // Promo Codes CRUD States
-  const [promos, setPromos] = useState<any[]>([])
   const [showPromoModal, setShowPromoModal] = useState<boolean>(false)
   const [promoForm, setPromoForm] = useState({
     code: "",
@@ -163,7 +169,6 @@ export default function AdminDashboard() {
   })
 
   // Testimonials CRUD States
-  const [testimonials, setTestimonials] = useState<any[]>([])
   const [showTestimonialModal, setShowTestimonialModal] = useState<boolean>(false)
   const [editingTestimonialId, setEditingTestimonialId] = useState<string | null>(null)
   const [testimonialForm, setTestimonialForm] = useState({
@@ -212,8 +217,6 @@ export default function AdminDashboard() {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadingLessonAsset, setUploadingLessonAsset] = useState(false)
 
-  const [loadingData, setLoadingData] = useState(true)
-  
   const router = useRouter()
   const supabase = createClient()
 
@@ -228,105 +231,7 @@ export default function AdminDashboard() {
     }
   }, [user, profile, loading, router])
 
-  // Load CRM, courses, and projects data
-  useEffect(() => {
-    if (!user || profile?.role !== 'admin') return
 
-    async function loadAdminData() {
-      try {
-        setLoadingData(true)
-        
-        // 1. Fetch profiles
-        const { data: profilesData, error: profilesErr } = await supabase
-          .from('profiles')
-          .select('*')
-          .order('created_at', { ascending: false })
-        if (!profilesErr && profilesData) setProfiles(profilesData as Profile[])
-
-        // 2. Fetch courses
-        const { data: coursesData } = await supabase
-          .from('courses')
-          .select('*')
-        if (coursesData) setCourses(coursesData as Course[])
-
-        // 3. Fetch projects
-        const { data: projectsData } = await supabase
-          .from('projects')
-          .select('*')
-        if (projectsData) setProjects(projectsData as Project[])
-        
-        // 4. Fetch contact messages
-        const { data: messagesData, error: messagesErr } = await supabase
-          .from('contact_messages')
-          .select('*')
-          .order('created_at', { ascending: false })
-        if (!messagesErr && messagesData) setMessages(messagesData)
-        
-        // 5. Fetch student exercise submissions
-        const { data: subData, error: subErr } = await supabase
-          .from('exercise_submissions')
-          .select(`
-            *,
-            profiles:student_id(full_name, avatar_url),
-            exercises:exercise_id(title, max_score)
-          `)
-          .order('submitted_at', { ascending: false })
-        if (!subErr && subData) setSubmissions(subData)
-
-        // 6. Fetch enrollments
-        const { data: enrollData } = await supabase
-          .from('course_enrollments')
-          .select('*')
-        if (enrollData) setEnrollments(enrollData)
-
-        // 7. Fetch progress logs
-        const { data: progressData } = await supabase
-          .from('lesson_progress')
-          .select('*')
-        if (progressData) setProgressLogs(progressData)
-
-        // 8. Fetch all lessons (video URLs are locked down - served via admin API)
-        const lessonsRes = await fetch('/api/admin/lessons')
-        if (lessonsRes.ok) {
-          const lessonsJson = await lessonsRes.json()
-          setLessons(lessonsJson.lessons || [])
-        }
-
-        // 9. Fetch all certificates
-        const { data: certsData } = await supabase
-          .from('certificates')
-          .select('*')
-        if (certsData) setCertificates(certsData)
-
-        // 10. Fetch subscription plans
-        const { data: plansData } = await supabase
-          .from('subscription_plans')
-          .select('*')
-          .order('plan_id', { ascending: true })
-        if (plansData) setPlans(plansData)
-
-        // 11. Fetch promo codes
-        const { data: promosData } = await supabase
-          .from('promo_codes')
-          .select('*')
-          .order('created_at', { ascending: false })
-        if (promosData) setPromos(promosData)
-
-        // 12. Fetch testimonials (homepage carousel content)
-        const { data: testimonialsData } = await supabase
-          .from('testimonials')
-          .select('*')
-          .order('created_at', { ascending: false })
-        if (testimonialsData) setTestimonials(testimonialsData)
-        
-      } catch (err) {
-        console.error("Admin data loading error:", err)
-      } finally {
-        setLoadingData(false)
-      }
-    }
-    loadAdminData()
-  }, [user, profile])
 
   // Filtered submissions for the Submissions tab
   const filteredSubmissions = submissions.filter((sub: any) => {
@@ -348,8 +253,7 @@ export default function AdminDashboard() {
 
       if (error) throw error
       
-      // Update local state
-      setProfiles(prev => prev.map(p => p.id === targetUserId ? { ...p, role: newRole } : p))
+      invalidateAll()
       MySwal.fire({ icon: 'success', title: 'Updated!', text: `User role successfully updated to ${newRole}!` })
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to update user role: ${err.message}` })
@@ -375,11 +279,7 @@ export default function AdminDashboard() {
 
       if (error) throw error
 
-      setSubmissions(prev => prev.map(s => 
-        s.submission_id === submissionId 
-          ? { ...s, status: 'graded', score, instructor_feedback: feedback } 
-          : s
-      ))
+      invalidateAll()
       MySwal.fire({ icon: 'success', title: 'Graded!', text: "Submission successfully graded!" })
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to grade submission: ${err.message}` })
@@ -405,14 +305,7 @@ export default function AdminDashboard() {
 
       if (error) throw error
       
-      setPlans(prev => prev.map(p => p.plan_id === selectedPlan.plan_id ? { 
-        ...p, 
-        name: editPlanName, 
-        plan_code: editPlanCode.toUpperCase().trim(), 
-        price_usd: parseFloat(editPlanPrice),
-        billing_interval: editPlanInterval,
-        is_active: editPlanActive
-      } : p))
+      invalidateAll()
       setSelectedPlan(null)
       MySwal.fire({ icon: 'success', title: 'Saved!', text: "Plan details saved successfully!" })
     } catch (err: any) {
@@ -438,7 +331,7 @@ export default function AdminDashboard() {
       if (error) throw error
       await MySwal.fire({ icon: 'success', title: 'Created!', text: "Plan created successfully!" })
       setShowPlanModal(false)
-      window.location.reload()
+      invalidateAll()
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to create plan: ${err.message}` })
     }
@@ -464,7 +357,7 @@ export default function AdminDashboard() {
         .eq('plan_id', planId)
       if (error) throw error
       await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Plan deleted successfully!" })
-      window.location.reload()
+      invalidateAll()
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete plan: ${err.message}` })
     }
@@ -490,7 +383,7 @@ export default function AdminDashboard() {
       if (error) throw error
       await MySwal.fire({ icon: 'success', title: 'Created!', text: "Promo code created successfully!" })
       setShowPromoModal(false)
-      window.location.reload()
+      invalidateAll()
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to create promo code: ${err.message}` })
     }
@@ -516,7 +409,7 @@ export default function AdminDashboard() {
         .eq('code', code)
       if (error) throw error
       await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Promo code deleted successfully!" })
-      window.location.reload()
+      invalidateAll()
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete promo code: ${err.message}` })
     }
@@ -552,7 +445,7 @@ export default function AdminDashboard() {
         await MySwal.fire({ icon: 'success', title: 'Created!', text: "Testimonial created successfully!" })
       }
       setShowTestimonialModal(false)
-      window.location.reload()
+      invalidateAll()
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to save testimonial: ${err.message}` })
     }
@@ -577,7 +470,7 @@ export default function AdminDashboard() {
         .eq('id', id)
       if (error) throw error
       await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Testimonial deleted successfully!" })
-      window.location.reload()
+      invalidateAll()
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete testimonial: ${err.message}` })
     }
@@ -606,27 +499,13 @@ export default function AdminDashboard() {
 
       if (error) throw error
       await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Course deleted successfully!" })
-      window.location.reload()
+      invalidateAll()
     } catch (err: any) {
       MySwal.fire({
         icon: 'error',
         title: 'Failed to Delete Course',
         html: `Failed to delete course: ${err.message}<br/><br/><strong>Tip:</strong> If students have already submitted exercises for this course, you must delete their submissions or apply the cascade-delete database migration.`
       })
-    }
-  }
-
-  const reloadLessons = async () => {
-    try {
-      const res = await fetch('/api/admin/lessons')
-      if (res.ok) {
-        const json = await res.json()
-        setLessons(json.lessons || [])
-      } else {
-        MySwal.fire({ icon: 'error', title: 'Error', text: 'Failed to reload lessons: admin API error' })
-      }
-    } catch (err: any) {
-      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to reload lessons: ${err.message}` })
     }
   }
 
@@ -663,7 +542,7 @@ export default function AdminDashboard() {
 
       setShowLessonModal(false)
       setEditingLesson(null)
-      await reloadLessons()
+      invalidateAll()
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to save lesson: ${err.message}` })
     }
@@ -691,7 +570,7 @@ export default function AdminDashboard() {
         throw new Error(errJson.error || 'Admin API error')
       }
       await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Lesson deleted successfully!" })
-      await reloadLessons()
+      invalidateAll()
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete lesson: ${err.message}` })
     }
@@ -828,7 +707,7 @@ export default function AdminDashboard() {
 
       setShowProjectModal(false)
       setEditingProject(null)
-      window.location.reload()
+      invalidateAll()
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to save project: ${err.message}` })
     }
@@ -855,7 +734,7 @@ export default function AdminDashboard() {
 
       if (error) throw error
       await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Project deleted successfully!" })
-      window.location.reload()
+      invalidateAll()
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete project: ${err.message}` })
     }

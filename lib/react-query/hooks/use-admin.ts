@@ -1,9 +1,10 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { queryKeys } from "@/lib/react-query/query-keys"
 
-export function useAdminData() {
+export function useAdminData(activeTab: string) {
   const supabase = createClient()
+  const queryClient = useQueryClient()
 
   const profiles = useQuery({
     queryKey: queryKeys.admin.profiles,
@@ -12,6 +13,7 @@ export function useAdminData() {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "crm" || activeTab === "users" || activeTab === "overview",
   })
 
   const courses = useQuery({
@@ -21,6 +23,7 @@ export function useAdminData() {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "courses" || activeTab === "overview" || activeTab === "submissions",
   })
 
   const projects = useQuery({
@@ -30,6 +33,7 @@ export function useAdminData() {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "projects" || activeTab === "overview",
   })
 
   const messages = useQuery({
@@ -42,6 +46,7 @@ export function useAdminData() {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "inquiries",
   })
 
   const submissionsData = useQuery({
@@ -54,6 +59,7 @@ export function useAdminData() {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "submissions",
   })
 
   const enrollments = useQuery({
@@ -63,6 +69,7 @@ export function useAdminData() {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "overview" || activeTab === "analytics",
   })
 
   const progressLogs = useQuery({
@@ -72,6 +79,7 @@ export function useAdminData() {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "users" || activeTab === "analytics",
   })
 
   const lessons = useQuery({
@@ -83,6 +91,7 @@ export function useAdminData() {
       return json.lessons || []
     },
     staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "courses",
   })
 
   const certificates = useQuery({
@@ -92,6 +101,7 @@ export function useAdminData() {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "users",
   })
 
   const plans = useQuery({
@@ -104,6 +114,7 @@ export function useAdminData() {
       return data || []
     },
     staleTime: 5 * 60 * 1000,
+    enabled: activeTab === "plans",
   })
 
   const promos = useQuery({
@@ -113,6 +124,7 @@ export function useAdminData() {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "promos",
   })
 
   const testimonialsData = useQuery({
@@ -122,7 +134,26 @@ export function useAdminData() {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "testimonials",
   })
+
+  const allQueries = [
+    profiles,
+    courses,
+    projects,
+    messages,
+    submissionsData,
+    enrollments,
+    progressLogs,
+    lessons,
+    certificates,
+    plans,
+    promos,
+    testimonialsData,
+  ]
+
+  const isLoading = allQueries.some((q) => q.isLoading)
+  const isFetching = allQueries.some((q) => q.isFetching)
 
   return {
     profiles: profiles.data ?? [],
@@ -137,20 +168,11 @@ export function useAdminData() {
     plans: plans.data ?? [],
     promos: promos.data ?? [],
     testimonials: testimonialsData.data ?? [],
-    isLoading: profiles.isLoading || courses.isLoading || projects.isLoading,
-    refetch: () => {
-      profiles.refetch()
-      courses.refetch()
-      projects.refetch()
-      messages.refetch()
-      submissionsData.refetch()
-      enrollments.refetch()
-      progressLogs.refetch()
-      lessons.refetch()
-      certificates.refetch()
-      plans.refetch()
-      promos.refetch()
-      testimonialsData.refetch()
+    isLoading,
+    isFetching,
+    invalidateAll: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.testimonials.all })
     },
   }
 }
