@@ -24,10 +24,24 @@ CREATE TABLE IF NOT EXISTS public.pending_enrollments (
 -- 4. Enable RLS for pending_enrollments
 ALTER TABLE public.pending_enrollments ENABLE ROW LEVEL SECURITY;
 
--- 5. RLS Policy: Admins/Instructors can manage all pending enrollments
+-- 5. RLS Policies for pending_enrollments
 DROP POLICY IF EXISTS "Admins manage pending enrollments" ON public.pending_enrollments;
 CREATE POLICY "Admins manage pending enrollments" ON public.pending_enrollments
-    FOR ALL USING (public.is_admin(auth.uid()));
+    FOR ALL USING (public.is_instructor_or_admin(auth.uid()));
+
+DROP POLICY IF EXISTS "Students can insert own pending enrollments" ON public.pending_enrollments;
+CREATE POLICY "Students can insert own pending enrollments" ON public.pending_enrollments
+    FOR INSERT WITH CHECK (
+      auth.uid() IS NOT NULL AND 
+      LOWER(email) = LOWER(auth.jwt() ->> 'email')
+    );
+
+DROP POLICY IF EXISTS "Students can view own pending enrollments" ON public.pending_enrollments;
+CREATE POLICY "Students can view own pending enrollments" ON public.pending_enrollments
+    FOR SELECT USING (
+      auth.uid() IS NOT NULL AND 
+      LOWER(email) = LOWER(auth.jwt() ->> 'email')
+    );
 
 -- 6. Trigger: When inserting into pending_enrollments, check if profile exists and enroll immediately
 CREATE OR REPLACE FUNCTION public.process_pending_enrollment()

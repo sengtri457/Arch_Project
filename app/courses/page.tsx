@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
 import Link from "next/link"
-import { Clock, Users, Play, ArrowRight } from "lucide-react"
+import { Clock, Users, Play, ArrowRight, Loader2 } from "lucide-react"
 
 import { getMediaUrl } from "@/lib/utils"
 import { useCourses, useCourseAccessMap } from "@/lib/react-query/hooks/use-courses"
+import { createClient } from "@/lib/supabase/client"
 
 export default function CoursesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
@@ -23,6 +24,27 @@ export default function CoursesPage() {
       : courses.filter((c) => c.category === selectedCategory)
 
   const isUnlocked = (course: any) => accessMap[course.course_id || course.id]
+
+  const [pendingCourseIds, setPendingCourseIds] = useState<string[]>([])
+  
+  useEffect(() => {
+    const supabase = createClient()
+    async function loadPending() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('pending_enrollments')
+        .select('course_id')
+        .eq('email', user.email?.toLowerCase())
+        .eq('status', 'pending')
+      if (data) {
+        setPendingCourseIds(data.map(d => d.course_id))
+      }
+    }
+    loadPending()
+  }, [])
+
+  const isPending = (course: any) => pendingCourseIds.includes(course.course_id || course.id)
 
   if (isLoading) {
     return (
@@ -163,6 +185,10 @@ export default function CoursesPage() {
                             <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1.5 bg-green-950/40 text-green-400 border border-green-900/30 rounded-lg">
                               Enrolled
                             </span>
+                          ) : isPending(course) ? (
+                            <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1.5 bg-yellow-950/40 text-yellow-400 border border-yellow-900/30 rounded-lg">
+                              Pending Unlock
+                            </span>
                           ) : (
                             <p className="text-2xl font-bold" style={{ color: '#9ACD32' }}>
                               {course.price ? `$${parseFloat(course.price.toString()).toFixed(2)}` : '$49.99'}
@@ -172,16 +198,36 @@ export default function CoursesPage() {
                       </div>
 
                       {/* CTA Button */}
-                      <Link
-                        href={`/courses/${course.id}`}
-                        className="mt-6 w-full inline-flex items-center justify-center px-6 py-3 text-white font-semibold rounded-lg transition-all group"
-                        style={{ backgroundColor: unlocked ? '#2e7d32' : '#9ACD32' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = unlocked ? '#1b5e20' : '#8fbc2f'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = unlocked ? '#2e7d32' : '#9ACD32'}
-                      >
-                        {unlocked ? 'Resume Classroom' : 'Unlock Course'}
-                        <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                      </Link>
+                      {unlocked ? (
+                        <Link
+                          href={`/courses/${course.id}`}
+                          className="mt-6 w-full inline-flex items-center justify-center px-6 py-3 text-white font-semibold rounded-lg transition-all group"
+                          style={{ backgroundColor: '#2e7d32' }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1b5e20'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2e7d32'}
+                        >
+                          Resume Classroom
+                          <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </Link>
+                      ) : isPending(course) ? (
+                        <button
+                          disabled
+                          className="mt-6 w-full inline-flex items-center justify-center px-6 py-3 text-zinc-500 font-semibold rounded-lg transition-all bg-zinc-800 border border-zinc-700 cursor-not-allowed"
+                        >
+                          Unlock Pending Approval
+                        </button>
+                      ) : (
+                        <Link
+                          href={`/courses/${course.id}`}
+                          className="mt-6 w-full inline-flex items-center justify-center px-6 py-3 text-white font-semibold rounded-lg transition-all group"
+                          style={{ backgroundColor: '#9ACD32' }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#8fbc2f'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#9ACD32'}
+                        >
+                          Unlock Course
+                          <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>

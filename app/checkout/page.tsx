@@ -178,6 +178,23 @@ function CheckoutContent() {
     }
   }
 
+  const handleTelegramClick = async () => {
+    try {
+      if (user?.email && courseId) {
+        await supabase
+          .from('pending_enrollments')
+          .upsert({
+            email: user.email.toLowerCase(),
+            course_id: courseId,
+            status: 'pending'
+          }, { onConflict: 'email,course_id' })
+      }
+    } catch (err) {
+      console.warn("Failed to create pending enrollment:", err)
+    }
+    window.open("https://t.me/sxngtri", "_blank")
+  }
+
   // 2. Poll transaction status in real-time
   useEffect(() => {
     if (!checkoutData?.billNumber || paymentCompleted) return
@@ -468,16 +485,15 @@ function CheckoutContent() {
                 </div>
               </div>
 
-              <a
-                href="https://t.me/sxngtri"
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={handleTelegramClick}
                 className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-sm bg-primary text-black transition-all hover:brightness-110 text-center"
                 style={{ backgroundColor: "#9ACD32", color: "#000" }}
               >
                 Go to Telegram Chat
                 <ExternalLink className="w-4 h-4" />
-              </a>
+              </button>
             </div>
           )}
         </div>

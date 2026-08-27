@@ -31,7 +31,6 @@ export function Navigation() {
 
   const navLinks = [
     { href: "/courses", label: "Courses" },
-    { href: "/pricing", label: "Pricing" },
     { href: "/projects", label: "Project" },
     { href: "/about", label: "About" },
     { href: "#contact", label: "Contact" },
