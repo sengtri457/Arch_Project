@@ -55,7 +55,7 @@ export default function NewCoursePage() {
   useEffect(() => {
     async function loadPlans() {
       const { data } = await supabase
-        .from('plans')
+        .from('subscription_plans')
         .select('*')
         .order('price', { ascending: true })
       if (data) setPlans(data)
@@ -89,7 +89,7 @@ export default function NewCoursePage() {
 
       const { error: uploadError } = await supabase.storage
         .from('projects')
-        .upload(filePath, file)
+        .upload(filePath, file, { contentType: file.type })
 
       if (uploadError) throw uploadError
 

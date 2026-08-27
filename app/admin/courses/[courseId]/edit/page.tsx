@@ -64,7 +64,7 @@ export default function EditCoursePage() {
         
         // 1. Fetch plans
         const { data: plansData } = await supabase
-          .from('plans')
+          .from('subscription_plans')
           .select('*')
           .order('price', { ascending: true })
         if (plansData) setPlans(plansData)
@@ -141,7 +141,7 @@ export default function EditCoursePage() {
 
       const { error: uploadError } = await supabase.storage
         .from('projects')
-        .upload(filePath, file)
+        .upload(filePath, file, { contentType: file.type })
 
       if (uploadError) throw uploadError
 
