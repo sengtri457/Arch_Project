@@ -97,6 +97,16 @@ import {
 
 type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "testimonials" | "users"
 
+function generateLessonAssetFileName(originalName: string): string {
+  const sanitizedName = originalName.replace(/[^a-zA-Z0-9.-]/g, '_')
+  return `${Date.now()}-${sanitizedName}`
+}
+
+function generateProjectImageFileName(originalName: string): string {
+  const fileExt = originalName.split('.').pop()
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+}
+
 export default function AdminDashboard() {
   const { user, profile, loading, signOut } = useAuth()
   const [activeTab, setActiveTab] = useState<AdminTab>("overview")
@@ -694,9 +704,7 @@ export default function AdminDashboard() {
 
     setUploadingLessonAsset(true)
     try {
-      const fileExt = file.name.split('.').pop()
-      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-      const fileName = `${Date.now()}-${sanitizedName}`
+      const fileName = generateLessonAssetFileName(file.name)
       const filePath = `lesson-resources/${fileName}`
 
       const { error: uploadError } = await supabase.storage
@@ -724,8 +732,7 @@ export default function AdminDashboard() {
 
     setUploadingImage(true)
     try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+      const fileName = generateProjectImageFileName(file.name)
       const filePath = `covers/${fileName}`
 
       const { error: uploadError } = await supabase.storage

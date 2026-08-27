@@ -1,40 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
-import { Course } from "@/lib/courses-data"
-import { createClient } from "@/lib/supabase/client"
-import { db } from "@/lib/supabase/db"
 import Link from "next/link"
 import { Clock, Users, Play, ArrowRight } from "lucide-react"
 
 import { getMediaUrl } from "@/lib/utils"
+import { useCourses, useCourseAccessMap } from "@/lib/react-query/hooks/use-courses"
 
 export default function CoursesPage() {
-  const [courses, setCourses] = useState<Course[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
-  const [unlockedCourseIds, setUnlockedCourseIds] = useState<Set<string>>(new Set())
-
-  useEffect(() => {
-    const supabase = createClient()
-    async function loadCoursesAndAccess() {
-      // 1. Fetch courses catalog
-      const data = await db.getCourses(supabase)
-      setCourses(data)
-
-      // 2. Fetch logged in user to check access permissions
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const accessMap = await db.getUserCourseAccessMap(supabase, user.id, data)
-        const unlocked = new Set<string>(
-          Object.keys(accessMap).filter(key => accessMap[key])
-        )
-        setUnlockedCourseIds(unlocked)
-      }
-    }
-    loadCoursesAndAccess()
-  }, [])
+  const { data: courses = [], isLoading } = useCourses()
+  const { data: accessMap = {} } = useCourseAccessMap()
 
   const uniqueCategories = Array.from(new Set(courses.map(c => c.category).filter(Boolean)))
   const categories = ["All", ...uniqueCategories.filter(cat => cat !== "All")]
@@ -43,6 +21,41 @@ export default function CoursesPage() {
     selectedCategory === "All"
       ? courses
       : courses.filter((c) => c.category === selectedCategory)
+
+  const isUnlocked = (course: any) => accessMap[course.course_id || course.id]
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-background">
+        <Navigation />
+        <section className="relative py-32 overflow-hidden" style={{ backgroundColor: '#060010' }}>
+          <div className="container mx-auto px-6">
+            <div className="text-center max-w-4xl mx-auto">
+              <h1 className="text-6xl md:text-7xl font-bold text-white mb-6">Learn with Us</h1>
+              <p className="text-xl text-gray-300">Master architectural visualization with our comprehensive courses</p>
+            </div>
+          </div>
+        </section>
+        <section className="py-24" style={{ backgroundColor: '#060010' }}>
+          <div className="w-full px-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto animate-pulse">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="bg-zinc-900/30 border border-zinc-800/60 rounded-2xl overflow-hidden">
+                  <div className="aspect-video w-full bg-zinc-800" />
+                  <div className="p-6 space-y-4">
+                    <div className="h-4 bg-zinc-800 rounded w-1/3" />
+                    <div className="h-6 bg-zinc-800 rounded w-2/3" />
+                    <div className="h-4 bg-zinc-800 rounded w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+        <Footer />
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-background">
@@ -90,7 +103,7 @@ export default function CoursesPage() {
           {/* Courses Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
             {filteredCourses.map((course) => {
-              const isUnlocked = unlockedCourseIds.has(course.course_id || course.id)
+              const unlocked = isUnlocked(course)
               return (
                 <div
                   key={course.id}
@@ -146,7 +159,7 @@ export default function CoursesPage() {
                           <p className="text-sm text-white font-medium">{course.instructor}</p>
                         </div>
                         <div className="text-right anthropic">
-                          {isUnlocked ? (
+                          {unlocked ? (
                             <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1.5 bg-green-950/40 text-green-400 border border-green-900/30 rounded-lg">
                               Enrolled
                             </span>
@@ -162,11 +175,11 @@ export default function CoursesPage() {
                       <Link
                         href={`/courses/${course.id}`}
                         className="mt-6 w-full inline-flex items-center justify-center px-6 py-3 text-white font-semibold rounded-lg transition-all group"
-                        style={{ backgroundColor: isUnlocked ? '#2e7d32' : '#9ACD32' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = isUnlocked ? '#1b5e20' : '#8fbc2f'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isUnlocked ? '#2e7d32' : '#9ACD32'}
+                        style={{ backgroundColor: unlocked ? '#2e7d32' : '#9ACD32' }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = unlocked ? '#1b5e20' : '#8fbc2f'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = unlocked ? '#2e7d32' : '#9ACD32'}
                       >
-                        {isUnlocked ? 'Resume Classroom' : 'Unlock Course'}
+                        {unlocked ? 'Resume Classroom' : 'Unlock Course'}
                         <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                       </Link>
                     </div>
@@ -175,6 +188,12 @@ export default function CoursesPage() {
               )
             })}
           </div>
+
+          {filteredCourses.length === 0 && !isLoading && (
+            <div className="text-center py-16 text-zinc-400">
+              <p>No courses found in this category.</p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -182,4 +201,3 @@ export default function CoursesPage() {
     </main>
   )
 }
-

@@ -1,0 +1,50 @@
+export const queryKeys = {
+  courses: {
+    all: ["courses"] as const,
+    list: (category?: string) => ["courses", "list", category] as const,
+    detail: (slug: string) => ["courses", "detail", slug] as const,
+    lessons: (courseId: string) => ["courses", "lessons", courseId] as const,
+  },
+  projects: {
+    all: ["projects"] as const,
+    featured: (limit?: number) => ["projects", "featured", limit] as const,
+    detail: (slug: string) => ["projects", "detail", slug] as const,
+  },
+  testimonials: {
+    all: ["testimonials"] as const,
+  },
+  access: {
+    check: (userId: string, courseId: string) => ["access", userId, courseId] as const,
+    map: (userId: string) => ["access", "map", userId] as const,
+  },
+  dashboard: {
+    enrolled: (userId: string) => ["dashboard", "enrolled", userId] as const,
+    progress: (userId: string, courseId: string) => ["dashboard", "progress", userId, courseId] as const,
+    stats: (userId: string) => ["dashboard", "stats", userId] as const,
+    certificates: (userId: string) => ["dashboard", "certificates", userId] as const,
+    subscription: (userId: string) => ["dashboard", "subscription", userId] as const,
+    labProgress: (userId: string, courseId: string) => ["dashboard", "labs", userId, courseId] as const,
+  },
+  classroom: {
+    course: (slug: string) => ["classroom", "course", slug] as const,
+    lessons: (courseId: string) => ["classroom", "lessons", courseId] as const,
+    progress: (userId: string, courseId: string) => ["classroom", "progress", userId, courseId] as const,
+    certificate: (userId: string, courseId: string) => ["classroom", "cert", userId, courseId] as const,
+    video: (lessonId: string) => ["classroom", "video", lessonId] as const,
+    exercise: (lessonId: string) => ["classroom", "exercise", lessonId] as const,
+    submission: (userId: string, lessonId: string) => ["classroom", "submission", userId, lessonId] as const,
+  },
+  admin: {
+    profiles: ["admin", "profiles"] as const,
+    courses: ["admin", "courses"] as const,
+    projects: ["admin", "projects"] as const,
+    messages: ["admin", "messages"] as const,
+    submissions: ["admin", "submissions"] as const,
+    enrollments: ["admin", "enrollments"] as const,
+    progressLogs: ["admin", "progressLogs"] as const,
+    adminLessons: ["admin", "lessons"] as const,
+    certificates: ["admin", "certificates"] as const,
+    plans: ["admin", "plans"] as const,
+    promos: ["admin", "promos"] as const,
+  },
+}

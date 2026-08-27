@@ -8,7 +8,6 @@ import { Footer } from "@/components/footer"
 import { createClient } from "@/lib/supabase/client"
 import { db } from "@/lib/supabase/db"
 import { SecureVideoPlayer } from "@/components/secure-video-player"
-import { Course } from "@/lib/courses-data"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -28,6 +27,8 @@ import {
   RotateCcw
 } from "lucide-react"
 
+import { useClassroomCourse, useClassroomLessons, useClassroomProgress, useClassroomCertificate, useVideoUrl, useClassroomAccess, useLessonExercise, useUpdateProgress } from "@/lib/react-query/hooks/use-classroom"
+
 interface LessonPageProps {
   params: Promise<{ slug: string; lessonId: string }>
 }
@@ -36,17 +37,22 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const { slug, lessonId } = use(params)
   const { user, profile, loading } = useAuth()
   const router = useRouter()
-  const supabase = createClient()
 
-  // Course and Lesson states
-  const [course, setCourse] = useState<Course | null>(null)
-  const [lessons, setLessons] = useState<any[]>([])
-  const [currentLesson, setCurrentLesson] = useState<any | null>(null)
-  const [progressList, setProgressList] = useState<any[]>([])
-  
-  // Loading & Permission States
-  const [loadingCatalog, setLoadingCatalog] = useState(true)
-  const [hasAccess, setHasAccess] = useState<boolean | null>(null)
+  const { data: course } = useClassroomCourse(slug)
+  const courseId = course ? (course.course_id || course.id) : ""
+  const { data: lessons = [] } = useClassroomLessons(courseId)
+  const { data: progressList = [], isLoading: loadingProgress } = useClassroomProgress(user?.id, courseId)
+  const { data: hasAccessRaw, isLoading: loadingAccess } = useClassroomAccess(user?.id, courseId)
+  const hasAccess = hasAccessRaw ?? null
+  const { data: existingCert } = useClassroomCertificate(user?.id, courseId)
+
+  const currentLesson = lessons.find((l: any) => l.lesson_id === lessonId || l.id === lessonId) || lessons[0] || null
+
+  // Secure video delivery state
+  const { data: videoData, isLoading: loadingVideo } = useVideoUrl(currentLesson?.lesson_id || currentLesson?.id, hasAccess)
+  const activeVideo = videoData ? { source: videoData.source as string, format: videoData.format as 'hls' | 'direct', url: videoData.url } : null
+
+  // Certificate modal state
   const [showCertModal, setShowCertModal] = useState(false)
   const [generatedCertId, setGeneratedCertId] = useState<string | null>(null)
   const [generatingCert, setGeneratingCert] = useState(false)
@@ -58,6 +64,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const autoCertAttempted = useRef<boolean>(false)
 
   // Exercise States
+  const supabase = createClient()
   const [exercise, setExercise] = useState<any | null>(null)
   const [submissionUrl, setSubmissionUrl] = useState("")
   const [submissionNotes, setSubmissionNotes] = useState("")
@@ -66,9 +73,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const [submissionScore, setSubmissionScore] = useState<number | null>(null)
   const [submissionFeedback, setSubmissionFeedback] = useState<string | null>(null)
 
-  // Secure video delivery state
-  const [activeVideo, setActiveVideo] = useState<{ source: string; format: 'hls' | 'direct'; url: string } | null>(null)
-  const [loadingVideo, setLoadingVideo] = useState(false)
+  const updateProgress = useUpdateProgress()
 
   // Redirect guests to login
   useEffect(() => {
@@ -77,121 +82,66 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     }
   }, [user, loading, router, slug, lessonId])
 
-  // Load Course and Access validations
+  // Auto-certificate check when all videos watched
   useEffect(() => {
-    if (!user) return
+    if (existingCert) {
+      setGeneratedCertId(existingCert.certificate_id)
+      return
+    }
+    if (!course || !courseId || lessons.length === 0 || progressList.length === 0 || autoCertAttempted.current) return
+    const allWatched =
+      lessons.length > 0 &&
+      lessons.every(
+        (lesson: any) => progressList.some((p: any) => p.lesson_id === lesson.lesson_id && p.is_completed)
+      )
+    if (allWatched) {
+      autoCertAttempted.current = true
+      setTimeout(() => triggerCertGeneration(courseId), 600)
+    }
+  }, [course, courseId, lessons, progressList, existingCert])
+
+  // Load Exercise & Submissions Details on Lesson Change
+  useEffect(() => {
+    if (!user || !currentLesson) return
     const userId = user.id
 
-    async function verifyAndLoad() {
+    async function loadExerciseAndSubmission() {
       try {
-        setLoadingCatalog(true)
-        
-        // 1. Fetch Course by slug
-        const activeCourse = await db.getCourseBySlug(supabase, slug)
-        if (!activeCourse) {
-          setHasAccess(false)
-          setLoadingCatalog(false)
-          return
-        }
-        setCourse(activeCourse)
-        const courseId = activeCourse.course_id || activeCourse.id
+        const activeLessonId = currentLesson.lesson_id || currentLesson.id
+        const activeExercise = await db.getLessonExercise(supabase, activeLessonId)
+        setExercise(activeExercise)
 
-        // 2. Fetch all other data in parallel
-        const [
-          accessGranted,
-          courseLessons,
-          progressRes,
-          certRes
-        ] = await Promise.all([
-          db.checkCourseAccess(supabase, userId, courseId),
-          db.getCourseLessons(supabase, courseId),
-          supabase
-            .from("lesson_progress")
-            .select("lesson_id, is_completed, watched_seconds")
+        if (activeExercise) {
+          const { data: existingSub, error: subError } = await supabase
+            .from("exercise_submissions")
+            .select("status, score, instructor_feedback")
+            .eq("exercise_id", activeExercise.exercise_id)
             .eq("student_id", userId)
-            .eq("course_id", courseId),
-          supabase
-            .from("certificates")
-            .select("certificate_id")
-            .eq("student_id", userId)
-            .eq("course_id", courseId)
-            .maybeSingle()
-        ])
+            .single()
 
-        setHasAccess(accessGranted)
-        if (!accessGranted) {
-          setLoadingCatalog(false)
-          return
-        }
-
-        setLessons(courseLessons)
-
-        // Select current lesson
-        const matched = courseLessons.find((l) => l.lesson_id === lessonId || l.id === lessonId)
-        setCurrentLesson(matched || courseLessons[0] || null)
-
-        const progressRecords = progressRes.data
-        setProgressList(progressRecords || [])
-
-        const certData = certRes.data
-        if (certData) {
-          setGeneratedCertId(certData.certificate_id)
-          return
-        }
-
-        // 6. All videos already watched and no certificate yet? Re-check
-        //    eligibility so the certificate auto-issues once the instructor
-        //    has graded the final lab.
-        const allWatched =
-          courseLessons.length > 0 &&
-          courseLessons.every(
-            (lesson) => (progressRecords || []).some((p) => p.lesson_id === lesson.lesson_id && p.is_completed)
-          )
-
-        if (allWatched && !autoCertAttempted.current) {
-          autoCertAttempted.current = true
-          setTimeout(() => triggerCertGeneration(courseId), 600)
+          if (!subError && existingSub) {
+            setSubmissionStatus(existingSub.status)
+            setSubmissionScore(existingSub.score)
+            setSubmissionFeedback(existingSub.instructor_feedback)
+          } else {
+            setSubmissionStatus(null)
+            setSubmissionScore(null)
+            setSubmissionFeedback(null)
+          }
+        } else {
+          setSubmissionStatus(null)
+          setSubmissionScore(null)
+          setSubmissionFeedback(null)
         }
       } catch (err) {
-        console.error("Error loading classroom:", err)
-      } finally {
-        setLoadingCatalog(false)
+        console.error("Error loading lesson exercise:", err)
       }
     }
-    verifyAndLoad()
-  }, [user, slug, lessonId])
 
-  // Fetch playable video URL through the secured API whenever the lesson changes
-  useEffect(() => {
-    const lessonId = currentLesson?.lesson_id || currentLesson?.id
-    setActiveVideo(null)
-    if (!hasAccess || !lessonId) return
-
-    let cancelled = false
-    setLoadingVideo(true)
-
-    fetch(`/api/lessons/${lessonId}/video`)
-      .then(async (res) => {
-        if (res.ok) {
-          const json = await res.json()
-          if (!cancelled && json?.url) {
-            setActiveVideo({
-              source: json.source ?? 'direct',
-              format: json.format === 'hls' ? 'hls' : 'direct',
-              url: json.url
-            })
-          }
-        }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setLoadingVideo(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [currentLesson?.lesson_id, currentLesson?.id, hasAccess])
+    loadExerciseAndSubmission()
+    setSubmissionUrl("")
+    setSubmissionNotes("")
+  }, [user, currentLesson])
 
   // Handle lesson navigation in sidebar
   const handleSelectLesson = (targetLesson: any) => {
@@ -204,17 +154,16 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
 
     const activeCourseId = course.course_id || course.id
     const timeDiff = currentTime - lastLoggedTime.current
-    const isFinished = duration > 0 && currentTime >= duration * 0.90 // 90% threshold for completion
+    const isFinished = duration > 0 && currentTime >= duration * 0.90
 
-    // Trigger save if it's the first play, if 10 seconds have elapsed, or if video is finished
     if (lastLoggedTime.current === 0 || timeDiff >= 10 || isFinished) {
       isUpdatingProgress.current = true
       lastLoggedTime.current = currentTime
 
-      const isLessonCompleted = isFinished || progressList.some(p => p.lesson_id === currentLesson.lesson_id && p.is_completed)
+      const isLessonCompleted = isFinished || progressList.some((p: any) => p.lesson_id === currentLesson.lesson_id && p.is_completed)
 
       try {
-        await db.updateLessonProgress(supabase, {
+        await updateProgress.mutateAsync({
           userId: user.id,
           courseId: activeCourseId,
           lessonId: currentLesson.lesson_id || currentLesson.id,
@@ -222,33 +171,15 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
           isCompleted: isLessonCompleted
         })
 
-        // Update local sidebar checkmarks state instantly
-        setProgressList((prev) => {
-          const index = prev.findIndex((p) => p.lesson_id === currentLesson.lesson_id)
-          let newProgress = [...prev]
-          if (index !== -1) {
-            newProgress = prev.map((p, idx) => 
-              idx === index 
-                ? { ...p, watched_seconds: currentTime, is_completed: isLessonCompleted } 
-                : p
-            )
-          } else {
-            newProgress = [...prev, { lesson_id: currentLesson.lesson_id, is_completed: isLessonCompleted, watched_seconds: currentTime }]
+        if (isLessonCompleted && lessons.length > 0) {
+          const allCompleted = lessons.every((l: any) => 
+            l.lesson_id === currentLesson.lesson_id || 
+            progressList.some((p: any) => p.lesson_id === l.lesson_id && p.is_completed)
+          )
+          if (allCompleted) {
+            triggerCertGeneration(activeCourseId)
           }
-
-          // Check if all lessons are completed and trigger cert generation
-          if (isLessonCompleted && lessons.length > 0) {
-            const allCompleted = lessons.every(l => 
-              l.lesson_id === currentLesson.lesson_id || 
-              newProgress.some(p => p.lesson_id === l.lesson_id && p.is_completed)
-            )
-            if (allCompleted) {
-              triggerCertGeneration(activeCourseId)
-            }
-          }
-
-          return newProgress
-        })
+        }
       } catch (err) {
         console.error("Error updating progress heartbeat:", err)
       } finally {
@@ -289,156 +220,53 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     }
   }
 
-  // Handle video completion
   const handleVideoEnded = () => {
-    if (duration) {
-      handleTimeUpdate(duration, duration)
+    if (currentLesson?.duration) {
+      handleTimeUpdate(currentLesson.duration, currentLesson.duration)
     }
   }
 
-  // Load Exercise & Submissions Details on Lesson Change
-  useEffect(() => {
-    if (!user || !currentLesson) return
-    const userId = user.id
-
-    async function loadExerciseAndSubmission() {
-      try {
-        const activeLessonId = currentLesson.lesson_id || currentLesson.id
-        
-        // 1. Fetch exercise definition
-        const activeExercise = await db.getLessonExercise(supabase, activeLessonId)
-        setExercise(activeExercise)
-
-        // 2. Fetch existing student submission status
-        if (activeExercise) {
-          const { data: existingSub, error: subError } = await supabase
-            .from("exercise_submissions")
-            .select("status, score, instructor_feedback")
-            .eq("exercise_id", activeExercise.exercise_id)
-            .eq("student_id", userId)
-            .single()
-
-          if (!subError && existingSub) {
-            setSubmissionStatus(existingSub.status)
-            setSubmissionScore(existingSub.score)
-            setSubmissionFeedback(existingSub.instructor_feedback)
-          } else {
-            setSubmissionStatus(null)
-            setSubmissionScore(null)
-            setSubmissionFeedback(null)
-          }
-        } else {
-          setSubmissionStatus(null)
-          setSubmissionScore(null)
-          setSubmissionFeedback(null)
-        }
-      } catch (err) {
-        console.error("Error loading lesson exercise:", err)
-      }
-    }
-
-    loadExerciseAndSubmission()
-    // Reset submission inputs
-    setSubmissionUrl("")
-    setSubmissionNotes("")
-  }, [user, currentLesson])
-
-  // Submit Exercise Form Handler
   const handleSubmission = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("handleSubmission: Clicked Submit Assignment button.")
-    console.log("handleSubmission: State verification:", {
-      user: user ? { id: user.id, email: user.email } : null,
-      currentLesson: currentLesson ? { id: currentLesson.lesson_id || currentLesson.id, title: currentLesson.title } : null,
-      submissionUrl
-    })
-
-    if (!user) {
-      console.warn("handleSubmission: User is null, aborting.")
-      return
-    }
-    if (!currentLesson) {
-      console.warn("handleSubmission: currentLesson is null, aborting.")
-      return
-    }
-    if (!submissionUrl) {
-      console.warn("handleSubmission: submissionUrl is empty, aborting.")
-      return
-    }
+    if (!user || !currentLesson || !submissionUrl) return
 
     setIsSubmittingExercise(true)
     const activeLessonId = currentLesson.lesson_id || currentLesson.id
-    console.log("handleSubmission: Preparing to submit for lesson ID:", activeLessonId)
 
     try {
       let activeExerciseId = exercise?.exercise_id
-      console.log("handleSubmission: Existing exercise ID found in state:", activeExerciseId)
-
-      // Autorescue: If no exercise row exists in the database for this lesson, get or create it using the RLS-secure RPC
       if (!activeExerciseId) {
-        console.log("handleSubmission: No exercise found for lesson. Triggering database auto-creation via RPC...")
         const { data: ensuredExercise, error: exerciseError } = await supabase.rpc("ensure_lesson_exercise", {
           p_lesson_id: activeLessonId,
           p_title: `Practice Task for ${currentLesson.title}`
         })
-
-        if (exerciseError) {
-          console.error(
-            "handleSubmission: Database error during auto-creating exercise row:",
-            exerciseError.code,
-            "|",
-            exerciseError.message,
-            "|",
-            exerciseError.details
-          )
-          throw new Error(exerciseError.message)
-        }
+        if (exerciseError) throw new Error(exerciseError.message)
         activeExerciseId = (ensuredExercise as any).exercise_id
         setExercise(ensuredExercise as any)
-        console.log("handleSubmission: Auto-created exercise row successfully:", ensuredExercise)
       }
 
-      // Insert submission
       const payloadFiles = [{ url: submissionUrl, notes: submissionNotes }]
-      console.log("handleSubmission: Inserting submission into DB for exercise ID:", activeExerciseId, "payload:", payloadFiles)
-      
       const result = await db.submitExercise(supabase, {
         exerciseId: activeExerciseId,
         studentId: user.id,
         files: payloadFiles
       })
 
-      console.log("handleSubmission: Submission result:", result)
-
       if (result.success) {
         setSubmissionStatus("submitted")
-        console.log("handleSubmission: Submission successfully completed and saved in state.")
       } else {
-        console.error("handleSubmission: Failed submission result error:", result.error)
         alert(`Failed to submit: ${result.error}`)
       }
     } catch (err: any) {
-      console.error("handleSubmission: Unexpected error caught:", err)
       alert(`Error: ${err.message || err}`)
     } finally {
       setIsSubmittingExercise(false)
     }
   }
 
-  // Telegram Submission Workflow
   const handleTelegramSubmit = async () => {
-    console.log("handleTelegramSubmit: Initializing Telegram submission workflow.")
-    if (!user) {
-      console.warn("handleTelegramSubmit: User is null, aborting.")
-      return
-    }
-    if (!currentLesson) {
-      console.warn("handleTelegramSubmit: currentLesson is null, aborting.")
-      return
-    }
+    if (!user || !currentLesson) return
 
-    // 1. Immediately open a blank window/tab in the synchronous event listener thread.
-    // This satisfies the browser's user-gesture requirement and bypasses the popup blocker.
     const telegramChatUrl = "https://t.me/sxngtri"
     const newWindow = window.open("", "_blank")
     if (newWindow) {
@@ -480,92 +308,54 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
 
     setIsSubmittingExercise(true)
     const activeLessonId = currentLesson.lesson_id || currentLesson.id
-    console.log("handleTelegramSubmit: Preparing Telegram submit for lesson ID:", activeLessonId)
 
     try {
       let activeExerciseId = exercise?.exercise_id
-      console.log("handleTelegramSubmit: Existing exercise ID found in state:", activeExerciseId)
-
-      // Autorescue: If no exercise row exists, obtain it through the secure RPC
       if (!activeExerciseId) {
-        console.log("handleTelegramSubmit: No exercise found. Triggering database auto-creation...")
         const { data: ensuredExercise, error: exerciseError } = await supabase.rpc("ensure_lesson_exercise", {
           p_lesson_id: activeLessonId,
           p_title: `Practice Task for ${currentLesson.title}`
         })
-
-        if (exerciseError) {
-          console.error(
-            "handleTelegramSubmit: Database error during auto-creating exercise row:",
-            exerciseError.code,
-            "|",
-            exerciseError.message,
-            "|",
-            exerciseError.details
-          )
-          throw new Error(exerciseError.message)
-        }
+        if (exerciseError) throw new Error(exerciseError.message)
         activeExerciseId = (ensuredExercise as any).exercise_id
         setExercise(ensuredExercise as any)
       }
 
-      // Record in database as Telegram submission
       const payloadFiles = [{ url: telegramChatUrl, notes: "Large files submitted directly via Telegram message." }]
-      console.log("handleTelegramSubmit: Inserting submission into DB for exercise ID:", activeExerciseId, "payload:", payloadFiles)
-      
       const result = await db.submitExercise(supabase, {
         exerciseId: activeExerciseId,
         studentId: user.id,
         files: payloadFiles
       })
 
-      console.log("handleTelegramSubmit: Submission result:", result)
-
       if (result.success) {
         setSubmissionStatus("submitted")
-        
-        // Open Telegram chat with the instructor with pre-filled message template
         const studentName = profile?.full_name || user.email || 'Student'
         const courseTitle = course?.title || 'ArchViz Course'
         const lessonTitle = currentLesson?.title || 'Visualization Lesson'
-        
         const messageText = `Student Name: ${studentName}\n` +
           `Student Email: ${user.email || ''}\n` +
           `Project/Course: ${courseTitle}\n` +
           `Lesson Module: ${lessonTitle}\n\n` +
-          `Hi Instructor! Here are my render files and source documents for review:`;
-
-        // Copy template text to clipboard to bypass Telegram username link query limitations
-        try {
-          await navigator.clipboard.writeText(messageText)
-          console.log("handleTelegramSubmit: Message template copied to clipboard.")
-        } catch (clipErr) {
-          console.warn("handleTelegramSubmit: Failed to copy template to clipboard:", clipErr)
-        }
-          
+          `Hi Instructor! Here are my render files and source documents for review:`
+        try { await navigator.clipboard.writeText(messageText) } catch {}
         const telegramLink = `${telegramChatUrl}?text=${encodeURIComponent(messageText)}`
-        
-        if (newWindow) {
-          newWindow.location.href = telegramLink
-        } else {
-          window.open(telegramLink, "_blank")
-        }
-        console.log("handleTelegramSubmit: Submission created. Redirecting to Telegram:", telegramLink)
+        if (newWindow) { newWindow.location.href = telegramLink }
+        else { window.open(telegramLink, "_blank") }
       } else {
         if (newWindow) newWindow.close()
-        console.error("handleTelegramSubmit: Failed submission result error:", result.error)
         alert(`Failed to submit: ${result.error}`)
       }
     } catch (err: any) {
       if (newWindow) newWindow.close()
-      console.error("handleTelegramSubmit: Unexpected error caught:", err)
       alert(`Error: ${err.message || err}`)
     } finally {
       setIsSubmittingExercise(false)
     }
   }
 
-  if (loading || loadingCatalog || hasAccess === null) {
+  const loadingCatalog = loading || loadingAccess || loadingProgress
+  if (loadingCatalog || hasAccess === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-white gap-3">
         <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#9ACD32' }} />
@@ -583,7 +373,6 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     )
   }
 
-  // Access Denied Shield
   if (hasAccess === false) {
     return (
       <main className="min-h-screen flex flex-col justify-between" style={{ backgroundColor: '#060010' }}>
@@ -621,14 +410,11 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     )
   }
 
-  // Mock duration format for sidebar
   const formatSidebarDuration = (seconds: number) => {
     if (!seconds) return "0m"
     const mins = Math.floor(seconds / 60)
     return `${mins}m`
   }
-
-  const duration = currentLesson?.duration || 0
 
   const renderPlayer = () => {
     if (loadingVideo) {
@@ -664,7 +450,6 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     <main className="min-h-screen flex flex-col justify-between" style={{ backgroundColor: '#060010' }}>
       <Navigation />
 
-      {/* Classroom Container */}
       <div className="flex-grow container mx-auto px-6 py-24 md:py-32 max-w-7xl relative z-10">
         
         {/* Course Directory Breadcrumb */}
@@ -693,7 +478,6 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
           
           {/* Main Classroom Panel (Left) */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Secure Video Player */}
             {renderPlayer()}
 
             {/* Lesson Title and Descriptions */}
@@ -868,10 +652,9 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
               <h2 className="text-lg font-bold text-white">Course Syllabus</h2>
             </div>
 
-            {/* Scrollable syllabus items list */}
             <div className="flex-grow overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-              {lessons.map((item, idx) => {
-                const progress = progressList.find((p) => p.lesson_id === item.lesson_id)
+              {lessons.map((item: any, idx: number) => {
+                const progress = progressList.find((p: any) => p.lesson_id === item.lesson_id)
                 const isItemCompleted = progress?.is_completed || false
                 const isSelected = item.lesson_id === currentLesson?.lesson_id
 
@@ -886,7 +669,6 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
                     }`}
                     style={isSelected ? { borderColor: '#9ACD32' } : {}}
                   >
-                    {/* Completion Checkbox Badge */}
                     <div className="flex-shrink-0">
                       {isItemCompleted ? (
                         <CheckCircle className="w-5 h-5 text-primary fill-primary/10" style={{ color: '#9ACD32' }} />

@@ -45,6 +45,7 @@
     "@react-three/rapier": "latest",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.48.0",
+    "@tanstack/react-query": "^5.102.6",
     "@vercel/analytics": "latest",
     "autoprefixer": "^10.4.20",
     "bakong-khqr": "^1.0.20",
