@@ -49,16 +49,17 @@ RETURNS TRIGGER AS $$
 DECLARE
   v_student_id UUID;
 BEGIN
-  -- Look up student profile ID by email
-  SELECT id INTO v_student_id FROM public.profiles WHERE LOWER(email) = LOWER(NEW.email);
-  
-  IF v_student_id IS NOT NULL THEN
-    -- Student exists, insert into course_enrollments
-    INSERT INTO public.course_enrollments (student_id, course_id, status)
-    VALUES (v_student_id, NEW.course_id, 'active')
-    ON CONFLICT (student_id, course_id) DO NOTHING;
+  -- Only enroll if the status is set to 'completed'
+  IF NEW.status = 'completed' THEN
+    -- Look up student profile ID by email
+    SELECT id INTO v_student_id FROM public.profiles WHERE LOWER(email) = LOWER(NEW.email);
     
-    NEW.status := 'completed';
+    IF v_student_id IS NOT NULL THEN
+      -- Student exists, insert into course_enrollments
+      INSERT INTO public.course_enrollments (student_id, course_id, status)
+      VALUES (v_student_id, NEW.course_id, 'active')
+      ON CONFLICT (student_id, course_id) DO NOTHING;
+    END IF;
   END IF;
   
   RETURN NEW;
@@ -67,10 +68,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS on_pending_enrollment_insert ON public.pending_enrollments;
 CREATE TRIGGER on_pending_enrollment_insert
-  BEFORE INSERT ON public.pending_enrollments
+  BEFORE INSERT OR UPDATE ON public.pending_enrollments
   FOR EACH ROW EXECUTE PROCEDURE public.process_pending_enrollment();
 
--- 7. Update handle_new_user trigger to copy email and process any pending enrollments
+-- 7. Update handle_new_user trigger to copy email and process completed pending enrollments
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -86,21 +87,16 @@ BEGIN
     NEW.email
   );
 
-  -- Process any pending enrollments for this new email
+  -- Process only COMPLETED pending enrollments for this new email
   FOR r IN 
     SELECT id, course_id 
     FROM public.pending_enrollments 
-    WHERE LOWER(email) = LOWER(NEW.email) AND status = 'pending'
+    WHERE LOWER(email) = LOWER(NEW.email) AND status = 'completed'
   LOOP
     -- Enroll student
     INSERT INTO public.course_enrollments (student_id, course_id, status)
     VALUES (NEW.id, r.course_id, 'active')
     ON CONFLICT (student_id, course_id) DO NOTHING;
-    
-    -- Mark pending enrollment as completed
-    UPDATE public.pending_enrollments
-    SET status = 'completed', updated_at = now()
-    WHERE id = r.id;
   END LOOP;
 
   RETURN NEW;

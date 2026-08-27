@@ -78,7 +78,8 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  Check
 } from "lucide-react"
 import {
   BarChart,
@@ -304,11 +305,11 @@ export default function AdminDashboard() {
       
       const { error } = await supabase
         .from('pending_enrollments')
-        .insert({
+        .upsert({
           email: emailVal,
           course_id: manualAccessCourseId,
-          status: 'pending'
-        })
+          status: 'completed'
+        }, { onConflict: 'email,course_id' })
 
       if (error) throw error
 
@@ -320,6 +321,26 @@ export default function AdminDashboard() {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to grant course access: ${err.message}` })
     } finally {
       setIsSavingManualAccess(false)
+    }
+  }
+
+  // 1h. Approve Manual Access / Pending Enrollment
+  const handleApproveManualAccess = async (pendingId: string) => {
+    try {
+      const { error } = await supabase
+        .from('pending_enrollments')
+        .update({
+          status: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', pendingId)
+
+      if (error) throw error
+
+      invalidateAll()
+      MySwal.fire({ icon: 'success', title: 'Approved!', text: 'Course access has been approved and unlocked.' })
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to approve course access: ${err.message}` })
     }
   }
 
@@ -1570,14 +1591,25 @@ export default function AdminDashboard() {
                                   </p>
                                 </div>
 
-                                <Button
-                                  variant="ghost"
-                                  onClick={() => handleDeleteManualAccess(record.id, record.email, record.course_id)}
-                                  className="text-red-400 hover:text-red-300 hover:bg-red-950/20 px-3 py-1.5 h-auto text-xs font-semibold rounded-lg self-end sm:self-center flex items-center gap-1"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  Revoke
-                                </Button>
+                                <div className="flex items-center gap-2 self-end sm:self-center">
+                                  {record.status === 'pending' && (
+                                    <Button
+                                      onClick={() => handleApproveManualAccess(record.id)}
+                                      className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 h-auto text-xs font-semibold rounded-lg flex items-center gap-1"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                      Approve
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    onClick={() => handleDeleteManualAccess(record.id, record.email, record.course_id)}
+                                    className="text-red-400 hover:text-red-300 hover:bg-red-950/20 px-3 py-1.5 h-auto text-xs font-semibold rounded-lg flex items-center gap-1"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Revoke
+                                  </Button>
+                                </div>
                               </div>
                             );
                           })}
