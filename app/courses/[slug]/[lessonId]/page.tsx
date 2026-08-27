@@ -192,7 +192,6 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     if (generatingCert || generatedCertId) return
     try {
       setGeneratingCert(true)
-      setShowCertModal(true)
       setCertBlock(null)
 
       const res = await fetch("/api/certificates/generate", {
@@ -206,6 +205,9 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
         if (data.success && data.certificateId) {
           setGeneratedCertId(data.certificateId)
           setCertBlock(null)
+          if (data.isNew) {
+            setShowCertModal(true)
+          }
         }
       } else {
         const errData = await res.json().catch(() => null)
@@ -463,14 +465,23 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
             <span className="text-sm font-semibold text-primary" style={{ color: '#9ACD32' }}>{course?.title}</span>
           </div>
           
-          {generatedCertId && (
+          {generatedCertId ? (
             <Link href={`/certificates/${generatedCertId}`} target="_blank">
               <Button size="sm" className="bg-[#9ACD32]/10 hover:bg-[#9ACD32]/20 text-[#9ACD32] border border-[#9ACD32]/30 rounded-lg flex items-center gap-1.5 text-xs font-semibold py-4">
                 <Award className="w-3.5 h-3.5" />
                 View Certificate
               </Button>
             </Link>
-          )}
+          ) : certBlock ? (
+            <Button
+              size="sm"
+              onClick={() => setShowCertModal(true)}
+              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg flex items-center gap-1.5 text-xs font-semibold py-4"
+            >
+              <Award className="w-3.5 h-3.5" />
+              Certificate Progress
+            </Button>
+          ) : null}
         </div>
 
         {/* Dynamic Split Screen Grid */}
