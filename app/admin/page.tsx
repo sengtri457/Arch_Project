@@ -255,6 +255,7 @@ export default function AdminDashboard() {
   const [isFetchingVideoInfo, setIsFetchingVideoInfo] = useState(false)
   const [videoSearchQuery, setVideoSearchQuery] = useState("")
   const [videoCategoryFilter, setVideoCategoryFilter] = useState("All")
+  const [isSyncingVideos, setIsSyncingVideos] = useState(false)
   const [videoForm, setVideoForm] = useState({
     video_id: "",
     title: "",
@@ -1173,6 +1174,45 @@ export default function AdminDashboard() {
       invalidateAll()
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete video: ${err.message}` })
+    }
+  }
+
+  // Synchronize all videos from YouTube channel
+  const handleSyncChannelVideos = async () => {
+    const result = await MySwal.fire({
+      title: 'Sync YouTube Channel?',
+      text: 'This will import all public uploads from your configured channel. Existing videos will be updated.',
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, sync now',
+      cancelButtonText: 'Cancel'
+    })
+
+    if (!result.isConfirmed) return
+
+    setIsSyncingVideos(true)
+    try {
+      const res = await fetch('/api/youtube/sync', { method: 'POST' })
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Sync failed')
+      }
+
+      await MySwal.fire({
+        icon: 'success',
+        title: 'Sync Complete!',
+        text: data.message || `Successfully synchronized ${data.count} videos!`
+      })
+      invalidateAll()
+    } catch (err: any) {
+      MySwal.fire({
+        icon: 'error',
+        title: 'Sync Failed',
+        text: err.message || 'An error occurred during synchronization.'
+      })
+    } finally {
+      setIsSyncingVideos(false)
     }
   }
 
@@ -2377,26 +2417,36 @@ export default function AdminDashboard() {
                           Manage your channel's YouTube videos shown on the public Media page.
                         </p>
                       </div>
-                      <Button 
-                        onClick={() => {
-                          setEditingVideo(null)
-                          setVideoInputUrl("")
-                          setVideoForm({
-                            video_id: "",
-                            title: "",
-                            description: "",
-                            category: "Photoshop",
-                            is_featured: false,
-                            published_at: new Date().toISOString()
-                          })
-                          setShowVideoModal(true)
-                        }}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-1.5" 
-                        style={{ backgroundColor: '#9ACD32', color: '#000' }}
-                      >
-                        <Plus className="w-4 h-4" />
-                        Add YouTube Video
-                      </Button>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          onClick={handleSyncChannelVideos}
+                          disabled={isSyncingVideos}
+                          className="bg-zinc-800 hover:bg-zinc-700 text-white font-semibold flex items-center gap-1.5 border border-zinc-850"
+                        >
+                          <Play className={`w-4 h-4 ${isSyncingVideos ? 'animate-spin' : ''}`} />
+                          {isSyncingVideos ? "Syncing..." : "Sync Channel"}
+                        </Button>
+                        <Button 
+                          onClick={() => {
+                            setEditingVideo(null)
+                            setVideoInputUrl("")
+                            setVideoForm({
+                              video_id: "",
+                              title: "",
+                              description: "",
+                              category: "Photoshop",
+                              is_featured: false,
+                              published_at: new Date().toISOString()
+                            })
+                            setShowVideoModal(true)
+                          }}
+                          className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-1.5" 
+                          style={{ backgroundColor: '#9ACD32', color: '#000' }}
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add YouTube Video
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Filter & Search */}
