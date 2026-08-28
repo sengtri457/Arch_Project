@@ -15,6 +15,7 @@ import {
   Link2,
   Loader2,
   RotateCcw,
+  Sparkles,
   User
 } from "lucide-react"
 
@@ -416,6 +417,18 @@ export default function SubmissionDetailPage() {
                   {savingAction === "revision" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />}
                   Request Revision
                 </Button>
+                <div className="pt-2 border-t border-zinc-800/45">
+                  <Link href={`/admin?tab=student-showcase&submission_id=${submissionId}`}>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      className="w-full py-4 rounded-xl border-zinc-800 text-zinc-300 hover:bg-zinc-850 hover:text-white"
+                    >
+                      <Sparkles className="w-4 h-4 mr-2 text-primary" style={{ color: "#9ACD32" }} />
+                      Feature in Showcase
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </section>
           </aside>

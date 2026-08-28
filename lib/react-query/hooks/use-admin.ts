@@ -147,6 +147,29 @@ export function useAdminData(activeTab: string) {
     enabled: activeTab === "testimonials",
   })
 
+  const studentWork = useQuery({
+    queryKey: queryKeys.admin.studentWork,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('student_work_posts')
+        .select('*, ratings:student_work_ratings(rating)')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return (data || []).map((post: any) => {
+        const ratings = post.ratings || []
+        const count = ratings.length
+        const avg = count > 0 ? ratings.reduce((sum: number, r: any) => sum + r.rating, 0) / count : 0
+        return {
+          ...post,
+          average_rating: parseFloat(avg.toFixed(1)),
+          ratings_count: count
+        }
+      })
+    },
+    staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "student-showcase" || activeTab === "overview",
+  })
+
   const allQueries = [
     profiles,
     courses,
@@ -161,6 +184,7 @@ export function useAdminData(activeTab: string) {
     promos,
     testimonialsData,
     pendingEnrollments,
+    studentWork,
   ]
 
   const isLoading = allQueries.some((q) => q.isLoading)
@@ -180,6 +204,7 @@ export function useAdminData(activeTab: string) {
     promos: promos.data ?? [],
     testimonials: testimonialsData.data ?? [],
     pendingEnrollments: pendingEnrollments.data ?? [],
+    studentWork: studentWork.data ?? [],
     isLoading,
     isFetching,
     invalidateAll: () => {

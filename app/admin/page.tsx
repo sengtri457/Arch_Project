@@ -79,7 +79,9 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Check
+  Check,
+  Star,
+  Sparkles
 } from "lucide-react"
 import {
   BarChart,
@@ -97,7 +99,7 @@ import {
   Cell
 } from "recharts"
 
-type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "testimonials" | "users" | "manual_access"
+type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "testimonials" | "users" | "manual_access" | "student-showcase"
 
 function generateLessonAssetFileName(originalName: string): string {
   const sanitizedName = originalName.replace(/[^a-zA-Z0-9.-]/g, '_')
@@ -127,12 +129,13 @@ export default function AdminDashboard() {
   const promos = adminData.promos as any[]
   const testimonials = adminData.testimonials as any[]
   const pendingEnrollments = adminData.pendingEnrollments as any[]
+  const studentWork = (adminData as any).studentWork as any[]
   const loadingData = adminData.isLoading
   const invalidateAll = adminData.invalidateAll
 
   useEffect(() => {
     const tabParam = new URLSearchParams(window.location.search).get("tab")
-    const validTabs: AdminTab[] = ["overview", "analytics", "courses", "projects", "submissions", "crm", "plans", "promos", "testimonials", "inquiries", "users", "manual_access"]
+    const validTabs: AdminTab[] = ["overview", "analytics", "courses", "projects", "submissions", "crm", "plans", "promos", "testimonials", "inquiries", "users", "manual_access", "student-showcase"]
     if (tabParam && validTabs.includes(tabParam as AdminTab)) {
       setActiveTab(tabParam as AdminTab)
     }
@@ -218,6 +221,24 @@ export default function AdminDashboard() {
   })
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadingLessonAsset, setUploadingLessonAsset] = useState(false)
+
+  // Student Work Showcase states
+  const [showStudentWorkModal, setShowStudentWorkModal] = useState(false)
+  const [editingStudentWork, setEditingStudentWork] = useState<any | null>(null)
+  const [studentWorkForm, setStudentWorkForm] = useState({
+    title: "",
+    slug: "",
+    description: "",
+    student_id: "",
+    student_name: "",
+    cover_image_url: "",
+    media_urls: "",
+    architecture_field: "Residential",
+    software_used: "SketchUp, Photoshop",
+    is_published: true
+  })
+  const [uploadingStudentWorkImage, setUploadingStudentWorkImage] = useState(false)
+  const [uploadingStudentWorkGallery, setUploadingStudentWorkGallery] = useState(false)
 
   const [manualAccessEmail, setManualAccessEmail] = useState("")
   const [manualAccessCourseId, setManualAccessCourseId] = useState("")
@@ -841,6 +862,245 @@ export default function AdminDashboard() {
     }
   }
 
+  // Upload student showcase cover image
+  const handleStudentWorkImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingStudentWorkImage(true)
+    try {
+      const fileName = generateProjectImageFileName(file.name)
+      const filePath = `student-showcase/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('student-showcase')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage
+        .from('student-showcase')
+        .getPublicUrl(filePath)
+
+      setStudentWorkForm(prev => ({ ...prev, cover_image_url: data.publicUrl }))
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Upload Failed', text: `Upload failed: ${err.message}` })
+    } finally {
+      setUploadingStudentWorkImage(false)
+    }
+  }
+
+  // Upload student showcase gallery image
+  const handleStudentWorkGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setUploadingStudentWorkGallery(true)
+    try {
+      const urls: string[] = []
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const fileName = generateProjectImageFileName(file.name)
+        const filePath = `student-showcase/${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('student-showcase')
+          .upload(filePath, file)
+
+        if (uploadError) throw uploadError
+
+        const { data } = supabase.storage
+          .from('student-showcase')
+          .getPublicUrl(filePath)
+
+        urls.push(data.publicUrl)
+      }
+
+      setStudentWorkForm(prev => {
+        const existing = prev.media_urls ? prev.media_urls.split(',').map(u => u.trim()).filter(Boolean) : []
+        return {
+          ...prev,
+          media_urls: [...existing, ...urls].join(', ')
+        }
+      })
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Upload Failed', text: `Upload failed: ${err.message}` })
+    } finally {
+      setUploadingStudentWorkGallery(false)
+    }
+  }
+
+  // Save student showcase post
+  const handleSaveStudentWork = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const postSlug = studentWorkForm.slug.trim()
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(postSlug)) {
+      MySwal.fire({
+        icon: 'error',
+        title: 'Invalid Slug',
+        text: 'Invalid slug. Use only lowercase letters, numbers and hyphens - e.g. "concrete-villa-design".'
+      })
+      return
+    }
+
+    if (!studentWorkForm.cover_image_url) {
+      MySwal.fire({
+        icon: 'error',
+        title: 'Cover Image Required',
+        text: 'Please upload a cover image.'
+      })
+      return
+    }
+
+    const mediaUrlsArr = studentWorkForm.media_urls.split(',').map((u: any) => u.trim()).filter(Boolean)
+
+    try {
+      if (editingStudentWork) {
+        // Update
+        const { error } = await supabase
+          .from('student_work_posts')
+          .update({
+            title: studentWorkForm.title,
+            slug: postSlug,
+            description: studentWorkForm.description,
+            student_id: studentWorkForm.student_id || null,
+            student_name: studentWorkForm.student_name,
+            cover_image_url: studentWorkForm.cover_image_url,
+            media_urls: mediaUrlsArr,
+            architecture_field: studentWorkForm.architecture_field,
+            software_used: studentWorkForm.software_used,
+            is_published: studentWorkForm.is_published,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingStudentWork.id)
+
+        if (error) throw error
+        await MySwal.fire({ icon: 'success', title: 'Updated!', text: "Showcase post updated successfully!" })
+      } else {
+        if (!user) {
+          MySwal.fire({ icon: 'error', title: 'Authentication Error', text: "You must be signed in." })
+          return
+        }
+        // Create
+        const { error } = await supabase
+          .from('student_work_posts')
+          .insert({
+            title: studentWorkForm.title,
+            slug: postSlug,
+            description: studentWorkForm.description,
+            student_id: studentWorkForm.student_id || null,
+            student_name: studentWorkForm.student_name,
+            cover_image_url: studentWorkForm.cover_image_url,
+            media_urls: mediaUrlsArr,
+            architecture_field: studentWorkForm.architecture_field,
+            software_used: studentWorkForm.software_used,
+            is_published: studentWorkForm.is_published,
+            created_by: user.id
+          })
+
+        if (error) throw error
+        await MySwal.fire({ icon: 'success', title: 'Created!', text: "Showcase post created successfully!" })
+      }
+
+      setShowStudentWorkModal(false)
+      setEditingStudentWork(null)
+      invalidateAll()
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to save showcase: ${err.message}` })
+    }
+  }
+
+  // Delete student showcase post
+  const handleDeleteStudentWork = async (postId: string) => {
+    const result = await MySwal.fire({
+      title: 'Delete Showcase Post?',
+      text: 'Are you sure you want to delete this student work showcase?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'No, cancel'
+    })
+
+    if (!result.isConfirmed) return
+
+    try {
+      const { error } = await supabase
+        .from('student_work_posts')
+        .delete()
+        .eq('id', postId)
+
+      if (error) throw error
+      await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Showcase post deleted successfully!" })
+      invalidateAll()
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete: ${err.message}` })
+    }
+  }
+
+  // Effect to handle showcase prefilling from submission_id in URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const submissionId = params.get("submission_id")
+    if (submissionId) {
+      const loadSubmission = async () => {
+        const { data, error } = await supabase
+          .from("exercise_submissions")
+          .select(`
+            *,
+            profiles:student_id ( id, full_name ),
+            exercises (
+              title,
+              lessons (
+                courses ( title )
+              )
+            )
+          `)
+          .eq("submission_id", submissionId)
+          .maybeSingle()
+
+        if (data && !error) {
+          const studentProfile = data.profiles || {}
+          const exerciseTitle = data.exercises?.title || "Practice Work"
+          const courseTitle = data.exercises?.lessons?.courses?.title || ""
+          
+          let coverUrl = ""
+          let galleryUrls: string[] = []
+          if (Array.isArray(data.submission_files_json)) {
+            const files = data.submission_files_json
+            if (files.length > 0) {
+              coverUrl = files[0].url || ""
+              galleryUrls = files.slice(1).map((f: any) => f.url).filter(Boolean)
+            }
+          }
+
+          const studentName = studentProfile.full_name || "Student"
+          const displayTitle = `${studentName}'s ${exerciseTitle} - ${courseTitle}`
+          const computedSlug = displayTitle
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/(^-|-$)/g, "")
+
+          setStudentWorkForm({
+            title: displayTitle,
+            slug: computedSlug,
+            description: data.instructor_feedback || `Featured student work for the exercise: ${exerciseTitle}.`,
+            student_id: studentProfile.id || "",
+            student_name: studentName,
+            cover_image_url: coverUrl,
+            media_urls: galleryUrls.join(", "),
+            architecture_field: "Residential",
+            software_used: "SketchUp, Photoshop",
+            is_published: true
+          })
+          setEditingStudentWork(null)
+          setActiveTab("student-showcase")
+          setShowStudentWorkModal(true)
+        }
+      }
+      loadSubmission()
+    }
+  }, [supabase])
+
   // Compute chart datasets
   const enrollmentChartData = courses.map(c => {
     const count = enrollments.filter(e => e.course_id === c.course_id || e.course_id === c.id).length
@@ -1068,6 +1328,19 @@ export default function AdminDashboard() {
                 >
                   <FolderGit className="w-4 h-4" />
                   {!sidebarCollapsed && <span>Projects Showcase</span>}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("student-showcase")}
+                  title="Student Showcase"
+                  className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
+                    activeTab === "student-showcase" 
+                      ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  {!sidebarCollapsed && <span>Student Showcase</span>}
                 </button>
               </div>
             </div>
@@ -1836,6 +2109,108 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* STUDENT WORK SHOWCASE TAB */}
+                {activeTab === "student-showcase" && (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h2 className="text-2xl font-bold text-white">Student Work Showcase CMS</h2>
+                        <p className="text-zinc-400 text-sm mt-1">
+                          Manage student assignment works featured in the public gallery. Students can rate these works.
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={() => {
+                          setEditingStudentWork(null)
+                          setStudentWorkForm({
+                            title: "",
+                            slug: "",
+                            description: "",
+                            student_id: "",
+                            student_name: "",
+                            cover_image_url: "",
+                            media_urls: "",
+                            architecture_field: "Residential",
+                            software_used: "SketchUp, Photoshop",
+                            is_published: true
+                          })
+                          setShowStudentWorkModal(true)
+                        }}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-1.5" 
+                        style={{ backgroundColor: '#9ACD32', color: '#000' }}
+                      >
+                        <Plus className="w-4 h-4" />
+                        Create Showcase Post
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                      {studentWork.length === 0 ? (
+                        <div className="text-center py-12 bg-zinc-900/20 border border-zinc-850 rounded-2xl text-zinc-400">
+                          No student showcase posts found. Click &quot;Create Showcase Post&quot; to publish one!
+                        </div>
+                      ) : (
+                        studentWork.map((post) => (
+                          <div key={post.id} className="p-4 bg-zinc-900/40 border border-zinc-850 rounded-2xl flex items-center justify-between hover:border-zinc-800 transition-colors">
+                            <div className="flex items-center gap-4">
+                              <img 
+                                src={getMediaUrl(post.cover_image_url || "/placeholder.svg")} 
+                                onError={(e) => {
+                                  e.currentTarget.src = "/placeholder.svg"
+                                }}
+                                alt="" 
+                                className="w-16 h-10 object-cover rounded bg-zinc-950" 
+                              />
+                              <div>
+                                <h4 className="font-bold text-white">{post.title}</h4>
+                                <p className="text-xs text-zinc-400 mt-0.5">
+                                  Student: <strong className="text-white">{post.student_name}</strong> • Field: {post.architecture_field || "N/A"} • Rating: {post.average_rating ? `${post.average_rating} ★ (${post.ratings_count})` : "No ratings yet"}
+                                </p>
+                                <p className="text-[10px] text-zinc-500 mt-0.5">
+                                  Software: {post.software_used} • Status: {post.is_published ? <span className="text-green-400">Published</span> : <span className="text-yellow-400">Draft</span>}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                onClick={() => {
+                                  setEditingStudentWork(post)
+                                  setStudentWorkForm({
+                                    title: post.title,
+                                    slug: post.slug || "",
+                                    description: post.description || "",
+                                    student_id: post.student_id || "",
+                                    student_name: post.student_name || "",
+                                    cover_image_url: post.cover_image_url || "",
+                                    media_urls: Array.isArray(post.media_urls) ? post.media_urls.join(", ") : "",
+                                    architecture_field: post.architecture_field || "Residential",
+                                    software_used: post.software_used || "SketchUp, Photoshop",
+                                    is_published: !!post.is_published
+                                  })
+                                  setShowStudentWorkModal(true)
+                                }}
+                                size="sm" 
+                                variant="ghost" 
+                                className="hover:bg-zinc-800 text-zinc-300"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                onClick={() => handleDeleteStudentWork(post.id)}
+                                size="sm" 
+                                variant="ghost" 
+                                className="hover:bg-red-950/20 text-red-400 hover:text-red-300"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 )}
@@ -2998,6 +3373,216 @@ export default function AdminDashboard() {
                 </Button>
                 <Button type="submit" className="bg-primary text-black font-bold px-6" style={{ backgroundColor: '#9ACD32', color: '#000' }}>
                   {editingProject ? "Save Showcase" : "Publish Showcase"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* STUDENT WORK SHOWCASE MODAL */}
+        {showStudentWorkModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <form onSubmit={handleSaveStudentWork} className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-5 animate-in fade-in zoom-in-95 duration-150 custom-scrollbar text-zinc-350">
+              <div>
+                <h3 className="text-xl font-bold text-white">{editingStudentWork ? "Modify Student Showcase Post" : "Publish Student Showcase Post"}</h3>
+                <p className="text-xs text-zinc-500 mt-1">Configure featured student rendering and parameters.</p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Post Title</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={studentWorkForm.title} 
+                    onChange={(e) => setStudentWorkForm({ ...studentWorkForm, title: e.target.value })} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                    placeholder="e.g. John Doe's Sketchup Modern Villa"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Slug (URL string)</label>
+                    <input 
+                      type="text" 
+                      required 
+                      value={studentWorkForm.slug} 
+                      onChange={(e) => setStudentWorkForm({ ...studentWorkForm, slug: e.target.value })} 
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 font-mono" 
+                      placeholder="e.g. john-doe-modern-villa"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Architecture Field</label>
+                    <select 
+                      value={studentWorkForm.architecture_field} 
+                      onChange={(e) => setStudentWorkForm({ ...studentWorkForm, architecture_field: e.target.value })} 
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                    >
+                      <option>Residential</option>
+                      <option>Commercial</option>
+                      <option>Interior Design</option>
+                      <option>Landscape</option>
+                      <option>Sustainable Design</option>
+                      <option>Urban Planning</option>
+                      <option>Institutional</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Link Student Profile</label>
+                    <select
+                      value={studentWorkForm.student_id}
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        const foundProfile = profiles.find(p => p.id === selectedId);
+                        setStudentWorkForm({
+                          ...studentWorkForm,
+                          student_id: selectedId,
+                          student_name: foundProfile ? foundProfile.full_name : studentWorkForm.student_name
+                        });
+                      }}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                    >
+                      <option value="">-- Direct Manual Input (Unlinked) --</option>
+                      {profiles.filter(p => p.role === 'student').map(p => (
+                        <option key={p.id} value={p.id}>{p.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Student Display Name</label>
+                    <input 
+                      type="text" 
+                      required 
+                      value={studentWorkForm.student_name} 
+                      onChange={(e) => setStudentWorkForm({ ...studentWorkForm, student_name: e.target.value })} 
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                      placeholder="e.g. John Doe"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Cover Image URL</label>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        required 
+                        value={studentWorkForm.cover_image_url} 
+                        onChange={(e) => setStudentWorkForm({ ...studentWorkForm, cover_image_url: e.target.value })} 
+                        className="flex-grow bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                        placeholder="https://images.unsplash.com/..."
+                      />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleStudentWorkImageUpload}
+                        className="hidden"
+                        id="studentwork-image-file"
+                        disabled={uploadingStudentWorkImage}
+                      />
+                      <label
+                        htmlFor="studentwork-image-file"
+                        className={`bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center justify-center cursor-pointer transition-colors border border-zinc-800 shrink-0 ${uploadingStudentWorkImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {uploadingStudentWorkImage ? 'Uploading...' : 'Choose File'}
+                      </label>
+                    </div>
+                    {studentWorkForm.cover_image_url && (
+                      <div className="relative w-28 h-16 rounded overflow-hidden border border-zinc-800 bg-zinc-950">
+                        <img 
+                          src={getMediaUrl(studentWorkForm.cover_image_url)} 
+                          onError={(e) => {
+                            e.currentTarget.src = "/placeholder.svg"
+                          }}
+                          alt="Cover preview" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Gallery Images (URLs separated by comma)</label>
+                  <div className="space-y-3">
+                    <textarea 
+                      rows={2} 
+                      value={studentWorkForm.media_urls} 
+                      onChange={(e) => setStudentWorkForm({ ...studentWorkForm, media_urls: e.target.value })} 
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 custom-scrollbar" 
+                      placeholder="url1, url2, url3"
+                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleStudentWorkGalleryUpload}
+                        className="hidden"
+                        id="studentwork-gallery-files"
+                        disabled={uploadingStudentWorkGallery}
+                      />
+                      <label
+                        htmlFor="studentwork-gallery-files"
+                        className={`bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center justify-center cursor-pointer transition-colors border border-zinc-800 shrink-0 ${uploadingStudentWorkGallery ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {uploadingStudentWorkGallery ? 'Uploading...' : 'Upload to Gallery'}
+                      </label>
+                      <span className="text-[10px] text-zinc-500">Append multiple screenshot files.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Software Stack (Comma separated)</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={studentWorkForm.software_used} 
+                    onChange={(e) => setStudentWorkForm({ ...studentWorkForm, software_used: e.target.value })} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                    placeholder="SketchUp, V-Ray, Photoshop"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 bg-zinc-950 p-3.5 rounded-xl border border-zinc-850">
+                  <input 
+                    type="checkbox" 
+                    id="is_studentwork_published"
+                    checked={studentWorkForm.is_published} 
+                    onChange={(e) => setStudentWorkForm({ ...studentWorkForm, is_published: e.target.checked })} 
+                    className="w-4 h-4 accent-primary rounded bg-zinc-900 border-zinc-800"
+                  />
+                  <label htmlFor="is_studentwork_published" className="text-xs font-bold text-zinc-300 uppercase cursor-pointer select-none">
+                    Publish immediately (Publicly visible)
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Description / Concept</label>
+                  <textarea 
+                    rows={3} 
+                    required 
+                    value={studentWorkForm.description} 
+                    onChange={(e) => setStudentWorkForm({ ...studentWorkForm, description: e.target.value })} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 resize-none" 
+                    placeholder="Explain the architectural style, constraints, student choices..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-2">
+                <Button type="button" variant="ghost" onClick={() => setShowStudentWorkModal(false)} className="text-zinc-400 hover:text-white">
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-primary text-black font-bold px-6" style={{ backgroundColor: '#9ACD32', color: '#000' }}>
+                  {editingStudentWork ? "Save Post" : "Publish Post"}
                 </Button>
               </div>
             </form>

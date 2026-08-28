@@ -640,5 +640,155 @@ export const db = {
       console.error("Failed to submit exercise:", err)
       return { success: false, error: err.message }
     }
+  },
+
+  /**
+   * Student Showcase Work
+   */
+  async getStudentWorkPosts(
+    supabase: SupabaseClient,
+    filters?: { field?: string; search?: string; limit?: number; onlyPublished?: boolean }
+  ): Promise<any[]> {
+    try {
+      let query = supabase
+        .from('student_work_posts')
+        .select('*, ratings:student_work_ratings(rating)')
+
+      if (filters?.onlyPublished !== false) {
+        query = query.eq('is_published', true)
+      }
+
+      if (filters?.field && filters.field !== 'All') {
+        query = query.ilike('architecture_field', filters.field)
+      }
+
+      if (filters?.search) {
+        query = query.or(`title.ilike.%${filters.search}%,student_name.ilike.%${filters.search}%,software_used.ilike.%${filters.search}%`)
+      }
+
+      if (filters?.limit) {
+        query = query.limit(filters.limit)
+      }
+
+      query = query.order('created_at', { ascending: false })
+
+      const { data, error } = await query
+      if (error) throw error
+
+      return (data || []).map((post: any) => {
+        const ratings = post.ratings || []
+        const count = ratings.length
+        const avg = count > 0 ? ratings.reduce((sum: number, r: any) => sum + r.rating, 0) / count : 0
+        return {
+          ...post,
+          average_rating: parseFloat(avg.toFixed(1)),
+          ratings_count: count
+        }
+      })
+    } catch (err) {
+      console.error("Failed to get student work posts:", err)
+      return []
+    }
+  },
+
+  async getStudentWorkPostBySlug(
+    supabase: SupabaseClient,
+    slug: string
+  ): Promise<any> {
+    try {
+      const { data, error } = await supabase
+        .from('student_work_posts')
+        .select('*, ratings:student_work_ratings(rating)')
+        .eq('slug', slug)
+        .maybeSingle()
+
+      if (error) throw error
+      if (!data) return null
+
+      const ratings = data.ratings || []
+      const count = ratings.length
+      const avg = count > 0 ? ratings.reduce((sum: number, r: any) => sum + r.rating, 0) / count : 0
+
+      return {
+        ...data,
+        average_rating: parseFloat(avg.toFixed(1)),
+        ratings_count: count
+      }
+    } catch (err) {
+      console.error("Failed to get student work by slug:", err)
+      return null
+    }
+  },
+
+  async getStudentWorkRatings(
+    supabase: SupabaseClient,
+    postId: string
+  ): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('student_work_ratings')
+        .select('*, profiles:student_id(full_name, avatar_url)')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return data || []
+    } catch (err) {
+      console.error("Failed to get ratings for post:", err)
+      return []
+    }
+  },
+
+  async getUserRatingForPost(
+    supabase: SupabaseClient,
+    postId: string,
+    userId: string
+  ): Promise<any> {
+    try {
+      const { data, error } = await supabase
+        .from('student_work_ratings')
+        .select('*')
+        .eq('post_id', postId)
+        .eq('student_id', userId)
+        .maybeSingle()
+
+      if (error) throw error
+      return data
+    } catch (err) {
+      console.error("Failed to get user rating for post:", err)
+      return null
+    }
+  },
+
+  async rateStudentWork(
+    supabase: SupabaseClient,
+    payload: { post_id: string; student_id: string; rating: number; feedback?: string }
+  ): Promise<any> {
+    const { data, error } = await supabase
+      .from('student_work_ratings')
+      .upsert({
+        post_id: payload.post_id,
+        student_id: payload.student_id,
+        rating: payload.rating,
+        feedback: payload.feedback,
+        created_at: new Date().toISOString()
+      }, { onConflict: 'post_id,student_id' })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async deleteStudentWorkPost(
+    supabase: SupabaseClient,
+    postId: string
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('student_work_posts')
+      .delete()
+      .eq('id', postId)
+
+    if (error) throw error
   }
 }

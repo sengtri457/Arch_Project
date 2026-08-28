@@ -47,5 +47,13 @@ export const queryKeys = {
     plans: ["admin", "plans"] as const,
     promos: ["admin", "promos"] as const,
     pendingEnrollments: ["admin", "pendingEnrollments"] as const,
+    studentWork: ["admin", "studentWork"] as const,
+  },
+  studentWork: {
+    all: ["studentWork"] as const,
+    list: (filters?: { field?: string; search?: string }) => ["studentWork", "list", filters] as const,
+    detail: (slug: string) => ["studentWork", "detail", slug] as const,
+    ratings: (postId: string) => ["studentWork", "ratings", postId] as const,
+    userRating: (postId: string, userId: string) => ["studentWork", "userRating", postId, userId] as const,
   },
 }
