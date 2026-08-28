@@ -39,31 +39,34 @@ export async function POST(request: Request) {
   }
 
   try {
-    // 3. Resolve Handle page to extract channel ID
-    const handleUrl = `https://www.youtube.com/${channelHandle.startsWith('@') ? '' : '@'}${channelHandle}`
-    const htmlRes = await fetch(handleUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
-      }
-    })
-
-    if (!htmlRes.ok) {
+    // 3. Resolve Handle to Uploads Playlist ID using YouTube API v3 (forHandle)
+    // Strip '@' if it exists since YouTube API handles handles either way, but we encode it properly
+    const cleanHandle = channelHandle.startsWith('@') ? channelHandle.substring(1) : channelHandle
+    const channelsUrl = `https://www.googleapis.com/youtube/v3/channels?part=id,contentDetails&forHandle=${encodeURIComponent(cleanHandle)}&key=${apiKey}`
+    
+    const channelsRes = await fetch(channelsUrl)
+    if (!channelsRes.ok) {
+      const errJson = await channelsRes.json().catch(() => ({}))
       return NextResponse.json({ 
-        error: `Failed to fetch YouTube page for handle ${channelHandle}. Code: ${htmlRes.status}` 
+        error: errJson.error?.message || `YouTube API channels.list failed with status ${channelsRes.status}` 
       }, { status: 400 })
     }
 
-    const html = await htmlRes.text()
-    const channelId = parseChannelId(html)
-
-    if (!channelId) {
+    const channelsData = await channelsRes.json()
+    if (!channelsData.items || channelsData.items.length === 0) {
       return NextResponse.json({ 
-        error: `Could not resolve YouTube Channel ID for handle ${channelHandle}.` 
+        error: `Could not find YouTube Channel for handle: ${channelHandle}. Make sure the handle is spelled correctly in your .env settings.` 
       }, { status: 400 })
     }
 
-    // Convert channel ID (UC...) to uploads playlist ID (UU...)
-    const uploadsPlaylistId = 'UU' + channelId.substring(2)
+    const channelItem = channelsData.items[0]
+    const uploadsPlaylistId = channelItem.contentDetails?.relatedPlaylists?.uploads
+
+    if (!uploadsPlaylistId) {
+      return NextResponse.json({ 
+        error: `Uploads playlist not found for channel handle ${channelHandle}.` 
+      }, { status: 400 })
+    }
 
     // 4. Paginate and retrieve all playlist items from YouTube API v3
     let pageToken = ''
