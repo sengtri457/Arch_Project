@@ -11,6 +11,8 @@ import { Project } from "@/lib/projects-data"
 import { getMediaUrl } from "@/lib/utils"
 import Swal from "sweetalert2"
 import { useAdminData } from "@/lib/react-query/hooks/use-admin"
+import { useAddYoutubeVideoMutation, useUpdateYoutubeVideoMutation, useDeleteYoutubeVideoMutation } from "@/lib/react-query/hooks/use-youtube-videos"
+import { YoutubeVideo } from "@/types/youtube-video"
 
 const MySwal = Swal.mixin({
   background: '#060010',
@@ -81,7 +83,8 @@ import {
   LogOut,
   Check,
   Star,
-  Sparkles
+  Sparkles,
+  Play
 } from "lucide-react"
 import {
   BarChart,
@@ -99,7 +102,7 @@ import {
   Cell
 } from "recharts"
 
-type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "testimonials" | "users" | "manual_access" | "student-showcase"
+type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "testimonials" | "users" | "manual_access" | "student-showcase" | "media"
 
 function generateLessonAssetFileName(originalName: string): string {
   const sanitizedName = originalName.replace(/[^a-zA-Z0-9.-]/g, '_')
@@ -130,12 +133,13 @@ export default function AdminDashboard() {
   const testimonials = adminData.testimonials as any[]
   const pendingEnrollments = adminData.pendingEnrollments as any[]
   const studentWork = (adminData as any).studentWork as any[]
+  const youtubeVideos = (adminData as any).youtubeVideos as YoutubeVideo[]
   const loadingData = adminData.isLoading
   const invalidateAll = adminData.invalidateAll
 
   useEffect(() => {
     const tabParam = new URLSearchParams(window.location.search).get("tab")
-    const validTabs: AdminTab[] = ["overview", "analytics", "courses", "projects", "submissions", "crm", "plans", "promos", "testimonials", "inquiries", "users", "manual_access", "student-showcase"]
+    const validTabs: AdminTab[] = ["overview", "analytics", "courses", "projects", "submissions", "crm", "plans", "promos", "testimonials", "inquiries", "users", "manual_access", "student-showcase", "media"]
     if (tabParam && validTabs.includes(tabParam as AdminTab)) {
       setActiveTab(tabParam as AdminTab)
     }
@@ -239,6 +243,26 @@ export default function AdminDashboard() {
   })
   const [uploadingStudentWorkImage, setUploadingStudentWorkImage] = useState(false)
   const [uploadingStudentWorkGallery, setUploadingStudentWorkGallery] = useState(false)
+
+  // YouTube Videos CRUD states
+  const addVideoMutation = useAddYoutubeVideoMutation()
+  const updateVideoMutation = useUpdateYoutubeVideoMutation()
+  const deleteVideoMutation = useDeleteYoutubeVideoMutation()
+  
+  const [showVideoModal, setShowVideoModal] = useState(false)
+  const [editingVideo, setEditingVideo] = useState<YoutubeVideo | null>(null)
+  const [videoInputUrl, setVideoInputUrl] = useState("")
+  const [isFetchingVideoInfo, setIsFetchingVideoInfo] = useState(false)
+  const [videoSearchQuery, setVideoSearchQuery] = useState("")
+  const [videoCategoryFilter, setVideoCategoryFilter] = useState("All")
+  const [videoForm, setVideoForm] = useState({
+    video_id: "",
+    title: "",
+    description: "",
+    category: "Photoshop",
+    is_featured: false,
+    published_at: ""
+  })
 
   const [manualAccessEmail, setManualAccessEmail] = useState("")
   const [manualAccessCourseId, setManualAccessCourseId] = useState("")
@@ -1037,6 +1061,121 @@ export default function AdminDashboard() {
     }
   }
 
+  // Fetch YouTube video details via oEmbed
+  const handleFetchVideoInfo = async () => {
+    if (!videoInputUrl.trim()) {
+      MySwal.fire({ icon: 'warning', title: 'Input Required', text: 'Please enter a YouTube video URL or ID.' })
+      return
+    }
+
+    setIsFetchingVideoInfo(true)
+    try {
+      const res = await fetch(`/api/youtube/info?url=${encodeURIComponent(videoInputUrl)}`)
+      if (!res.ok) {
+        const errJson = await res.json()
+        throw new Error(errJson.error || 'Failed to fetch details')
+      }
+      const data = await res.json()
+      setVideoForm((prev) => ({
+        ...prev,
+        video_id: data.video_id,
+        title: data.title || prev.title
+      }))
+      
+      if (data.is_fallback) {
+        MySwal.fire({
+          icon: 'info',
+          title: 'Fetched with Fallback',
+          text: 'Video ID parsed successfully. Title could not be fetched; please enter it manually.'
+        })
+      } else {
+        MySwal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: `Fetched video details: "${data.title}"`,
+          timer: 2000,
+          showConfirmButton: false
+        })
+      }
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Fetch Error', text: err.message || 'Could not parse YouTube link.' })
+    } finally {
+      setIsFetchingVideoInfo(false)
+    }
+  }
+
+  // Save YouTube Video
+  const handleSaveVideo = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!videoForm.video_id.trim()) {
+      MySwal.fire({ icon: 'error', title: 'Video ID Required', text: 'Please provide a valid YouTube video ID.' })
+      return
+    }
+
+    if (!videoForm.title.trim()) {
+      MySwal.fire({ icon: 'error', title: 'Title Required', text: 'Please provide a title.' })
+      return
+    }
+
+    try {
+      if (editingVideo) {
+        // Update mutation
+        await updateVideoMutation.mutateAsync({
+          id: editingVideo.id,
+          video: {
+            title: videoForm.title,
+            description: videoForm.description,
+            category: videoForm.category,
+            is_featured: videoForm.is_featured,
+            published_at: videoForm.published_at || new Date().toISOString()
+          }
+        })
+        await MySwal.fire({ icon: 'success', title: 'Updated!', text: 'Video updated successfully!' })
+      } else {
+        // Add mutation
+        await addVideoMutation.mutateAsync({
+          video_id: videoForm.video_id,
+          title: videoForm.title,
+          description: videoForm.description,
+          category: videoForm.category,
+          is_featured: videoForm.is_featured,
+          published_at: videoForm.published_at || new Date().toISOString()
+        })
+        await MySwal.fire({ icon: 'success', title: 'Created!', text: 'Video added successfully!' })
+      }
+
+      setShowVideoModal(false)
+      setEditingVideo(null)
+      setVideoInputUrl("")
+      invalidateAll()
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to save video: ${err.message}` })
+    }
+  }
+
+  // Delete YouTube Video
+  const handleDeleteVideo = async (id: string) => {
+    const result = await MySwal.fire({
+      title: 'Delete Video?',
+      text: 'Are you sure you want to remove this YouTube video from your website?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'No, cancel'
+    })
+
+    if (!result.isConfirmed) return
+
+    try {
+      await deleteVideoMutation.mutateAsync(id)
+      await MySwal.fire({ icon: 'success', title: 'Deleted!', text: 'Video has been deleted.' })
+      invalidateAll()
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete video: ${err.message}` })
+    }
+  }
+
   // Effect to handle showcase prefilling from submission_id in URL params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -1341,6 +1480,19 @@ export default function AdminDashboard() {
                 >
                   <Sparkles className="w-4 h-4" />
                   {!sidebarCollapsed && <span>Student Showcase</span>}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("media")}
+                  title="YouTube Videos"
+                  className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
+                    activeTab === "media" 
+                      ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                  }`}
+                >
+                  <Play className="w-4 h-4 animate-pulse" />
+                  {!sidebarCollapsed && <span>YouTube Videos</span>}
                 </button>
               </div>
             </div>
@@ -2210,6 +2362,159 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                         ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* YOUTUBE VIDEOS CMS TAB */}
+                {activeTab === "media" && (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h2 className="text-2xl font-bold text-white">YouTube Videos CMS</h2>
+                        <p className="text-zinc-400 text-sm mt-1">
+                          Manage your channel's YouTube videos shown on the public Media page.
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={() => {
+                          setEditingVideo(null)
+                          setVideoInputUrl("")
+                          setVideoForm({
+                            video_id: "",
+                            title: "",
+                            description: "",
+                            category: "Photoshop",
+                            is_featured: false,
+                            published_at: new Date().toISOString()
+                          })
+                          setShowVideoModal(true)
+                        }}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-1.5" 
+                        style={{ backgroundColor: '#9ACD32', color: '#000' }}
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add YouTube Video
+                      </Button>
+                    </div>
+
+                    {/* Filter & Search */}
+                    <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-zinc-900/20 border border-zinc-850 p-4 rounded-2xl">
+                      <div className="relative w-full sm:max-w-xs">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
+                          <Play className="w-3 h-3 text-zinc-500" />
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Search videos..."
+                          value={videoSearchQuery}
+                          onChange={(e) => setVideoSearchQuery(e.target.value)}
+                          className="w-full bg-zinc-900/40 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-zinc-700 placeholder:text-zinc-500"
+                        />
+                      </div>
+                      <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+                        {["All", "Photoshop", "D5 Render", "Lumion", "Enscape", "Portfolio Tips", "Other"].map((cat) => (
+                          <button
+                            key={cat}
+                            onClick={() => setVideoCategoryFilter(cat)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
+                              videoCategoryFilter === cat
+                                ? "bg-[#9ACD32] text-black font-semibold"
+                                : "bg-zinc-900/60 text-zinc-400 hover:text-white"
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                      {youtubeVideos.length === 0 ? (
+                        <div className="text-center py-12 bg-zinc-900/20 border border-zinc-850 rounded-2xl text-zinc-400">
+                          No YouTube videos found. Click &quot;Add YouTube Video&quot; to publish your first one!
+                        </div>
+                      ) : (
+                        (() => {
+                          const filtered = youtubeVideos.filter((v) => {
+                            const matchesSearch = v.title.toLowerCase().includes(videoSearchQuery.toLowerCase()) || 
+                              (v.description || '').toLowerCase().includes(videoSearchQuery.toLowerCase())
+                            const matchesCat = videoCategoryFilter === "All" || v.category === videoCategoryFilter
+                            return matchesSearch && matchesCat
+                          })
+
+                          if (filtered.length === 0) {
+                            return (
+                              <div className="text-center py-12 bg-zinc-900/20 border border-zinc-850 rounded-2xl text-zinc-400">
+                                No videos match your selected category or search filters.
+                              </div>
+                            )
+                          }
+
+                          return filtered.map((video) => (
+                            <div key={video.id} className="p-4 bg-zinc-900/40 border border-zinc-850 rounded-2xl flex items-center justify-between hover:border-zinc-800 transition-colors">
+                              <div className="flex items-center gap-4">
+                                <div className="relative w-16 h-10 object-cover rounded overflow-hidden bg-zinc-950 flex-shrink-0">
+                                  <img 
+                                    src={`https://img.youtube.com/vi/${video.video_id}/hqdefault.jpg`} 
+                                    alt="" 
+                                    className="w-full h-full object-cover" 
+                                  />
+                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                    <Play className="w-3 h-3 text-white fill-white" />
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-bold text-white line-clamp-1">{video.title}</h4>
+                                    {video.is_featured && (
+                                      <span className="text-[9px] bg-yellow-500/20 text-yellow-500 font-semibold px-1.5 py-0.5 rounded border border-yellow-500/30">
+                                        Featured
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-zinc-400 mt-0.5">
+                                    Category: <strong className="text-zinc-300">{video.category}</strong> • ID: <code className="text-zinc-500 bg-zinc-950 px-1 py-0.5 rounded text-[10px]">{video.video_id}</code>
+                                  </p>
+                                  <p className="text-[10px] text-zinc-500 mt-0.5">
+                                    Published: {new Date(video.published_at).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button 
+                                  onClick={() => {
+                                    setEditingVideo(video)
+                                    setVideoInputUrl(`https://www.youtube.com/watch?v=${video.video_id}`)
+                                    setVideoForm({
+                                      video_id: video.video_id,
+                                      title: video.title,
+                                      description: video.description || "",
+                                      category: video.category || "Photoshop",
+                                      is_featured: !!video.is_featured,
+                                      published_at: video.published_at || new Date().toISOString()
+                                    })
+                                    setShowVideoModal(true)
+                                  }}
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="hover:bg-zinc-800 text-zinc-300"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  onClick={() => handleDeleteVideo(video.id)}
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="hover:bg-red-950/20 text-red-400 hover:text-red-350"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))
+                        })()
                       )}
                     </div>
                   </div>
@@ -3583,6 +3888,133 @@ export default function AdminDashboard() {
                 </Button>
                 <Button type="submit" className="bg-primary text-black font-bold px-6" style={{ backgroundColor: '#9ACD32', color: '#000' }}>
                   {editingStudentWork ? "Save Post" : "Publish Post"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* YOUTUBE VIDEO CMS MODAL */}
+        {showVideoModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <form onSubmit={handleSaveVideo} className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-5 animate-in fade-in zoom-in-95 duration-150 custom-scrollbar text-zinc-350">
+              <div>
+                <h3 className="text-xl font-bold text-white">
+                  {editingVideo ? "Edit YouTube Video" : "Add YouTube Video"}
+                </h3>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Input YouTube video details and organize it with category filters.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {!editingVideo && (
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Paste YouTube Link / Video ID</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={videoInputUrl} 
+                        onChange={(e) => setVideoInputUrl(e.target.value)} 
+                        className="flex-grow bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                        placeholder="e.g. https://www.youtube.com/watch?v=ZiTuKjB1bP4 or ZiTuKjB1bP4"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleFetchVideoInfo}
+                        disabled={isFetchingVideoInfo}
+                        className="bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-4 rounded-xl border border-zinc-800 shrink-0"
+                      >
+                        {isFetchingVideoInfo ? "Fetching..." : "Fetch Info"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">YouTube Video ID (11 characters)</label>
+                  <input 
+                    type="text" 
+                    required 
+                    readOnly={!!editingVideo}
+                    value={videoForm.video_id} 
+                    onChange={(e) => setVideoForm({ ...videoForm, video_id: e.target.value })} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 font-mono disabled:opacity-50" 
+                    placeholder="e.g. ZiTuKjB1bP4"
+                    disabled={!!editingVideo}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Video Title</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={videoForm.title} 
+                    onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700" 
+                    placeholder="Auto-filled or enter video title"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Category / Filter</label>
+                    <select 
+                      value={videoForm.category} 
+                      onChange={(e) => setVideoForm({ ...videoForm, category: e.target.value })} 
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                    >
+                      <option>Photoshop</option>
+                      <option>D5 Render</option>
+                      <option>Lumion</option>
+                      <option>Enscape</option>
+                      <option>Portfolio Tips</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Publish Date</label>
+                    <input 
+                      type="datetime-local" 
+                      value={videoForm.published_at ? videoForm.published_at.substring(0, 16) : ""} 
+                      onChange={(e) => setVideoForm({ ...videoForm, published_at: e.target.value ? new Date(e.target.value).toISOString() : "" })} 
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 bg-zinc-950 p-3.5 rounded-xl border border-zinc-850">
+                  <input 
+                    type="checkbox" 
+                    id="is_featured_video"
+                    checked={videoForm.is_featured} 
+                    onChange={(e) => setVideoForm({ ...videoForm, is_featured: e.target.checked })} 
+                    className="w-4 h-4 accent-primary rounded bg-zinc-900 border-zinc-800"
+                  />
+                  <label htmlFor="is_featured_video" className="text-xs font-bold text-zinc-300 uppercase cursor-pointer select-none">
+                    Feature Video (Highlights on public page)
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Description (Optional)</label>
+                  <textarea 
+                    rows={3} 
+                    value={videoForm.description} 
+                    onChange={(e) => setVideoForm({ ...videoForm, description: e.target.value })} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 resize-none" 
+                    placeholder="Brief description of what is covered in this video..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-2">
+                <Button type="button" variant="ghost" onClick={() => setShowVideoModal(false)} className="text-zinc-400 hover:text-white">
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-primary text-black font-bold px-6" style={{ backgroundColor: '#9ACD32', color: '#000' }}>
+                  {editingVideo ? "Save Changes" : "Add Video"}
                 </Button>
               </div>
             </form>

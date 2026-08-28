@@ -170,6 +170,20 @@ export function useAdminData(activeTab: string) {
     enabled: activeTab === "student-showcase" || activeTab === "overview",
   })
 
+  const youtubeVideos = useQuery({
+    queryKey: queryKeys.admin.youtubeVideos,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('youtube_videos')
+        .select('*')
+        .order('published_at', { ascending: false })
+      if (error) throw error
+      return data || []
+    },
+    staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "media" || activeTab === "overview",
+  })
+
   const allQueries = [
     profiles,
     courses,
@@ -185,6 +199,7 @@ export function useAdminData(activeTab: string) {
     testimonialsData,
     pendingEnrollments,
     studentWork,
+    youtubeVideos,
   ]
 
   const isLoading = allQueries.some((q) => q.isLoading)
@@ -205,6 +220,7 @@ export function useAdminData(activeTab: string) {
     testimonials: testimonialsData.data ?? [],
     pendingEnrollments: pendingEnrollments.data ?? [],
     studentWork: studentWork.data ?? [],
+    youtubeVideos: youtubeVideos.data ?? [],
     isLoading,
     isFetching,
     invalidateAll: () => {

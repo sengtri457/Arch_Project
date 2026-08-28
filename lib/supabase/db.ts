@@ -2,6 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import { Project } from '@/lib/projects-data'
 import { Course } from '@/lib/courses-data'
 import { Testimonial } from '@/lib/testimonials-data'
+import { YoutubeVideo } from '@/types/youtube-video'
 
 // Mock fallbacks to ensure frontend keeps running if Supabase is offline or unseeded
 import { projects as mockProjects } from '@/lib/projects-data'
@@ -789,6 +790,94 @@ export const db = {
       .from('student_work_posts')
       .delete()
       .eq('id', postId)
+
+    if (error) throw error
+  },
+
+  /**
+   * YouTube Videos
+   */
+  async getYoutubeVideos(
+    supabase: SupabaseClient,
+    filters?: { category?: string; search?: string; limit?: number }
+  ): Promise<YoutubeVideo[]> {
+    try {
+      let query = supabase.from('youtube_videos').select('*')
+
+      if (filters?.category && filters.category !== 'All') {
+        query = query.eq('category', filters.category)
+      }
+
+      if (filters?.search) {
+        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`)
+      }
+
+      if (filters?.limit) {
+        query = query.limit(filters.limit)
+      }
+
+      query = query.order('published_at', { ascending: false })
+
+      const { data, error } = await query
+      if (error) throw error
+      return data || []
+    } catch (err) {
+      console.error("Failed to fetch youtube videos from Supabase:", err)
+      return []
+    }
+  },
+
+  async addYoutubeVideo(
+    supabase: SupabaseClient,
+    video: { video_id: string; title: string; description?: string; category: string; is_featured: boolean; published_at?: string }
+  ): Promise<YoutubeVideo> {
+    const { data, error } = await supabase
+      .from('youtube_videos')
+      .insert({
+        video_id: video.video_id,
+        title: video.title,
+        description: video.description || null,
+        category: video.category,
+        is_featured: video.is_featured,
+        published_at: video.published_at || new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async updateYoutubeVideo(
+    supabase: SupabaseClient,
+    id: string,
+    video: { title: string; description?: string; category: string; is_featured: boolean; published_at?: string }
+  ): Promise<YoutubeVideo> {
+    const { data, error } = await supabase
+      .from('youtube_videos')
+      .update({
+        title: video.title,
+        description: video.description || null,
+        category: video.category,
+        is_featured: video.is_featured,
+        published_at: video.published_at
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async deleteYoutubeVideo(
+    supabase: SupabaseClient,
+    id: string
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('youtube_videos')
+      .delete()
+      .eq('id', id)
 
     if (error) throw error
   }

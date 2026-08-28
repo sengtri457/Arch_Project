@@ -33,6 +33,7 @@ export function Navigation() {
     { href: "/courses", label: "Courses" },
     { href: "/projects", label: "Project" },
     { href: "/student-work", label: "Student Work" },
+    { href: "/media", label: "Media" },
     { href: "/about", label: "About" },
     { href: "#contact", label: "Contact" },
   ]
