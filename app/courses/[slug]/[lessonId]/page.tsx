@@ -28,6 +28,7 @@ import {
 } from "lucide-react"
 
 import { useClassroomCourse, useClassroomLessons, useClassroomProgress, useClassroomCertificate, useVideoUrl, useClassroomAccess, useLessonExercise, useUpdateProgress } from "@/lib/react-query/hooks/use-classroom"
+import { LessonComments } from "@/components/lesson-comments"
 
 interface LessonPageProps {
   params: Promise<{ slug: string; lessonId: string }>
@@ -654,6 +655,11 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
               </div>
 
             </div>
+
+            {/* Q&A & Discussion Section */}
+            {currentLesson && (
+              <LessonComments lessonId={currentLesson.lesson_id || currentLesson.id} />
+            )}
           </div>
 
           {/* Dynamic Sidebar Curriculum (Right) */}

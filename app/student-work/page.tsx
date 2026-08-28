@@ -20,13 +20,32 @@ const ARCHITECTURE_FIELDS = [
   "Institutional"
 ]
 
+const SOFTWARE_LIST = [
+  "All",
+  "D5 Render",
+  "AutoCAD",
+  "SketchUp",
+  "InDesign",
+  "Photoshop",
+  "Enscape"
+]
+
 export default function StudentWorkListingPage() {
   const [selectedField, setSelectedField] = useState("All")
+  const [selectedSoftware, setSelectedSoftware] = useState("All")
   const [searchQuery, setSearchQuery] = useState("")
 
   const { data: posts = [], isLoading } = useStudentWorkList({
     field: selectedField === "All" ? undefined : selectedField,
     search: searchQuery ? searchQuery : undefined
+  })
+
+  const filteredPosts = posts.filter((post) => {
+    if (selectedSoftware === "All") return true
+    const courseSoftware = post.software_used || ""
+    const filterLower = selectedSoftware.toLowerCase()
+    const courseLower = courseSoftware.toLowerCase()
+    return courseLower.includes(filterLower) || filterLower.includes(courseLower)
   })
 
   return (
@@ -49,39 +68,62 @@ export default function StudentWorkListingPage() {
 
         {/* Filter & Listing Section */}
         <section className="py-16 container mx-auto px-6 max-w-7xl">
-          <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center mb-12 border-b border-zinc-900 pb-8">
-            
-            {/* Search Input */}
-            <div className="relative w-full md:max-w-md">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
-                <Search className="w-4 h-4" />
-              </span>
-              <input
-                type="text"
-                placeholder="Search by student, software, or title..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-zinc-900/40 border border-zinc-800 rounded-xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-zinc-700 transition-colors placeholder:text-zinc-500"
-              />
+          <div className="flex flex-col gap-6 mb-12 border-b border-zinc-900 pb-8">
+            <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
+              
+              {/* Search Input */}
+              <div className="relative w-full md:max-w-md">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
+                  <Search className="w-4 h-4" />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search by student, software, or title..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-zinc-900/40 border border-zinc-800 rounded-xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-zinc-700 transition-colors placeholder:text-zinc-500"
+                />
+              </div>
+
+              {/* Fields Filters */}
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <div className="flex items-center gap-1.5 text-zinc-500 text-xs font-semibold mr-2 uppercase tracking-wider">
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>Fields:</span>
+                </div>
+                {ARCHITECTURE_FIELDS.map((field) => (
+                  <button
+                    key={field}
+                    onClick={() => setSelectedField(field)}
+                    className={`px-4 py-2 rounded-lg text-xs font-medium transition-all duration-300 ${
+                      selectedField === field
+                        ? "bg-[#9ACD32] text-black font-semibold shadow-lg shadow-[#9ACD32]/10"
+                        : "bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-zinc-800/40 border border-zinc-850"
+                    }`}
+                  >
+                    {field}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Fields Filters */}
-            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            {/* Software Filters */}
+            <div className="flex flex-wrap items-center gap-2 w-full">
               <div className="flex items-center gap-1.5 text-zinc-500 text-xs font-semibold mr-2 uppercase tracking-wider">
                 <SlidersHorizontal className="w-3.5 h-3.5" />
-                <span>Filters:</span>
+                <span>Software:</span>
               </div>
-              {ARCHITECTURE_FIELDS.map((field) => (
+              {SOFTWARE_LIST.map((software) => (
                 <button
-                  key={field}
-                  onClick={() => setSelectedField(field)}
+                  key={software}
+                  onClick={() => setSelectedSoftware(software)}
                   className={`px-4 py-2 rounded-lg text-xs font-medium transition-all duration-300 ${
-                    selectedField === field
+                    selectedSoftware === software
                       ? "bg-[#9ACD32] text-black font-semibold shadow-lg shadow-[#9ACD32]/10"
                       : "bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-zinc-800/40 border border-zinc-850"
                   }`}
                 >
-                  {field}
+                  {software}
                 </button>
               ))}
             </div>
@@ -100,14 +142,14 @@ export default function StudentWorkListingPage() {
                 </div>
               ))}
             </div>
-          ) : posts.length === 0 ? (
+          ) : filteredPosts.length === 0 ? (
             <div className="text-center py-24 bg-zinc-900/10 border border-dashed border-zinc-850 rounded-2xl max-w-xl mx-auto">
               <p className="text-zinc-400 mb-2">No showcase items match your selection.</p>
               <p className="text-zinc-600 text-xs">Try selecting a different filter or clearing search keywords.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[250px] md:auto-rows-[300px]">
-              {posts.map((post, idx) => {
+              {filteredPosts.map((post, idx) => {
                 // Determine Bento grid spans based on index
                 const position = idx % 6;
                 let gridClasses = "md:col-span-1 md:row-span-1"; // Standard
@@ -133,7 +175,7 @@ export default function StudentWorkListingPage() {
                             e.currentTarget.src = "/placeholder.svg"
                           }}
                           alt={post.title}
-                          className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700 ease-out"
+                          className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-1000 ease-out will-change-transform"
                         />
                       </div>
                       
@@ -174,7 +216,7 @@ export default function StudentWorkListingPage() {
                         </div>
 
                         {/* Expandable details on Hover */}
-                        <div className="h-0 opacity-0 group-hover:h-auto group-hover:opacity-100 overflow-hidden transition-all duration-300 ease-in-out">
+                        <div className="max-h-0 opacity-0 group-hover:max-h-40 group-hover:opacity-100 overflow-hidden transition-all duration-500 ease-in-out">
                           <p className="text-zinc-400 text-xs line-clamp-2 mt-3 leading-relaxed">
                             {post.description}
                           </p>

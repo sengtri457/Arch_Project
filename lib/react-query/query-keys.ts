@@ -33,6 +33,7 @@ export const queryKeys = {
     video: (lessonId: string) => ["classroom", "video", lessonId] as const,
     exercise: (lessonId: string) => ["classroom", "exercise", lessonId] as const,
     submission: (userId: string, lessonId: string) => ["classroom", "submission", userId, lessonId] as const,
+    comments: (lessonId: string) => ["classroom", "comments", lessonId] as const,
   },
   admin: {
     profiles: ["admin", "profiles"] as const,

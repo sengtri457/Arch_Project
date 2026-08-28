@@ -120,3 +120,63 @@ export function useSubmitExercise() {
     },
   })
 }
+
+export function useLessonComments(lessonId: string | undefined) {
+  const supabase = createClient()
+  return useQuery({
+    queryKey: queryKeys.classroom.comments(lessonId ?? "none"),
+    queryFn: async () => {
+      if (!lessonId) return []
+      const { data, error } = await supabase
+        .from("lesson_comments")
+        .select("*, profiles:user_id(full_name, avatar_url, role)")
+        .eq("lesson_id", lessonId)
+        .order("created_at", { ascending: true })
+      if (error) throw error
+      return data || []
+    },
+    enabled: !!lessonId,
+    staleTime: 5 * 1000,
+  })
+}
+
+export function useAddComment() {
+  const supabase = createClient()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: { lessonId: string; userId: string; content: string; parentId?: string }) => {
+      const { data, error } = await supabase
+        .from("lesson_comments")
+        .insert({
+          lesson_id: payload.lessonId,
+          user_id: payload.userId,
+          content: payload.content,
+          parent_id: payload.parentId || null
+        })
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.classroom.comments(variables.lessonId) })
+    }
+  })
+}
+
+export function useDeleteComment() {
+  const supabase = createClient()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: { commentId: string; lessonId: string }) => {
+      const { error } = await supabase
+        .from("lesson_comments")
+        .delete()
+        .eq("comment_id", payload.commentId)
+      if (error) throw error
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.classroom.comments(variables.lessonId) })
+    }
+  })
+}

@@ -10,18 +10,30 @@ import { getMediaUrl } from "@/lib/utils"
 import { useCourses, useCourseAccessMap } from "@/lib/react-query/hooks/use-courses"
 import { createClient } from "@/lib/supabase/client"
 
+const SOFTWARE_FILTERS = ["All", "D5 Render", "AutoCAD", "SketchUp", "InDesign", "Photoshop", "Enscape"]
+
 export default function CoursesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
+  const [selectedSoftware, setSelectedSoftware] = useState<string>("All")
   const { data: courses = [], isLoading } = useCourses()
   const { data: accessMap = {} } = useCourseAccessMap()
 
   const uniqueCategories = Array.from(new Set(courses.map(c => c.category).filter(Boolean)))
   const categories = ["All", ...uniqueCategories.filter(cat => cat !== "All")]
 
-  const filteredCourses =
-    selectedCategory === "All"
-      ? courses
-      : courses.filter((c) => c.category === selectedCategory)
+  const filteredCourses = courses.filter((course) => {
+    const categoryMatch = selectedCategory === "All" || course.category === selectedCategory
+    
+    let softwareMatch = true
+    if (selectedSoftware !== "All") {
+      const courseSoftware = course.software_used || ""
+      const filterLower = selectedSoftware.toLowerCase()
+      const courseLower = courseSoftware.toLowerCase()
+      softwareMatch = courseLower.includes(filterLower) || filterLower.includes(courseLower)
+    }
+    
+    return categoryMatch && softwareMatch
+  })
 
   const isUnlocked = (course: any) => accessMap[course.course_id || course.id]
 
@@ -99,7 +111,7 @@ export default function CoursesPage() {
       <section className="py-24" style={{ backgroundColor: '#060010' }}>
         <div className="w-full px-6">
           {/* Category Filter */}
-          <div className="flex flex-wrap justify-center gap-4 mb-16 max-w-6xl mx-auto">
+          <div className="flex flex-wrap justify-center gap-4 mb-8 max-w-6xl mx-auto">
             {categories.map((category) => (
               <button
                 key={category}
@@ -118,6 +130,27 @@ export default function CoursesPage() {
                 }}
               >
                 {category}
+              </button>
+            ))}
+          </div>
+
+          {/* Software Filter */}
+          <div className="flex flex-wrap justify-center gap-3 mb-16 max-w-6xl mx-auto border-t border-zinc-800/40 pt-6">
+            {SOFTWARE_FILTERS.map((software) => (
+              <button
+                key={software}
+                onClick={() => setSelectedSoftware(software)}
+                style={{
+                  color: selectedSoftware === software ? '#9ACD32' : '#9ca3af',
+                  borderColor: selectedSoftware === software ? '#9ACD32' : 'transparent',
+                }}
+                className={`px-4 py-2 text-sm font-medium transition-all duration-300 rounded-full border ${
+                  selectedSoftware === software
+                    ? "bg-[#9ACD32]/10"
+                    : "bg-zinc-900/30 border-zinc-800/60 hover:text-white hover:border-zinc-700/80"
+                }`}
+              >
+                {software === "All" ? "All Software" : software}
               </button>
             ))}
           </div>

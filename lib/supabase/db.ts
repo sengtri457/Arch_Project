@@ -91,7 +91,8 @@ export function mapDbCourseToFrontend(dbCourse: any): Course {
     instructor: dbCourse.instructor || "Bun Sambath",
     students: dbCourse.students || 0,
     lessons: dbCourse.lessons || 0,
-    introduction_url: dbCourse.introduction_url || null
+    introduction_url: dbCourse.introduction_url || null,
+    software_used: dbCourse.software_used || ""
   }
 }
 

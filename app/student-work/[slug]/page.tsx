@@ -459,7 +459,7 @@ export default function StudentWorkDetailPage() {
                           e.currentTarget.src = "/placeholder.svg"
                         }}
                         alt={rPost.title}
-                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700 ease-out"
+                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-1000 ease-out will-change-transform"
                       />
                     </div>
                     

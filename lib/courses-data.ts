@@ -13,6 +13,7 @@ export interface Course {
   students: number
   lessons: number
   introduction_url?: string
+  software_used?: string | null
 }
 
 export const courses: Course[] = [
@@ -34,7 +35,8 @@ export const courses: Course[] = [
     ],
     instructor: "Bun Sambath",
     students: 1500,
-    lessons: 42
+    lessons: 42,
+    software_used: "D5 Render"
   },
   {
     id: "enscape-masterclass",
@@ -54,7 +56,8 @@ export const courses: Course[] = [
     ],
     instructor: "Bun Sambath",
     students: 1200,
-    lessons: 35
+    lessons: 35,
+    software_used: "Enscape"
   },
   {
     id: "indesign-masterclass",
@@ -74,7 +77,8 @@ export const courses: Course[] = [
     ],
     instructor: "Bun Sambath",
     students: 850,
-    lessons: 28
+    lessons: 28,
+    software_used: "Adobe InDesign"
   },
   {
     id: "photoshop-masterclass",
@@ -94,7 +98,8 @@ export const courses: Course[] = [
     ],
     instructor: "Bun Sambath",
     students: 1800,
-    lessons: 45
+    lessons: 45,
+    software_used: "Adobe Photoshop"
   }
 ]
 
