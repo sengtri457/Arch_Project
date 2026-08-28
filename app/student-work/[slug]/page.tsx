@@ -445,35 +445,51 @@ export default function StudentWorkDetailPage() {
               More in <span className="text-[#9ACD32]">{post.architecture_field}</span>
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[250px] md:auto-rows-[280px]">
               {relatedPosts.map((rPost) => (
                 <div
                   key={rPost.id}
-                  className="bg-zinc-950/40 border border-zinc-900 hover:border-zinc-800 rounded-xl overflow-hidden flex flex-col justify-between group"
+                  className="relative w-full overflow-hidden border border-zinc-850/60 rounded-xl group transition-all duration-300 shadow-xl bg-zinc-950"
                 >
                   <Link href={`/student-work/${rPost.slug}`}>
-                    <div className="aspect-[16/10] bg-zinc-900 overflow-hidden cursor-pointer">
+                    <div className="absolute inset-0 w-full h-full bg-zinc-950 z-0">
                       <img
                         src={getMediaUrl(rPost.cover_image_url || "/placeholder.svg")}
+                        onError={(e) => {
+                          e.currentTarget.src = "/placeholder.svg"
+                        }}
                         alt={rPost.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700 ease-out"
                       />
                     </div>
-                  </Link>
-                  <div className="p-5 space-y-3">
-                    <Link href={`/student-work/${rPost.slug}`}>
-                      <h4 className="font-bold text-white leading-snug group-hover:text-[#9ACD32] transition-colors truncate">
-                        {rPost.title}
-                      </h4>
-                    </Link>
-                    <div className="flex justify-between items-center gap-2 text-xs">
-                      <span className="text-zinc-500">By {rPost.student_name}</span>
-                      <span className="text-[#9ACD32] font-semibold flex items-center gap-0.5">
-                        <Star className="w-3.5 h-3.5 fill-[#9ACD32] text-[#9ACD32]" />
+                    
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent z-10" />
+
+                    {/* Floating Star Rating Badge */}
+                    <span className="absolute top-4 right-4 z-20 px-2 rounded-md bg-black/60 backdrop-blur-md border border-zinc-850/60 text-[10px] font-semibold flex items-center gap-1">
+                      <Star className="w-3 h-3 fill-[#9ACD32] text-[#9ACD32]" />
+                      <span className="text-white">
                         {rPost.average_rating ? rPost.average_rating : "0.0"}
                       </span>
+                    </span>
+
+                    {/* Bottom Info Overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 z-20 p-4 w-full flex flex-col justify-end min-h-[40%]">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full border border-primary/30 bg-zinc-900 flex items-center justify-center text-[10px] font-bold text-[#9ACD32] shrink-0" style={{ borderColor: 'rgba(154, 205, 50, 0.3)' }}>
+                          {rPost.student_name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-zinc-100 group-hover:text-[#9ACD32] transition-colors leading-tight line-clamp-1">
+                            {rPost.title}
+                          </h4>
+                          <p className="text-[9px] text-zinc-400 font-medium mt-0.5">
+                            By {rPost.student_name}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 </div>
               ))}
             </div>

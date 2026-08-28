@@ -106,70 +106,92 @@ export default function StudentWorkListingPage() {
               <p className="text-zinc-600 text-xs">Try selecting a different filter or clearing search keywords.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {posts.map((post, idx) => (
-                <motion.div
-                  key={post.id}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: Math.min(idx * 0.05, 0.4) }}
-                  whileHover={{ y: -6 }}
-                  className="bg-zinc-950/60 border border-zinc-850/60 hover:border-zinc-800 rounded-2xl overflow-hidden shadow-xl hover:shadow-[#9ACD32]/1 transition-all duration-300 flex flex-col justify-between group"
-                >
-                  <Link href={`/student-work/${post.slug}`}>
-                    <div className="relative aspect-[16/10] bg-zinc-900 overflow-hidden cursor-pointer">
-                      <img
-                        src={getMediaUrl(post.cover_image_url || "/placeholder.svg")}
-                        onError={(e) => {
-                          e.currentTarget.src = "/placeholder.svg"
-                        }}
-                        alt={post.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[250px] md:auto-rows-[300px]">
+              {posts.map((post, idx) => {
+                // Determine Bento grid spans based on index
+                const position = idx % 6;
+                let gridClasses = "md:col-span-1 md:row-span-1"; // Standard
+                if (position === 0 || position === 4) {
+                  gridClasses = "md:col-span-2 md:row-span-1"; // Wide
+                } else if (position === 2) {
+                  gridClasses = "md:col-span-1 md:row-span-2 h-full"; // Tall
+                }
+
+                return (
+                  <motion.div
+                    key={post.id}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: Math.min(idx * 0.05, 0.4) }}
+                    className={`${gridClasses} relative w-full overflow-hidden border border-zinc-850/60 rounded-2xl group transition-all duration-300 shadow-xl bg-zinc-950`}
+                  >
+                    <Link href={`/student-work/${post.slug}`}>
+                      <div className="absolute inset-0 w-full h-full bg-zinc-950 z-0">
+                        <img
+                          src={getMediaUrl(post.cover_image_url || "/placeholder.svg")}
+                          onError={(e) => {
+                            e.currentTarget.src = "/placeholder.svg"
+                          }}
+                          alt={post.title}
+                          className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700 ease-out"
+                        />
+                      </div>
                       
-                      {/* Architecture Field Badge */}
+                      {/* Dark Gradient Overlay for text contrast readability */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent z-10 transition-opacity duration-300" />
+
+                      {/* Floating Architectural Category Tag (Top Left) */}
                       {post.architecture_field && (
-                        <span className="absolute top-4 left-4 px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider bg-black/60 backdrop-blur-md rounded-md border border-zinc-850 text-zinc-300">
+                        <span className="absolute top-4 left-4 z-20 px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider bg-black/60 backdrop-blur-md rounded-md border border-zinc-850/60 text-zinc-300">
                           {post.architecture_field}
                         </span>
                       )}
 
-                      {/* Stars Badge */}
-                      <span className="absolute top-4 right-4 px-2.5 py-1 rounded-md bg-black/60 backdrop-blur-md border border-zinc-850 text-xs font-semibold flex items-center gap-1.5">
+                      {/* Floating Star Rating Badge (Top Right) */}
+                      <span className="absolute top-4 right-4 z-20 px-2.5 py-1 rounded-md bg-black/60 backdrop-blur-md border border-zinc-850/60 text-xs font-semibold flex items-center gap-1.5">
                         <Star className="w-3.5 h-3.5 fill-[#9ACD32] text-[#9ACD32]" />
                         <span className="text-white">
                           {post.average_rating ? post.average_rating : "N/A"}
                         </span>
                       </span>
-                    </div>
-                  </Link>
 
-                  <div className="p-6 flex-grow flex flex-col justify-between gap-4">
-                    <div>
-                      <Link href={`/student-work/${post.slug}`}>
-                        <h3 className="text-lg font-bold text-white leading-snug group-hover:text-[#9ACD32] transition-colors line-clamp-1">
-                          {post.title}
-                        </h3>
-                      </Link>
-                      <p className="text-zinc-500 text-xs mt-1">
-                        By <span className="text-zinc-300 font-semibold">{post.student_name}</span>
-                      </p>
-                      <p className="text-zinc-400 text-sm mt-3 line-clamp-2 leading-relaxed">
-                        {post.description}
-                      </p>
-                    </div>
+                      {/* Bottom Info Overlay (Avatar + Details) */}
+                      <div className="absolute bottom-0 left-0 right-0 z-20 p-5 w-full flex flex-col justify-end min-h-[40%]">
+                        <div className="flex items-center gap-3">
+                          {/* Student Avatar Circle */}
+                          <div className="w-8 h-8 rounded-full border border-primary/30 bg-zinc-900 flex items-center justify-center text-xs font-bold text-[#9ACD32] shrink-0" style={{ borderColor: 'rgba(154, 205, 50, 0.3)' }}>
+                            {post.student_name.charAt(0).toUpperCase()}
+                          </div>
+                          
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-bold text-zinc-100 group-hover:text-[#9ACD32] transition-colors leading-tight line-clamp-1">
+                              {post.title}
+                            </h3>
+                            <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
+                              By {post.student_name}
+                            </p>
+                          </div>
+                        </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-900/60 pt-4 mt-auto">
-                      <span className="text-[10px] text-zinc-500 italic truncate max-w-[70%]">
-                        {post.software_used}
-                      </span>
-                      <Link href={`/student-work/${post.slug}`} className="text-xs text-[#9ACD32] font-semibold group-hover:underline">
-                        Details &rarr;
-                      </Link>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+                        {/* Expandable details on Hover */}
+                        <div className="h-0 opacity-0 group-hover:h-auto group-hover:opacity-100 overflow-hidden transition-all duration-300 ease-in-out">
+                          <p className="text-zinc-400 text-xs line-clamp-2 mt-3 leading-relaxed">
+                            {post.description}
+                          </p>
+                          <div className="flex items-center justify-between gap-2 border-t border-zinc-800/40 pt-2.5 mt-2.5 text-[9px] text-zinc-500">
+                            <span className="truncate italic">
+                              {post.software_used}
+                            </span>
+                            <span className="text-[#9ACD32] font-semibold shrink-0 flex items-center gap-0.5">
+                              Details &rarr;
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </section>
