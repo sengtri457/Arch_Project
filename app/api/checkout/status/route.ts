@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getClientIp, rateLimit } from '@/lib/rate-limit'
 import { sendEmail, paymentReceiptEmail } from '@/lib/email'
+import { sendTelegramInvoiceNotification } from '@/lib/telegram'
 
 export async function GET(request: Request) {
   try {
@@ -201,8 +202,23 @@ export async function GET(request: Request) {
             })
           })
         }
+
+        // Send Telegram invoice alert
+        await sendTelegramInvoiceNotification({
+          itemName,
+          amount: Number(transaction.amount),
+          billNumber: transaction.bill_number,
+          paymentMethod: transaction.payment_method || 'bakong_khqr',
+          completedAt: new Date().toISOString(),
+          userEmail: userEmail || '',
+          userId: transaction.user_id,
+          transactionId: transaction.transaction_id,
+          promoCode: transaction.promo_code
+        }).catch(tgErr => {
+          console.error('Telegram notification failed:', tgErr)
+        })
       } catch (emailErr) {
-        console.error('Receipt email failed:', emailErr)
+        console.error('Fulfillment notifications failed:', emailErr)
       }
 
       return NextResponse.json({ success: true, status: 'completed' })

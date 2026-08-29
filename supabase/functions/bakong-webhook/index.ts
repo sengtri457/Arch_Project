@@ -253,9 +253,14 @@ serve(async (req) => {
         let itemName = "Your purchase";
         let cta = origin ? `${origin}/dashboard` : "";
         if (dbTx.course_id) {
-          itemName = "Course enrollment";
-        } else if (dbTx.plan_id) {
-          itemName = "Subscription plan";
+          const { data: course } = await supabaseAdmin
+            .from("courses")
+            .select("title")
+            .eq("course_id", dbTx.course_id)
+            .single();
+          itemName = course?.title || "Course enrollment";
+        } else if (dbTx.plan_id && dbTx.subscription_plans) {
+          itemName = `${dbTx.subscription_plans.name || "Subscription"} plan`;
         }
 
         if (resendKey && to) {
@@ -280,8 +285,67 @@ serve(async (req) => {
             }),
           });
         }
+
+        // Send Telegram invoice alert
+        const telegramToken = Deno.env.get("TELEGRAM_TOKEN");
+        const telegramChatId = Deno.env.get("CHAT_ID");
+
+        if (telegramToken && telegramChatId) {
+          try {
+            let formattedDate = dbTx.completed_at || new Date().toISOString();
+            try {
+              const dateObj = new Date(formattedDate);
+              if (!isNaN(dateObj.getTime())) {
+                formattedDate = dateObj.toLocaleString("en-US", {
+                  timeZone: "UTC",
+                  dateStyle: "medium",
+                  timeStyle: "medium"
+                }) + " UTC";
+              }
+            } catch (_) {}
+
+            const invoiceText = `
+<b>🧾 NEW PAYMENT INVOICE (Webhook)</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Item:</b> ${itemName}
+<b>Bill Number:</b> <code>${billNumber}</code>
+<b>Amount:</b> $${Number(dbTx.amount).toFixed(2)} USD
+<b>Promo Code:</b> ${dbTx.promo_code ? `<code>${dbTx.promo_code}</code>` : "None"}
+<b>Payment Method:</b> ${dbTx.payment_method || "bakong_khqr"} (Webhook)
+<b>Completed At:</b> ${formattedDate}
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Customer Information:</b>
+<b>Email:</b> ${to || "N/A"}
+<b>User ID:</b> <code>${dbTx.user_id}</code>
+<b>Transaction ID:</b> <code>${dbTx.transaction_id || dbTx.id}</code>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Status:</b> ✅ SUCCESSFUL / PAID
+`.trim();
+
+            const tgResponse = await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                chat_id: telegramChatId,
+                text: invoiceText,
+                parse_mode: "HTML"
+              })
+            });
+
+            if (!tgResponse.ok) {
+              const tgErrText = await tgResponse.text().catch(() => "");
+              console.error(`Warning: Failed to send Telegram message: ${tgResponse.status} - ${tgErrText}`);
+            } else {
+              console.log(`Telegram invoice notification sent for bill ${billNumber}`);
+            }
+          } catch (tgErr) {
+            console.error("Warning: Error sending Telegram notification:", tgErr);
+          }
+        }
       } catch (emailErr) {
-        console.error(`Warning: Receipt email failed:`, emailErr);
+        console.error(`Warning: Fulfillment notifications failed:`, emailErr);
       }
     }
 

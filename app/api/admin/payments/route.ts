@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail, paymentReceiptEmail } from '@/lib/email'
+import { sendTelegramInvoiceNotification } from '@/lib/telegram'
 
 async function requireAdmin() {
   const cookieStore = await cookies()
@@ -191,8 +192,23 @@ export async function POST(request: Request) {
           })
         })
       }
+
+      // Send Telegram invoice alert
+      await sendTelegramInvoiceNotification({
+        itemName,
+        amount: Number(transaction.amount),
+        billNumber: transaction.bill_number,
+        paymentMethod: (transaction.payment_method || 'bakong_khqr') + ' (Manual Admin Approval)',
+        completedAt: new Date().toISOString(),
+        userEmail: userEmail || '',
+        userId: transaction.user_id,
+        transactionId: transaction.transaction_id,
+        promoCode: transaction.promo_code
+      }).catch(tgErr => {
+        console.error('Telegram notification failed:', tgErr)
+      })
     } catch (emailErr) {
-      console.error('Manual confirmation receipt email failed:', emailErr)
+      console.error('Fulfillment notifications failed:', emailErr)
     }
 
     return NextResponse.json({ success: true, message: 'Transaction manually completed and enrollment activated' })
