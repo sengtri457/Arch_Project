@@ -53,6 +53,8 @@
     "clsx": "^2.1.1",
     "framer-motion": "latest",
     "hls.js": "^1.7.1",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.454.0",
     "meshline": "latest",
     "next": "16.3.3",
@@ -67,7 +69,8 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "three": "0.180.0",
-    "three-stdlib": "latest"
+    "three-stdlib": "latest",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",

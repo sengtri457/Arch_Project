@@ -13,6 +13,7 @@ import Swal from "sweetalert2"
 import { useAdminData } from "@/lib/react-query/hooks/use-admin"
 import { useAddYoutubeVideoMutation, useUpdateYoutubeVideoMutation, useDeleteYoutubeVideoMutation } from "@/lib/react-query/hooks/use-youtube-videos"
 import { YoutubeVideo } from "@/types/youtube-video"
+import { exportCourseToExcel, exportCourseToPDF } from "@/lib/export-utils"
 
 const MySwal = Swal.mixin({
   background: '#060010',
@@ -4157,14 +4158,40 @@ export default function AdminDashboard() {
                                 &times;
                               </button>
 
-                              <div>
-                                <span className="text-xs font-bold text-primary tracking-widest uppercase" style={{ color: '#9ACD32' }}>
-                                  Course Performance details
-                                </span>
-                                <h3 className="text-2xl font-bold text-white mt-1">{activeDetailCourse.title}</h3>
-                                <p className="text-xs text-zinc-500 mt-1">
-                                  {activeDetailCourse.software_used} &bull; Difficulty: <span className="capitalize">{activeDetailCourse.difficulty}</span> &bull; Instructor: {activeDetailCourse.instructor || 'Sambath Bun'}
-                                </p>
+                              <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 pr-8">
+                                <div>
+                                  <span className="text-xs font-bold text-primary tracking-widest uppercase" style={{ color: '#9ACD32' }}>
+                                    Course Performance details
+                                  </span>
+                                  <h3 className="text-2xl font-bold text-white mt-1">{activeDetailCourse.title}</h3>
+                                  <p className="text-xs text-zinc-500 mt-1">
+                                    {activeDetailCourse.software_used} &bull; Difficulty: <span className="capitalize">{activeDetailCourse.difficulty}</span> &bull; Instructor: {activeDetailCourse.instructor || 'Sambath Bun'}
+                                  </p>
+                                </div>
+                                <div className="flex gap-2 self-start md:self-center">
+                                  <Button
+                                    type="button"
+                                    onClick={() => exportCourseToExcel(activeDetailCourse, activeDetailStudents)}
+                                    size="sm"
+                                    className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Export Excel
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    onClick={() => exportCourseToPDF(activeDetailCourse, activeDetailStudents, activeDetailRevenue)}
+                                    size="sm"
+                                    className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Export PDF
+                                  </Button>
+                                </div>
                               </div>
 
                               {/* Performance Widgets */}
