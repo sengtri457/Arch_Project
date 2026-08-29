@@ -275,9 +275,15 @@ export default function AdminDashboard() {
   // Payments / Accounting page states
   const [paymentSearch, setPaymentSearch] = useState("")
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<"all" | "completed" | "pending" | "failed" | "expired">("all")
+  const [paymentCourseFilter, setPaymentCourseFilter] = useState<string>("all")
   const [paymentPage, setPaymentPage] = useState(1)
   const paymentsPerPage = 10
   const [isApprovingTx, setIsApprovingTx] = useState<string | null>(null)
+  const [paymentSubTab, setPaymentSubTab] = useState<"ledger" | "analytics">("ledger")
+  const [selectedCoursePaymentsId, setSelectedCoursePaymentsId] = useState<string | null>(null)
+  const [paymentAnalyticsSort, setPaymentAnalyticsSort] = useState<"students" | "revenue">("students")
+  const [paymentAnalyticsSearch, setPaymentAnalyticsSearch] = useState("")
+  const [paymentsDetailSearch, setPaymentsDetailSearch] = useState("")
 
   const router = useRouter()
   const supabase = createClient()
@@ -3567,10 +3573,13 @@ export default function AdminDashboard() {
                   const completedPayments = payments.filter((p: any) => p.payment_status === "completed")
                   const totalRevenue = completedPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
                   const pendingPaymentsCount = payments.filter((p: any) => p.payment_status === "pending").length
-                  
-                  // Filtered payments by search & status
+
+                  // -----------------------------
+                  // A. LEDGER TAB PREPARATION
+                  // -----------------------------
                   const filteredPayments = payments.filter((p: any) => {
                     if (paymentStatusFilter !== "all" && p.payment_status !== paymentStatusFilter) return false
+                    if (paymentCourseFilter !== "all" && p.course_id !== paymentCourseFilter) return false
                     const studentName = (p.profiles?.full_name || "").toLowerCase()
                     const studentEmail = (p.profiles?.email || "").toLowerCase()
                     const billNo = (p.bill_number || "").toLowerCase()
@@ -3579,11 +3588,9 @@ export default function AdminDashboard() {
                     return true
                   })
 
-                  // Paginate
                   const totalPaymentPages = Math.ceil(filteredPayments.length / paymentsPerPage)
                   const paginatedPayments = filteredPayments.slice((paymentPage - 1) * paymentsPerPage, paymentPage * paymentsPerPage)
 
-                  // Chart calculation
                   const revenueByCourseMap: Record<string, number> = {}
                   completedPayments.forEach((p: any) => {
                     const title = p.courses?.title || p.subscription_plans?.name || "LMS Catalog Access"
@@ -3596,6 +3603,124 @@ export default function AdminDashboard() {
 
                   const COLORS = ['#9ACD32', '#00e5ff', '#a855f7', '#f59e0b', '#ec4899', '#3b82f6', '#10b981']
 
+                  // -----------------------------
+                  // B. ANALYTICS TAB PREPARATION
+                  // -----------------------------
+                  const courseAnalyticsList = courses.map((c: any) => {
+                    const courseId = c.course_id || c.id
+                    const courseEnrollments = enrollments.filter((e: any) => e.course_id === courseId)
+                    const coursePayments = payments.filter((p: any) => p.course_id === courseId && p.payment_status === "completed")
+                    
+                    const rev = coursePayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+                    const paid = coursePayments.length
+                    const manual = Math.max(0, courseEnrollments.length - paid)
+
+                    // Average student progress
+                    let progressSum = 0
+                    let progressCount = 0
+                    const courseLessons = lessons.filter((les: any) => les.course_id === courseId)
+                    const totalLessonsCount = courseLessons.length
+
+                    courseEnrollments.forEach((enroll: any) => {
+                      const completedCount = progressLogs.filter((l: any) => 
+                        l.student_id === enroll.student_id && 
+                        l.course_id === courseId && 
+                        l.is_completed
+                      ).length
+                      const progressPct = totalLessonsCount > 0 ? (completedCount / totalLessonsCount) * 100 : 0
+                      progressSum += progressPct
+                      progressCount++
+                    })
+                    const avgProgress = progressCount > 0 ? progressSum / progressCount : 0
+
+                    return {
+                      ...c,
+                      courseId,
+                      enrollmentCount: courseEnrollments.length,
+                      revenue: rev,
+                      paidCount: paid,
+                      manualCount: manual,
+                      avgProgress
+                    }
+                  })
+
+                  // Filter course analytics list by search query
+                  const filteredAnalytics = courseAnalyticsList.filter((item: any) => {
+                    const title = (item.title || "").toLowerCase()
+                    const software = (item.software_used || "").toLowerCase()
+                    const q = paymentAnalyticsSearch.trim().toLowerCase()
+                    if (q && !title.includes(q) && !software.includes(q)) return false
+                    return true
+                  })
+
+                  // Sort course analytics
+                  const sortedAnalytics = [...filteredAnalytics].sort((a: any, b: any) => {
+                    if (paymentAnalyticsSort === "revenue") {
+                      return b.revenue - a.revenue
+                    }
+                    return b.enrollmentCount - a.enrollmentCount
+                  })
+
+                  // -----------------------------
+                  // C. SELECTED COURSE DETAIL PREPARATION
+                  // -----------------------------
+                  const activeDetailCourse = selectedCoursePaymentsId 
+                    ? courses.find((c: any) => (c.course_id || c.id) === selectedCoursePaymentsId) 
+                    : null
+                  
+                  const activeDetailEnrollments = activeDetailCourse
+                    ? enrollments.filter((e: any) => e.course_id === (activeDetailCourse.course_id || activeDetailCourse.id))
+                    : []
+                  
+                  const activeDetailPayments = activeDetailCourse
+                    ? payments.filter((p: any) => p.course_id === (activeDetailCourse.course_id || activeDetailCourse.id) && p.payment_status === "completed")
+                    : []
+                  
+                  const activeDetailRevenue = activeDetailPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+                  const activeDetailLessons = activeDetailCourse
+                    ? lessons.filter((les: any) => les.course_id === (activeDetailCourse.course_id || activeDetailCourse.id))
+                    : []
+                  
+                  // Map students list for course detail view
+                  const activeDetailStudents = activeDetailEnrollments.map((enroll: any) => {
+                    const studentProfile = profiles.find((p: any) => p.id === enroll.student_id)
+                    const studentPayment = payments.find((p: any) => 
+                      p.user_id === enroll.student_id && 
+                      p.course_id === enroll.course_id && 
+                      p.payment_status === "completed"
+                    )
+                    
+                    const completedCount = progressLogs.filter((l: any) => 
+                      l.student_id === enroll.student_id && 
+                      l.course_id === enroll.course_id && 
+                      l.is_completed
+                    ).length
+                    const totalCount = activeDetailLessons.length
+                    const pct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
+
+                    return {
+                      id: enroll.student_id,
+                      name: studentProfile?.full_name || "Unknown Student",
+                      email: studentProfile?.email || "No Email",
+                      avatar: studentProfile?.avatar_url,
+                      enrollDate: enroll.enrolled_at,
+                      admissionType: studentPayment ? "Paid (KHQR/Stripe)" : "Manual Access",
+                      amountPaid: studentPayment ? Number(studentPayment.amount) : 0,
+                      completedLessons: completedCount,
+                      totalLessons: totalCount,
+                      progressPercent: pct
+                    }
+                  })
+
+                  // Filter active detail student list by search
+                  const filteredDetailStudents = activeDetailStudents.filter((item: any) => {
+                    const name = item.name.toLowerCase()
+                    const email = item.email.toLowerCase()
+                    const q = paymentsDetailSearch.trim().toLowerCase()
+                    if (q && !name.includes(q) && !email.includes(q)) return false
+                    return true
+                  })
+
                   return (
                     <div className="space-y-6">
                       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
@@ -3605,12 +3730,35 @@ export default function AdminDashboard() {
                             Accounting &amp; Payment Ledger
                           </h2>
                           <p className="text-zinc-400 text-sm mt-1">
-                            Audit ledger records, track global revenue, and manually process pending student transactions.
+                            Audit ledger records, track course-level metrics, and manage student course sales.
                           </p>
                         </div>
-                        <span className="text-xs font-semibold bg-zinc-800 text-zinc-300 px-3 py-1.5 rounded-xl self-start sm:self-center">
-                          {payments.length} ledger logs
-                        </span>
+                        
+                        {/* Subtab Switches */}
+                        <div className="flex bg-zinc-900/60 p-1 border border-zinc-800 rounded-xl self-start sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => setPaymentSubTab("ledger")}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                              paymentSubTab === "ledger"
+                                ? "bg-[#9ACD32] text-black shadow"
+                                : "text-zinc-400 hover:text-white"
+                            }`}
+                          >
+                            Ledger Logs
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentSubTab("analytics")}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                              paymentSubTab === "analytics"
+                                ? "bg-[#9ACD32] text-black shadow"
+                                : "text-zinc-400 hover:text-white"
+                            }`}
+                          >
+                            Course Analytics
+                          </button>
+                        </div>
                       </div>
 
                       {/* Stat Cards */}
@@ -3633,218 +3781,520 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      {/* Revenue Chart Section */}
-                      {revenueChartData.length > 0 && (
-                        <div className="bg-zinc-900/20 border border-zinc-850 p-6 rounded-2xl space-y-4">
-                          <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Revenue Distribution by Item</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                            <div className="h-64 flex justify-center items-center">
-                              <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                  <Pie
-                                    data={revenueChartData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                  >
-                                    {revenueChartData.map((entry, index) => (
-                                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                  </Pie>
-                                  <Tooltip 
-                                    contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '12px' }}
-                                    itemStyle={{ color: '#fff' }}
-                                    formatter={(value: any) => [`$${Number(value).toFixed(2)}`, 'Revenue']}
-                                  />
-                                </PieChart>
-                              </ResponsiveContainer>
+                      {/* Render subtab: LEDGER LOGS */}
+                      {paymentSubTab === "ledger" && (
+                        <div className="space-y-6">
+                          {/* Revenue Chart Section */}
+                          {revenueChartData.length > 0 && (
+                            <div className="bg-zinc-900/20 border border-zinc-850 p-6 rounded-2xl space-y-4">
+                              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Revenue Distribution by Item</h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                                <div className="h-64 flex justify-center items-center">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                      <Pie
+                                        data={revenueChartData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                      >
+                                        {revenueChartData.map((entry, index) => (
+                                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                      </Pie>
+                                      <Tooltip 
+                                        contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '12px' }}
+                                        itemStyle={{ color: '#fff' }}
+                                        formatter={(value: any) => [`$${Number(value).toFixed(2)}`, 'Revenue']}
+                                      />
+                                    </PieChart>
+                                  </ResponsiveContainer>
+                                </div>
+                                <div className="space-y-3">
+                                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Share breakdown</h4>
+                                  <div className="space-y-2 max-h-52 overflow-y-auto pr-2 custom-scrollbar">
+                                    {revenueChartData.map((item, idx) => {
+                                      const pct = (item.value / totalRevenue) * 100
+                                      return (
+                                        <div key={item.name} className="flex items-center justify-between text-sm">
+                                          <div className="flex items-center gap-2 text-zinc-300 truncate max-w-xs">
+                                            <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                                            <span className="truncate">{item.name}</span>
+                                          </div>
+                                          <span className="font-semibold text-white whitespace-nowrap">
+                                            ${item.value.toFixed(2)} ({pct.toFixed(1)}%)
+                                          </span>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                            <div className="space-y-3">
-                              <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Share breakdown</h4>
-                              <div className="space-y-2 max-h-52 overflow-y-auto pr-2 custom-scrollbar">
-                                {revenueChartData.map((item, idx) => {
-                                  const pct = (item.value / totalRevenue) * 100
-                                  return (
-                                    <div key={item.name} className="flex items-center justify-between text-sm">
-                                      <div className="flex items-center gap-2 text-zinc-300 truncate max-w-xs">
-                                        <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                                        <span className="truncate">{item.name}</span>
-                                      </div>
-                                      <span className="font-semibold text-white whitespace-nowrap">
-                                        ${item.value.toFixed(2)} ({pct.toFixed(1)}%)
-                                      </span>
-                                    </div>
-                                  )
-                                })}
+                          )}
+
+                          {/* Filters and Search */}
+                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-zinc-900/10 p-4 border border-zinc-850 rounded-xl">
+                            <div className="sm:col-span-2">
+                              <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Search student, email, or bill #</label>
+                              <input 
+                                type="text"
+                                value={paymentSearch}
+                                onChange={(e) => {
+                                  setPaymentSearch(e.target.value)
+                                  setPaymentPage(1)
+                                }}
+                                placeholder="Search by student name, email, or BILL-xxxx..."
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-zinc-700"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Filter by Course</label>
+                              <select
+                                value={paymentCourseFilter}
+                                onChange={(e) => {
+                                  setPaymentCourseFilter(e.target.value)
+                                  setPaymentPage(1)
+                                }}
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-zinc-700 font-sans"
+                              >
+                                <option value="all">All Courses</option>
+                                {courses.map((c: any) => (
+                                  <option key={c.course_id || c.id} value={c.course_id || c.id}>
+                                    {c.title}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Payment Status</label>
+                              <select
+                                value={paymentStatusFilter}
+                                onChange={(e: any) => {
+                                  setPaymentStatusFilter(e.target.value)
+                                  setPaymentPage(1)
+                                }}
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-zinc-700"
+                              >
+                                <option value="all">All Transactions</option>
+                                <option value="completed">Completed</option>
+                                <option value="pending">Pending</option>
+                                <option value="failed">Failed</option>
+                                <option value="expired">Expired</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Ledgers table */}
+                          <div className="overflow-x-auto border border-zinc-850 rounded-xl">
+                            <table className="w-full text-left border-collapse text-sm">
+                              <thead>
+                                <tr className="bg-zinc-900/60 border-b border-zinc-850 text-zinc-400 font-semibold uppercase text-xs">
+                                  <th className="p-4">Student</th>
+                                  <th className="p-4">Item Paid For</th>
+                                  <th className="p-4">Bill Number</th>
+                                  <th className="p-4">Amount</th>
+                                  <th className="p-4">Method</th>
+                                  <th className="p-4">Date</th>
+                                  <th className="p-4">Status</th>
+                                  <th className="p-4 text-right">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-zinc-900">
+                                {paginatedPayments.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={8} className="p-8 text-center text-zinc-500">
+                                      No transaction matching filters found.
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  paginatedPayments.map((p: any) => {
+                                    const studentName = p.profiles?.full_name || "Unknown Student"
+                                    const studentEmail = p.profiles?.email || ""
+                                    const studentAvatar = p.profiles?.avatar_url
+                                    const itemName = p.courses?.title || p.subscription_plans?.name || "LMS Catalog Access"
+                                    const courseId = p.course_id
+                                    return (
+                                      <tr key={p.transaction_id} className="hover:bg-zinc-900/10 text-zinc-300">
+                                        <td className="p-4">
+                                          <div className="flex items-center gap-2.5">
+                                            {studentAvatar ? (
+                                              <img src={studentAvatar} alt="" className="w-7 h-7 rounded-full" />
+                                            ) : (
+                                              <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400">
+                                                {studentName.charAt(0).toUpperCase()}
+                                              </div>
+                                            )}
+                                            <div className="truncate max-w-[150px]">
+                                              <p className="font-semibold text-white truncate">{studentName}</p>
+                                              <p className="text-[10px] text-zinc-500 truncate">{studentEmail}</p>
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td className="p-4 font-medium text-zinc-200 max-w-[160px] truncate">
+                                          {courseId ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => setSelectedCoursePaymentsId(courseId)}
+                                              className="hover:underline text-left hover:text-[#9ACD32] transition-colors truncate block w-full cursor-pointer"
+                                              title="Click to view analytics"
+                                            >
+                                              {itemName}
+                                            </button>
+                                          ) : (
+                                            <span title={itemName}>{itemName}</span>
+                                          )}
+                                        </td>
+                                        <td className="p-4 font-mono text-[11px] text-zinc-400 whitespace-nowrap">
+                                          {p.bill_number}
+                                        </td>
+                                        <td className="p-4 font-semibold text-white whitespace-nowrap">
+                                          ${Number(p.amount).toFixed(2)}
+                                        </td>
+                                        <td className="p-4 text-xs text-zinc-400 capitalize">
+                                          {p.payment_method?.replace(/_/g, ' ') || 'N/A'}
+                                        </td>
+                                        <td className="p-4 text-xs text-zinc-500 whitespace-nowrap">
+                                          {p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A'}
+                                        </td>
+                                        <td className="p-4">
+                                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                            p.payment_status === 'completed'
+                                              ? 'bg-green-950/20 text-green-400 border-green-900/30'
+                                              : p.payment_status === 'pending'
+                                                ? 'bg-amber-950/20 text-amber-400 border-amber-900/30 animate-pulse'
+                                                : 'bg-zinc-850 text-zinc-400 border-zinc-800'
+                                          }`}>
+                                            {p.payment_status}
+                                          </span>
+                                        </td>
+                                        <td className="p-4 text-right">
+                                          {p.payment_status === 'pending' ? (
+                                            <Button
+                                              onClick={() => handleManualCompletePayment(p.transaction_id, studentName, p.amount)}
+                                              disabled={isApprovingTx === p.transaction_id}
+                                              size="sm"
+                                              className="bg-primary hover:bg-primary/90 text-black text-[11px] font-bold py-1 px-2.5 rounded-lg transition-all"
+                                              style={{ backgroundColor: '#9ACD32', color: '#000' }}
+                                            >
+                                              {isApprovingTx === p.transaction_id ? (
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                              ) : (
+                                                'Approve'
+                                              )}
+                                            </Button>
+                                          ) : (
+                                            <span className="text-[11px] text-zinc-500 font-medium italic">Settled</span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    )
+                                  })
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Pagination Controls */}
+                          {totalPaymentPages > 1 && (
+                            <div className="flex items-center justify-between pt-2">
+                              <p className="text-xs text-zinc-500">
+                                Showing page {paymentPage} of {totalPaymentPages} ({filteredPayments.length} results)
+                              </p>
+                              <div className="flex gap-2">
+                                <Button
+                                  disabled={paymentPage === 1}
+                                  onClick={() => setPaymentPage(p => p - 1)}
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-zinc-800 text-xs hover:bg-zinc-900 text-zinc-300"
+                                >
+                                  <ChevronLeft className="w-4 h-4" /> Previous
+                                </Button>
+                                <Button
+                                  disabled={paymentPage === totalPaymentPages}
+                                  onClick={() => setPaymentPage(p => p + 1)}
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-zinc-800 text-xs hover:bg-zinc-900 text-zinc-300"
+                                >
+                                  Next <ChevronRight className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Render subtab: COURSE PERFORMANCE ANALYTICS */}
+                      {paymentSubTab === "analytics" && (
+                        <div className="space-y-6">
+                          {/* Sorter and Search */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-zinc-900/10 p-4 border border-zinc-850 rounded-xl">
+                            <div className="sm:col-span-2">
+                              <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Search Course Title or Software</label>
+                              <input 
+                                type="text"
+                                value={paymentAnalyticsSearch}
+                                onChange={(e) => setPaymentAnalyticsSearch(e.target.value)}
+                                placeholder="Search by course title, SketchUp, Photoshop..."
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-zinc-700"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Sort Leaderboard By</label>
+                              <select
+                                value={paymentAnalyticsSort}
+                                onChange={(e: any) => setPaymentAnalyticsSort(e.target.value)}
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-zinc-700"
+                              >
+                                <option value="students">Popularity (Students Enrolled)</option>
+                                <option value="revenue">Financial Revenue Generated</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Leaderboard Table */}
+                          <div className="overflow-x-auto border border-zinc-850 rounded-xl font-sans">
+                            <table className="w-full text-left border-collapse text-sm">
+                              <thead>
+                                <tr className="bg-zinc-900/60 border-b border-zinc-850 text-zinc-400 font-semibold uppercase text-xs">
+                                  <th className="p-4">Course</th>
+                                  <th className="p-4">Difficulty</th>
+                                  <th className="p-4">Software Used</th>
+                                  <th className="p-4">Price</th>
+                                  <th className="p-4">Total Revenue</th>
+                                  <th className="p-4">Total Students</th>
+                                  <th className="p-4">Paid Ratio</th>
+                                  <th className="p-4 text-right">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-zinc-900">
+                                {sortedAnalytics.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={8} className="p-8 text-center text-zinc-500">
+                                      No courses matched search query.
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  sortedAnalytics.map((c: any) => {
+                                    const pctPaid = c.enrollmentCount > 0 ? (c.paidCount / c.enrollmentCount) * 100 : 0
+                                    return (
+                                      <tr key={c.courseId} className="hover:bg-zinc-900/10 text-zinc-300">
+                                        <td className="p-4">
+                                          <button
+                                            type="button"
+                                            onClick={() => setSelectedCoursePaymentsId(c.courseId)}
+                                            className="font-bold text-white hover:underline text-left hover:text-[#9ACD32] cursor-pointer"
+                                          >
+                                            {c.title}
+                                          </button>
+                                        </td>
+                                        <td className="p-4">
+                                          <span className="capitalize text-xs px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded-full border border-zinc-700">
+                                            {c.difficulty || 'All'}
+                                          </span>
+                                        </td>
+                                        <td className="p-4 text-xs text-zinc-400 max-w-[130px] truncate" title={c.software_used}>
+                                          {c.software_used || 'General'}
+                                        </td>
+                                        <td className="p-4 font-mono text-zinc-300 font-medium">
+                                          ${c.price ? Number(c.price).toFixed(2) : '49.99'}
+                                        </td>
+                                        <td className="p-4 font-bold text-white whitespace-nowrap">
+                                          ${c.revenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="p-4 font-semibold text-white">
+                                          {c.enrollmentCount}
+                                        </td>
+                                        <td className="p-4 text-xs text-zinc-400 whitespace-nowrap">
+                                          {c.paidCount} / {c.enrollmentCount} ({pctPaid.toFixed(0)}%)
+                                        </td>
+                                        <td className="p-4 text-right">
+                                          <Button
+                                            onClick={() => setSelectedCoursePaymentsId(c.courseId)}
+                                            size="sm"
+                                            variant="outline"
+                                            className="border-zinc-855 text-xs text-zinc-300 hover:text-white"
+                                          >
+                                            View Analytics
+                                          </Button>
+                                        </td>
+                                      </tr>
+                                    )
+                                  })
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* -----------------------------
+                          COURSE DETAILS OVERLAY MODAL
+                          ----------------------------- */}
+                      {selectedCoursePaymentsId && activeDetailCourse && (() => {
+                        const totalLessonsCount = activeDetailLessons.length
+                        const avgProgressSum = activeDetailStudents.reduce((sum, s) => sum + s.progressPercent, 0)
+                        const avgProgress = activeDetailStudents.length > 0 ? avgProgressSum / activeDetailStudents.length : 0
+
+                        return (
+                          <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                            <div className="bg-zinc-900 border border-zinc-800 p-6 sm:p-8 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto space-y-6 custom-scrollbar text-zinc-300 shadow-2xl relative font-sans">
+                              
+                              {/* Close Button */}
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCoursePaymentsId(null)
+                                  setPaymentsDetailSearch("")
+                                }}
+                                className="absolute top-4 right-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer text-xl font-bold"
+                              >
+                                &times;
+                              </button>
+
+                              <div>
+                                <span className="text-xs font-bold text-primary tracking-widest uppercase" style={{ color: '#9ACD32' }}>
+                                  Course Performance details
+                                </span>
+                                <h3 className="text-2xl font-bold text-white mt-1">{activeDetailCourse.title}</h3>
+                                <p className="text-xs text-zinc-500 mt-1">
+                                  {activeDetailCourse.software_used} &bull; Difficulty: <span className="capitalize">{activeDetailCourse.difficulty}</span> &bull; Instructor: {activeDetailCourse.instructor || 'Sambath Bun'}
+                                </p>
+                              </div>
+
+                              {/* Performance Widgets */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                <div className="bg-zinc-950 p-4 border border-zinc-850 rounded-2xl">
+                                  <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Total Revenue</p>
+                                  <p className="text-xl font-bold text-white mt-1" style={{ color: '#9ACD32' }}>
+                                    ${activeDetailRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </p>
+                                </div>
+                                <div className="bg-zinc-950 p-4 border border-zinc-850 rounded-2xl">
+                                  <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Total Enrolled</p>
+                                  <p className="text-xl font-bold text-white mt-1">{activeDetailEnrollments.length}</p>
+                                </div>
+                                <div className="bg-zinc-950 p-4 border border-zinc-850 rounded-2xl">
+                                  <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Paid vs Manual</p>
+                                  <p className="text-xl font-bold text-white mt-1 text-sm">
+                                    {activeDetailPayments.length} Paid / {Math.max(0, activeDetailEnrollments.length - activeDetailPayments.length)} Free
+                                  </p>
+                                </div>
+                                <div className="bg-zinc-950 p-4 border border-zinc-850 rounded-2xl">
+                                  <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Average Progress</p>
+                                  <p className="text-xl font-bold text-white mt-1">{avgProgress.toFixed(0)}%</p>
+                                </div>
+                              </div>
+
+                              {/* Student List Filters */}
+                              <div className="space-y-4">
+                                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                                  <h4 className="text-sm font-bold text-white uppercase tracking-wider">Student Roster ({filteredDetailStudents.length})</h4>
+                                  <input
+                                    type="text"
+                                    value={paymentsDetailSearch}
+                                    onChange={(e) => setPaymentsDetailSearch(e.target.value)}
+                                    placeholder="Search by student name or email..."
+                                    className="bg-zinc-955 border border-zinc-800 rounded-xl px-4 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-705 w-full sm:w-64"
+                                  />
+                                </div>
+
+                                {/* Student list table */}
+                                <div className="overflow-x-auto border border-zinc-850 rounded-xl">
+                                  <table className="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                      <tr className="bg-zinc-950 border-b border-zinc-850 text-zinc-400 font-semibold uppercase text-[10px]">
+                                        <th className="p-3">Student</th>
+                                        <th className="p-3">Admission Type</th>
+                                        <th className="p-3">Amount Paid</th>
+                                        <th className="p-3">Enrollment Date</th>
+                                        <th className="p-3">Progress Completed</th>
+                                        <th className="p-3 text-right">Progress %</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-zinc-955 bg-zinc-900/20">
+                                      {filteredDetailStudents.length === 0 ? (
+                                        <tr>
+                                          <td colSpan={6} className="p-8 text-center text-zinc-500">
+                                            No students found enrolled in this course matching filters.
+                                          </td>
+                                        </tr>
+                                      ) : (
+                                        filteredDetailStudents.map((stud: any) => (
+                                          <tr key={stud.id} className="hover:bg-zinc-950/40 text-zinc-300">
+                                            <td className="p-3">
+                                              <div className="flex items-center gap-2">
+                                                {stud.avatar ? (
+                                                  <img src={stud.avatar} alt="" className="w-6 h-6 rounded-full" />
+                                                ) : (
+                                                  <div className="w-6 h-6 rounded-full bg-zinc-850 flex items-center justify-center text-[10px] font-bold text-zinc-400">
+                                                    {stud.name.charAt(0).toUpperCase()}
+                                                  </div>
+                                                )}
+                                                <div>
+                                                  <p className="font-semibold text-white">{stud.name}</p>
+                                                  <p className="text-[10px] text-zinc-500">{stud.email}</p>
+                                                </div>
+                                              </div>
+                                            </td>
+                                            <td className="p-3">
+                                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold border ${
+                                                stud.admissionType === 'Paid (KHQR/Stripe)'
+                                                  ? 'bg-green-950/20 text-green-400 border-green-900/30'
+                                                  : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                                              }`}>
+                                                {stud.admissionType}
+                                              </span>
+                                            </td>
+                                            <td className="p-3 font-semibold text-white">
+                                              ${stud.amountPaid.toFixed(2)}
+                                            </td>
+                                            <td className="p-3 text-zinc-550">
+                                              {stud.enrollDate ? new Date(stud.enrollDate).toLocaleDateString() : 'N/A'}
+                                            </td>
+                                            <td className="p-3 text-zinc-400 font-medium">
+                                              {stud.completedLessons} / {stud.totalLessons} modules
+                                            </td>
+                                            <td className="p-3 text-right">
+                                              <div className="flex items-center justify-end gap-2">
+                                                <div className="w-16 bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                                                  <div 
+                                                    className="bg-primary h-full" 
+                                                    style={{ width: `${stud.progressPercent}%`, backgroundColor: '#9ACD32' }} 
+                                                  />
+                                                </div>
+                                                <span className="font-mono text-zinc-200 font-bold whitespace-nowrap">{stud.progressPercent.toFixed(0)}%</span>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        ))
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end pt-2 border-t border-zinc-850">
+                                <Button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCoursePaymentsId(null)
+                                    setPaymentsDetailSearch("")
+                                  }}
+                                  className="bg-zinc-850 hover:bg-zinc-800 text-white font-semibold px-6 rounded-xl cursor-pointer"
+                                >
+                                  Close
+                                </Button>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Filters and Search */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-zinc-900/10 p-4 border border-zinc-850 rounded-xl">
-                        <div className="sm:col-span-2">
-                          <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Search student, email, or bill #</label>
-                          <input 
-                            type="text"
-                            value={paymentSearch}
-                            onChange={(e) => {
-                              setPaymentSearch(e.target.value)
-                              setPaymentPage(1)
-                            }}
-                            placeholder="Search by student name, email, or BILL-xxxx..."
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-zinc-700"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Payment Status</label>
-                          <select
-                            value={paymentStatusFilter}
-                            onChange={(e: any) => {
-                              setPaymentStatusFilter(e.target.value)
-                              setPaymentPage(1)
-                            }}
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-zinc-700"
-                          >
-                            <option value="all">All Transactions</option>
-                            <option value="completed">Completed</option>
-                            <option value="pending">Pending</option>
-                            <option value="failed">Failed</option>
-                            <option value="expired">Expired</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Ledgers table */}
-                      <div className="overflow-x-auto border border-zinc-850 rounded-xl">
-                        <table className="w-full text-left border-collapse text-sm">
-                          <thead>
-                            <tr className="bg-zinc-900/60 border-b border-zinc-850 text-zinc-400 font-semibold uppercase text-xs">
-                              <th className="p-4">Student</th>
-                              <th className="p-4">Item Paid For</th>
-                              <th className="p-4">Bill Number</th>
-                              <th className="p-4">Amount</th>
-                              <th className="p-4">Method</th>
-                              <th className="p-4">Date</th>
-                              <th className="p-4">Status</th>
-                              <th className="p-4 text-right">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-zinc-900">
-                            {paginatedPayments.length === 0 ? (
-                              <tr>
-                                <td colSpan={8} className="p-8 text-center text-zinc-500">
-                                  No transaction matching filters found.
-                                </td>
-                              </tr>
-                            ) : (
-                              paginatedPayments.map((p: any) => {
-                                const studentName = p.profiles?.full_name || "Unknown Student"
-                                const studentEmail = p.profiles?.email || ""
-                                const studentAvatar = p.profiles?.avatar_url
-                                const itemName = p.courses?.title || p.subscription_plans?.name || "LMS Catalog Access"
-                                return (
-                                  <tr key={p.transaction_id} className="hover:bg-zinc-900/10 text-zinc-300">
-                                    <td className="p-4">
-                                      <div className="flex items-center gap-2.5">
-                                        {studentAvatar ? (
-                                          <img src={studentAvatar} alt="" className="w-7 h-7 rounded-full" />
-                                        ) : (
-                                          <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400">
-                                            {studentName.charAt(0).toUpperCase()}
-                                          </div>
-                                        )}
-                                        <div className="truncate max-w-[150px]">
-                                          <p className="font-semibold text-white truncate">{studentName}</p>
-                                          <p className="text-[10px] text-zinc-500 truncate">{studentEmail}</p>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td className="p-4 font-medium text-zinc-200 max-w-[160px] truncate" title={itemName}>
-                                      {itemName}
-                                    </td>
-                                    <td className="p-4 font-mono text-[11px] text-zinc-400 whitespace-nowrap">
-                                      {p.bill_number}
-                                    </td>
-                                    <td className="p-4 font-semibold text-white whitespace-nowrap">
-                                      ${Number(p.amount).toFixed(2)}
-                                    </td>
-                                    <td className="p-4 text-xs text-zinc-400 capitalize">
-                                      {p.payment_method?.replace(/_/g, ' ') || 'N/A'}
-                                    </td>
-                                    <td className="p-4 text-xs text-zinc-500 whitespace-nowrap">
-                                      {p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A'}
-                                    </td>
-                                    <td className="p-4">
-                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                                        p.payment_status === 'completed'
-                                          ? 'bg-green-950/20 text-green-400 border-green-900/30'
-                                          : p.payment_status === 'pending'
-                                            ? 'bg-amber-950/20 text-amber-400 border-amber-900/30 animate-pulse'
-                                            : 'bg-zinc-850 text-zinc-400 border-zinc-800'
-                                      }`}>
-                                        {p.payment_status}
-                                      </span>
-                                    </td>
-                                    <td className="p-4 text-right">
-                                      {p.payment_status === 'pending' ? (
-                                        <Button
-                                          onClick={() => handleManualCompletePayment(p.transaction_id, studentName, p.amount)}
-                                          disabled={isApprovingTx === p.transaction_id}
-                                          size="sm"
-                                          className="bg-primary hover:bg-primary/90 text-black text-[11px] font-bold py-1 px-2.5 rounded-lg transition-all"
-                                          style={{ backgroundColor: '#9ACD32', color: '#000' }}
-                                        >
-                                          {isApprovingTx === p.transaction_id ? (
-                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                          ) : (
-                                            'Approve'
-                                          )}
-                                        </Button>
-                                      ) : (
-                                        <span className="text-[11px] text-zinc-500 font-medium italic">Settled</span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                )
-                              })
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {/* Pagination Controls */}
-                      {totalPaymentPages > 1 && (
-                        <div className="flex items-center justify-between pt-2">
-                          <p className="text-xs text-zinc-500">
-                            Showing page {paymentPage} of {totalPaymentPages} ({filteredPayments.length} results)
-                          </p>
-                          <div className="flex gap-2">
-                            <Button
-                              disabled={paymentPage === 1}
-                              onClick={() => setPaymentPage(p => p - 1)}
-                              size="sm"
-                              variant="outline"
-                              className="border-zinc-800 text-xs hover:bg-zinc-900 text-zinc-300"
-                            >
-                              <ChevronLeft className="w-4 h-4" /> Previous
-                            </Button>
-                            <Button
-                              disabled={paymentPage === totalPaymentPages}
-                              onClick={() => setPaymentPage(p => p + 1)}
-                              size="sm"
-                              variant="outline"
-                              className="border-zinc-800 text-xs hover:bg-zinc-900 text-zinc-300"
-                            >
-                              Next <ChevronRight className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+                        )
+                      })()}
                     </div>
                   )
                 })()}
