@@ -84,7 +84,9 @@ import {
   Check,
   Star,
   Sparkles,
-  Play
+  Play,
+  CreditCard,
+  DollarSign
 } from "lucide-react"
 import {
   BarChart,
@@ -102,7 +104,7 @@ import {
   Cell
 } from "recharts"
 
-type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "testimonials" | "users" | "manual_access" | "student-showcase" | "media"
+type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "testimonials" | "users" | "manual_access" | "student-showcase" | "media" | "payments"
 
 function generateLessonAssetFileName(originalName: string): string {
   const sanitizedName = originalName.replace(/[^a-zA-Z0-9.-]/g, '_')
@@ -134,12 +136,13 @@ export default function AdminDashboard() {
   const pendingEnrollments = adminData.pendingEnrollments as any[]
   const studentWork = (adminData as any).studentWork as any[]
   const youtubeVideos = (adminData as any).youtubeVideos as YoutubeVideo[]
+  const payments = (adminData as any).payments as any[]
   const loadingData = adminData.isLoading
   const invalidateAll = adminData.invalidateAll
 
   useEffect(() => {
     const tabParam = new URLSearchParams(window.location.search).get("tab")
-    const validTabs: AdminTab[] = ["overview", "analytics", "courses", "projects", "submissions", "crm", "plans", "promos", "testimonials", "inquiries", "users", "manual_access", "student-showcase", "media"]
+    const validTabs: AdminTab[] = ["overview", "analytics", "courses", "projects", "submissions", "crm", "plans", "promos", "testimonials", "inquiries", "users", "manual_access", "student-showcase", "media", "payments"]
     if (tabParam && validTabs.includes(tabParam as AdminTab)) {
       setActiveTab(tabParam as AdminTab)
     }
@@ -269,6 +272,13 @@ export default function AdminDashboard() {
   const [manualAccessCourseId, setManualAccessCourseId] = useState("")
   const [isSavingManualAccess, setIsSavingManualAccess] = useState(false)
 
+  // Payments / Accounting page states
+  const [paymentSearch, setPaymentSearch] = useState("")
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<"all" | "completed" | "pending" | "failed" | "expired">("all")
+  const [paymentPage, setPaymentPage] = useState(1)
+  const paymentsPerPage = 10
+  const [isApprovingTx, setIsApprovingTx] = useState<string | null>(null)
+
   const router = useRouter()
   const supabase = createClient()
 
@@ -367,6 +377,41 @@ export default function AdminDashboard() {
       MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to grant course access: ${err.message}` })
     } finally {
       setIsSavingManualAccess(false)
+    }
+  }
+
+  // Manual accountant action: complete pending payment transaction and trigger enrollment
+  const handleManualCompletePayment = async (txId: string, studentName: string, amount: number) => {
+    const result = await MySwal.fire({
+      title: 'Approve Payment Manually?',
+      text: `Are you sure you want to approve the pending payment of $${amount.toFixed(2)} USD from ${studentName}? This will activate their course enrollment or subscription.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Approve',
+      cancelButtonText: 'No, Cancel'
+    })
+
+    if (!result.isConfirmed) return
+
+    try {
+      setIsApprovingTx(txId)
+      const response = await fetch('/api/admin/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactionId: txId })
+      })
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}))
+        throw new Error(errJson.error || 'Server returned error')
+      }
+
+      invalidateAll()
+      MySwal.fire({ icon: 'success', title: 'Payment Approved!', text: 'Transaction completed and student enrolled.' })
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Approval Failed', text: `Failed to approve payment: ${err.message}` })
+    } finally {
+      setIsApprovingTx(null)
     }
   }
 
@@ -1633,6 +1678,28 @@ export default function AdminDashboard() {
                 >
                   <Lock className="w-4 h-4" />
                   {!sidebarCollapsed && <span>Manual Access</span>}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("payments")}
+                  title="Payments & Accounting"
+                  className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center justify-between transition-all duration-300 ${
+                    activeTab === "payments"
+                      ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10"
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <DollarSign className="w-4 h-4" />
+                    {!sidebarCollapsed && <span>Accounting</span>}
+                  </span>
+                  {!sidebarCollapsed && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      activeTab === "payments" ? "bg-black/20 text-black" : "bg-zinc-800 text-zinc-400"
+                    }`}>
+                      {payments.length}
+                    </span>
+                  )}
                 </button>
               </div>
             </div>
@@ -3494,6 +3561,293 @@ export default function AdminDashboard() {
                     )}
                   </div>
                 )}
+
+                {/* 15. PAYMENTS / ACCOUNTANT TAB */}
+                {activeTab === "payments" && (() => {
+                  const completedPayments = payments.filter((p: any) => p.payment_status === "completed")
+                  const totalRevenue = completedPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+                  const pendingPaymentsCount = payments.filter((p: any) => p.payment_status === "pending").length
+                  
+                  // Filtered payments by search & status
+                  const filteredPayments = payments.filter((p: any) => {
+                    if (paymentStatusFilter !== "all" && p.payment_status !== paymentStatusFilter) return false
+                    const studentName = (p.profiles?.full_name || "").toLowerCase()
+                    const studentEmail = (p.profiles?.email || "").toLowerCase()
+                    const billNo = (p.bill_number || "").toLowerCase()
+                    const q = paymentSearch.trim().toLowerCase()
+                    if (q && !studentName.includes(q) && !studentEmail.includes(q) && !billNo.includes(q)) return false
+                    return true
+                  })
+
+                  // Paginate
+                  const totalPaymentPages = Math.ceil(filteredPayments.length / paymentsPerPage)
+                  const paginatedPayments = filteredPayments.slice((paymentPage - 1) * paymentsPerPage, paymentPage * paymentsPerPage)
+
+                  // Chart calculation
+                  const revenueByCourseMap: Record<string, number> = {}
+                  completedPayments.forEach((p: any) => {
+                    const title = p.courses?.title || p.subscription_plans?.name || "LMS Catalog Access"
+                    revenueByCourseMap[title] = (revenueByCourseMap[title] || 0) + Number(p.amount)
+                  })
+                  const revenueChartData = Object.entries(revenueByCourseMap).map(([name, value]) => ({
+                    name,
+                    value: Math.round(value * 100) / 100
+                  }))
+
+                  const COLORS = ['#9ACD32', '#00e5ff', '#a855f7', '#f59e0b', '#ec4899', '#3b82f6', '#10b981']
+
+                  return (
+                    <div className="space-y-6">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                        <div>
+                          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                            <DollarSign className="w-6 h-6 text-primary" style={{ color: '#9ACD32' }} />
+                            Accounting &amp; Payment Ledger
+                          </h2>
+                          <p className="text-zinc-400 text-sm mt-1">
+                            Audit ledger records, track global revenue, and manually process pending student transactions.
+                          </p>
+                        </div>
+                        <span className="text-xs font-semibold bg-zinc-800 text-zinc-300 px-3 py-1.5 rounded-xl self-start sm:self-center">
+                          {payments.length} ledger logs
+                        </span>
+                      </div>
+
+                      {/* Stat Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                        <div className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-xl">
+                          <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Total Audited Revenue</p>
+                          <p className="text-3xl font-bold text-white mt-2" style={{ color: '#9ACD32' }}>
+                            ${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                        
+                        <div className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-xl">
+                          <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Successful Receipts</p>
+                          <p className="text-3xl font-bold text-white mt-2">{completedPayments.length}</p>
+                        </div>
+                        
+                        <div className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-xl">
+                          <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Pending Approvals</p>
+                          <p className="text-3xl font-bold text-amber-400 mt-2">{pendingPaymentsCount}</p>
+                        </div>
+                      </div>
+
+                      {/* Revenue Chart Section */}
+                      {revenueChartData.length > 0 && (
+                        <div className="bg-zinc-900/20 border border-zinc-850 p-6 rounded-2xl space-y-4">
+                          <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Revenue Distribution by Item</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                            <div className="h-64 flex justify-center items-center">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                  <Pie
+                                    data={revenueChartData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                  >
+                                    {revenueChartData.map((entry, index) => (
+                                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                  </Pie>
+                                  <Tooltip 
+                                    contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '12px' }}
+                                    itemStyle={{ color: '#fff' }}
+                                    formatter={(value: any) => [`$${Number(value).toFixed(2)}`, 'Revenue']}
+                                  />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            </div>
+                            <div className="space-y-3">
+                              <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Share breakdown</h4>
+                              <div className="space-y-2 max-h-52 overflow-y-auto pr-2 custom-scrollbar">
+                                {revenueChartData.map((item, idx) => {
+                                  const pct = (item.value / totalRevenue) * 100
+                                  return (
+                                    <div key={item.name} className="flex items-center justify-between text-sm">
+                                      <div className="flex items-center gap-2 text-zinc-300 truncate max-w-xs">
+                                        <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                                        <span className="truncate">{item.name}</span>
+                                      </div>
+                                      <span className="font-semibold text-white whitespace-nowrap">
+                                        ${item.value.toFixed(2)} ({pct.toFixed(1)}%)
+                                      </span>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Filters and Search */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-zinc-900/10 p-4 border border-zinc-850 rounded-xl">
+                        <div className="sm:col-span-2">
+                          <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Search student, email, or bill #</label>
+                          <input 
+                            type="text"
+                            value={paymentSearch}
+                            onChange={(e) => {
+                              setPaymentSearch(e.target.value)
+                              setPaymentPage(1)
+                            }}
+                            placeholder="Search by student name, email, or BILL-xxxx..."
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-zinc-700"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Payment Status</label>
+                          <select
+                            value={paymentStatusFilter}
+                            onChange={(e: any) => {
+                              setPaymentStatusFilter(e.target.value)
+                              setPaymentPage(1)
+                            }}
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-zinc-700"
+                          >
+                            <option value="all">All Transactions</option>
+                            <option value="completed">Completed</option>
+                            <option value="pending">Pending</option>
+                            <option value="failed">Failed</option>
+                            <option value="expired">Expired</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Ledgers table */}
+                      <div className="overflow-x-auto border border-zinc-850 rounded-xl">
+                        <table className="w-full text-left border-collapse text-sm">
+                          <thead>
+                            <tr className="bg-zinc-900/60 border-b border-zinc-850 text-zinc-400 font-semibold uppercase text-xs">
+                              <th className="p-4">Student</th>
+                              <th className="p-4">Item Paid For</th>
+                              <th className="p-4">Bill Number</th>
+                              <th className="p-4">Amount</th>
+                              <th className="p-4">Method</th>
+                              <th className="p-4">Date</th>
+                              <th className="p-4">Status</th>
+                              <th className="p-4 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-900">
+                            {paginatedPayments.length === 0 ? (
+                              <tr>
+                                <td colSpan={8} className="p-8 text-center text-zinc-500">
+                                  No transaction matching filters found.
+                                </td>
+                              </tr>
+                            ) : (
+                              paginatedPayments.map((p: any) => {
+                                const studentName = p.profiles?.full_name || "Unknown Student"
+                                const studentEmail = p.profiles?.email || ""
+                                const studentAvatar = p.profiles?.avatar_url
+                                const itemName = p.courses?.title || p.subscription_plans?.name || "LMS Catalog Access"
+                                return (
+                                  <tr key={p.transaction_id} className="hover:bg-zinc-900/10 text-zinc-300">
+                                    <td className="p-4">
+                                      <div className="flex items-center gap-2.5">
+                                        {studentAvatar ? (
+                                          <img src={studentAvatar} alt="" className="w-7 h-7 rounded-full" />
+                                        ) : (
+                                          <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400">
+                                            {studentName.charAt(0).toUpperCase()}
+                                          </div>
+                                        )}
+                                        <div className="truncate max-w-[150px]">
+                                          <p className="font-semibold text-white truncate">{studentName}</p>
+                                          <p className="text-[10px] text-zinc-500 truncate">{studentEmail}</p>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td className="p-4 font-medium text-zinc-200 max-w-[160px] truncate" title={itemName}>
+                                      {itemName}
+                                    </td>
+                                    <td className="p-4 font-mono text-[11px] text-zinc-400 whitespace-nowrap">
+                                      {p.bill_number}
+                                    </td>
+                                    <td className="p-4 font-semibold text-white whitespace-nowrap">
+                                      ${Number(p.amount).toFixed(2)}
+                                    </td>
+                                    <td className="p-4 text-xs text-zinc-400 capitalize">
+                                      {p.payment_method?.replace(/_/g, ' ') || 'N/A'}
+                                    </td>
+                                    <td className="p-4 text-xs text-zinc-500 whitespace-nowrap">
+                                      {p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A'}
+                                    </td>
+                                    <td className="p-4">
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                        p.payment_status === 'completed'
+                                          ? 'bg-green-950/20 text-green-400 border-green-900/30'
+                                          : p.payment_status === 'pending'
+                                            ? 'bg-amber-950/20 text-amber-400 border-amber-900/30 animate-pulse'
+                                            : 'bg-zinc-850 text-zinc-400 border-zinc-800'
+                                      }`}>
+                                        {p.payment_status}
+                                      </span>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                      {p.payment_status === 'pending' ? (
+                                        <Button
+                                          onClick={() => handleManualCompletePayment(p.transaction_id, studentName, p.amount)}
+                                          disabled={isApprovingTx === p.transaction_id}
+                                          size="sm"
+                                          className="bg-primary hover:bg-primary/90 text-black text-[11px] font-bold py-1 px-2.5 rounded-lg transition-all"
+                                          style={{ backgroundColor: '#9ACD32', color: '#000' }}
+                                        >
+                                          {isApprovingTx === p.transaction_id ? (
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                          ) : (
+                                            'Approve'
+                                          )}
+                                        </Button>
+                                      ) : (
+                                        <span className="text-[11px] text-zinc-500 font-medium italic">Settled</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                )
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Pagination Controls */}
+                      {totalPaymentPages > 1 && (
+                        <div className="flex items-center justify-between pt-2">
+                          <p className="text-xs text-zinc-500">
+                            Showing page {paymentPage} of {totalPaymentPages} ({filteredPayments.length} results)
+                          </p>
+                          <div className="flex gap-2">
+                            <Button
+                              disabled={paymentPage === 1}
+                              onClick={() => setPaymentPage(p => p - 1)}
+                              size="sm"
+                              variant="outline"
+                              className="border-zinc-800 text-xs hover:bg-zinc-900 text-zinc-300"
+                            >
+                              <ChevronLeft className="w-4 h-4" /> Previous
+                            </Button>
+                            <Button
+                              disabled={paymentPage === totalPaymentPages}
+                              onClick={() => setPaymentPage(p => p + 1)}
+                              size="sm"
+                              variant="outline"
+                              className="border-zinc-800 text-xs hover:bg-zinc-900 text-zinc-300"
+                            >
+                              Next <ChevronRight className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
               </>
             )}
 

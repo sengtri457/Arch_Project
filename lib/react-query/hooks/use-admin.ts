@@ -184,6 +184,24 @@ export function useAdminData(activeTab: string) {
     enabled: activeTab === "media" || activeTab === "overview",
   })
 
+  const payments = useQuery({
+    queryKey: queryKeys.admin.payments,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('payment_transactions')
+        .select(`
+          *,
+          profiles:user_id(full_name, email, avatar_url),
+          courses:course_id(title),
+          subscription_plans:plan_id(name)
+        `)
+        .order('created_at', { ascending: false })
+      return data || []
+    },
+    staleTime: 2 * 60 * 1000,
+    enabled: activeTab === "payments" || activeTab === "overview",
+  })
+
   const allQueries = [
     profiles,
     courses,
@@ -200,6 +218,7 @@ export function useAdminData(activeTab: string) {
     pendingEnrollments,
     studentWork,
     youtubeVideos,
+    payments,
   ]
 
   const isLoading = allQueries.some((q) => q.isLoading)
@@ -221,6 +240,7 @@ export function useAdminData(activeTab: string) {
     pendingEnrollments: pendingEnrollments.data ?? [],
     studentWork: studentWork.data ?? [],
     youtubeVideos: youtubeVideos.data ?? [],
+    payments: payments.data ?? [],
     isLoading,
     isFetching,
     invalidateAll: () => {

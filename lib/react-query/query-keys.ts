@@ -50,6 +50,7 @@ export const queryKeys = {
     pendingEnrollments: ["admin", "pendingEnrollments"] as const,
     studentWork: ["admin", "studentWork"] as const,
     youtubeVideos: ["admin", "youtubeVideos"] as const,
+    payments: ["admin", "payments"] as const,
   },
   studentWork: {
     all: ["studentWork"] as const,
