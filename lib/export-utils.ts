@@ -1,6 +1,6 @@
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import { jsPDF } from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 export function exportCourseToExcel(course: any, students: any[]) {
   // Format data for sheet
@@ -34,23 +34,101 @@ export function exportCourseToExcel(course: any, students: any[]) {
   const lastStudentRow = headers.length + rows.length; // e.g., 7 + 10 = 17
   const totalRowIndex = lastStudentRow + 2; // e.g., 17 + 2 = 19 (Leaving row 18 blank)
 
-  // Vertical Summary Row Block
-  ws[`C${totalRowIndex}`] = { t: "s", v: "Total Students Count:" };
-  ws[`D${totalRowIndex}`] = { t: "n", f: `COUNTA(A8:A${lastStudentRow})` };
+  // Style Definitions for Excel Tables
+  const titleStyle = {
+    font: { bold: true, sz: 16, color: { rgb: "7EA428" }, name: "Segoe UI" }
+  };
+  const metaStyle = {
+    font: { name: "Segoe UI", sz: 10, color: { rgb: "4B5563" } }
+  };
+  const headerStyle = {
+    fill: { fgColor: { rgb: "9ACD32" } },
+    font: { bold: true, color: { rgb: "000000" }, sz: 10, name: "Segoe UI" },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: {
+      top: { style: "thin", color: { rgb: "7EA428" } },
+      bottom: { style: "medium", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "7EA428" } },
+      right: { style: "thin", color: { rgb: "7EA428" } }
+    }
+  };
+  const dataStyle = {
+    font: { name: "Segoe UI", sz: 10 },
+    border: {
+      top: { style: "thin", color: { rgb: "E5E7EB" } },
+      bottom: { style: "thin", color: { rgb: "E5E7EB" } },
+      left: { style: "thin", color: { rgb: "E5E7EB" } },
+      right: { style: "thin", color: { rgb: "E5E7EB" } }
+    }
+  };
+  const rightDataStyle = {
+    ...dataStyle,
+    alignment: { horizontal: "right" }
+  };
+  const centerDataStyle = {
+    ...dataStyle,
+    alignment: { horizontal: "center" }
+  };
+  const summaryLabelStyle = {
+    font: { bold: true, name: "Segoe UI", sz: 10, color: { rgb: "374151" } },
+    alignment: { horizontal: "right" }
+  };
+  const summaryValueStyle = {
+    font: { bold: true, name: "Segoe UI", sz: 10 },
+    border: {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "double", color: { rgb: "000000" } } // Standard double border for totals
+    }
+  };
 
-  ws[`C${totalRowIndex + 1}`] = { t: "s", v: "Total Sales Revenue:" };
-  ws[`D${totalRowIndex + 1}`] = { t: "n", f: `SUM(D8:D${lastStudentRow})`, z: "$#,##0.00" };
+  // Iterate over worksheet cells to apply styles
+  const range = XLSX.utils.decode_range(ws['!ref'] || "");
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cellRef = XLSX.utils.encode_cell({ c: C, r: R });
+      const cell = ws[cellRef];
+      if (!cell) continue;
 
-  ws[`C${totalRowIndex + 2}`] = { t: "s", v: "Avg Student Progress:" };
-  ws[`D${totalRowIndex + 2}`] = { t: "n", f: `AVERAGE(H8:H${lastStudentRow})`, z: "0.0%" };
+      if (R === 0) {
+        cell.s = titleStyle;
+      } else if (R > 0 && R < 5) {
+        cell.s = metaStyle;
+      } else if (R === 6) {
+        cell.s = headerStyle;
+      } else if (R >= 7 && R < lastStudentRow) {
+        if (C === 3 || C === 5 || C === 6 || C === 7) {
+          cell.s = rightDataStyle;
+        } else if (C === 2 || C === 4) {
+          cell.s = centerDataStyle;
+        } else {
+          cell.s = dataStyle;
+        }
+      }
+    }
+  }
 
-  // Set number formatting for student table rows
+  // Pre-calculate values for formula totals to ensure they evaluate on load
+  const totalRevenueVal = students.reduce((sum, s) => sum + s.amountPaid, 0);
+  const avgProgressSum = students.reduce((sum, s) => sum + s.progressPercent, 0);
+  const avgProgressVal = students.length > 0 ? (avgProgressSum / students.length) / 100 : 0;
+
+  // Insert vertical summary rows with both formulas and values
+  ws[`C${totalRowIndex}`] = { t: "s", v: "Total Students Count:", s: summaryLabelStyle };
+  ws[`D${totalRowIndex}`] = { t: "n", f: `COUNTA(A8:A${lastStudentRow})`, v: students.length, s: summaryValueStyle };
+
+  ws[`C${totalRowIndex + 1}`] = { t: "s", v: "Total Sales Revenue:", s: summaryLabelStyle };
+  ws[`D${totalRowIndex + 1}`] = { t: "n", f: `SUM(D8:D${lastStudentRow})`, v: totalRevenueVal, z: "$#,##0.00", s: summaryValueStyle };
+
+  ws[`C${totalRowIndex + 2}`] = { t: "s", v: "Avg Student Progress:", s: summaryLabelStyle };
+  ws[`D${totalRowIndex + 2}`] = { t: "n", f: `AVERAGE(H8:H${lastStudentRow})`, v: avgProgressVal, z: "0.0%", s: summaryValueStyle };
+
+  // Set grid lines explicitly visible
+  ws["!views"] = [{ showGridLines: true }];
+
+  // Set number formatting for data rows
   for (let r = 8; r <= lastStudentRow; r++) {
-    // Amount Paid cell
     const cellD = ws[`D${r}`];
     if (cellD) cellD.z = "$#,##0.00";
-    
-    // Progress % cell
     const cellH = ws[`H${r}`];
     if (cellH) cellH.z = "0.0%";
   }
@@ -139,14 +217,29 @@ export function exportCourseToPDF(course: any, students: any[], totalRevenue: nu
     `${s.completedLessons}/${s.totalLessons} (${s.progressPercent.toFixed(0)}%)`
   ]);
 
-  // Render Table
-  (doc as any).autoTable({
+  // Calculate averages for footer
+  const avgProgressSum = students.reduce((sum, s) => sum + s.progressPercent, 0);
+  const avgProgress = students.length > 0 ? avgProgressSum / students.length : 0;
+
+  // Zebra table footer showing totals inline
+  const tableFooter = [
+    ["Total Summary", "", `${students.length} students`, `$${totalRevenue.toFixed(2)}`, "", `Avg: ${avgProgress.toFixed(0)}%`]
+  ];
+
+  // Render Table via autoTable directly
+  autoTable(doc, {
     startY: 58,
     head: tableHeaders,
     body: tableRows,
+    foot: tableFooter,
     theme: "striped",
     headStyles: {
       fillColor: [154, 205, 50], // Match #9ACD32
+      textColor: [0, 0, 0],
+      fontStyle: "bold"
+    },
+    footStyles: {
+      fillColor: [240, 240, 240],
       textColor: [0, 0, 0],
       fontStyle: "bold"
     },
