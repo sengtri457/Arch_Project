@@ -8,6 +8,7 @@ export async function sendTelegramInvoiceNotification(details: {
   userId: string
   transactionId: string
   promoCode: string | null
+  customerName?: string
 }) {
   const token = process.env.TELEGRAM_TOKEN
   const chatId = process.env.CHAT_ID
@@ -22,32 +23,32 @@ export async function sendTelegramInvoiceNotification(details: {
   try {
     const dateObj = new Date(details.completedAt)
     if (!isNaN(dateObj.getTime())) {
-      formattedDate = dateObj.toLocaleString("en-US", {
-        timeZone: "UTC",
-        dateStyle: "medium",
-        timeStyle: "medium"
-      }) + " UTC"
+      formattedDate = dateObj.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      })
     }
   } catch (e) {
     // Fallback to raw completedAt value
   }
 
   const invoiceText = `
-<b>🧾 NEW PAYMENT INVOICE</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-<b>Item:</b> ${details.itemName}
-<b>Bill Number:</b> <code>${details.billNumber}</code>
-<b>Amount:</b> $${Number(details.amount).toFixed(2)} USD
-<b>Promo Code:</b> ${details.promoCode ? `<code>${details.promoCode}</code>` : "None"}
+<b>🧾 INVOICE #${details.billNumber}</b>
+-----------------------------------
+<b>Status:</b> ✅ Paid
+<b>Date:</b> ${formattedDate}
 <b>Payment Method:</b> ${details.paymentMethod}
-<b>Completed At:</b> ${formattedDate}
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-<b>Customer Information:</b>
-<b>Email:</b> ${details.userEmail || "N/A"}
-<b>User ID:</b> <code>${details.userId}</code>
-<b>Transaction ID:</b> <code>${details.transactionId}</code>
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-<b>Status:</b> ✅ SUCCESSFUL / PAID
+
+<b>Billed To:</b>
+${details.customerName || "Student"}
+${details.userEmail || "N/A"}
+
+<b>Items:</b>
+• 1x ${details.itemName} — $${Number(details.amount).toFixed(2)} USD
+${details.promoCode ? `• Promo Code: <code>${details.promoCode}</code>` : ""}
+-----------------------------------
+<b>Total Paid: $${Number(details.amount).toFixed(2)} USD</b>
 `.trim()
 
   try {

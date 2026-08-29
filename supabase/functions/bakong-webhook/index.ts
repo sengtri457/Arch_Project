@@ -286,6 +286,14 @@ serve(async (req) => {
           });
         }
 
+        // Fetch full_name from profiles
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("full_name")
+          .eq("id", dbTx.user_id)
+          .single();
+        const customerName = profile?.full_name || "Student";
+
         // Send Telegram invoice alert
         const telegramToken = Deno.env.get("TELEGRAM_TOKEN");
         const telegramChatId = Deno.env.get("CHAT_ID");
@@ -296,30 +304,30 @@ serve(async (req) => {
             try {
               const dateObj = new Date(formattedDate);
               if (!isNaN(dateObj.getTime())) {
-                formattedDate = dateObj.toLocaleString("en-US", {
-                  timeZone: "UTC",
-                  dateStyle: "medium",
-                  timeStyle: "medium"
-                }) + " UTC";
+                formattedDate = dateObj.toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric"
+                });
               }
             } catch (_) {}
 
             const invoiceText = `
-<b>🧾 NEW PAYMENT INVOICE (Webhook)</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-<b>Item:</b> ${itemName}
-<b>Bill Number:</b> <code>${billNumber}</code>
-<b>Amount:</b> $${Number(dbTx.amount).toFixed(2)} USD
-<b>Promo Code:</b> ${dbTx.promo_code ? `<code>${dbTx.promo_code}</code>` : "None"}
+<b>🧾 INVOICE #${billNumber}</b>
+-----------------------------------
+<b>Status:</b> ✅ Paid
+<b>Date:</b> ${formattedDate}
 <b>Payment Method:</b> ${dbTx.payment_method || "bakong_khqr"} (Webhook)
-<b>Completed At:</b> ${formattedDate}
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-<b>Customer Information:</b>
-<b>Email:</b> ${to || "N/A"}
-<b>User ID:</b> <code>${dbTx.user_id}</code>
-<b>Transaction ID:</b> <code>${dbTx.transaction_id || dbTx.id}</code>
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-<b>Status:</b> ✅ SUCCESSFUL / PAID
+
+<b>Billed To:</b>
+${customerName}
+${to || "N/A"}
+
+<b>Items:</b>
+• 1x ${itemName} — $${Number(dbTx.amount).toFixed(2)} USD
+${dbTx.promo_code ? `• Promo Code: <code>${dbTx.promo_code}</code>` : ""}
+-----------------------------------
+<b>Total Paid: $${Number(dbTx.amount).toFixed(2)} USD</b>
 `.trim();
 
             const tgResponse = await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {

@@ -193,6 +193,14 @@ export async function POST(request: Request) {
         })
       }
 
+      // Fetch full_name from profiles
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('full_name')
+        .eq('id', transaction.user_id)
+        .single()
+      const customerName = profile?.full_name || 'Student'
+
       // Send Telegram invoice alert
       await sendTelegramInvoiceNotification({
         itemName,
@@ -203,7 +211,8 @@ export async function POST(request: Request) {
         userEmail: userEmail || '',
         userId: transaction.user_id,
         transactionId: transaction.transaction_id,
-        promoCode: transaction.promo_code
+        promoCode: transaction.promo_code,
+        customerName
       }).catch(tgErr => {
         console.error('Telegram notification failed:', tgErr)
       })
