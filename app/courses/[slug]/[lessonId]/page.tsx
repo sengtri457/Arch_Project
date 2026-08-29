@@ -270,7 +270,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const handleTelegramSubmit = async () => {
     if (!user || !currentLesson) return
 
-    const telegramChatUrl = "https://t.me/sxngtri"
+    const telegramChatUrl = "https://t.me/bunsambath10"
     const newWindow = window.open("", "_blank")
     if (newWindow) {
       newWindow.document.write(`

@@ -14,7 +14,7 @@ SET submission_files_json = (
   SELECT jsonb_agg(
     CASE
       WHEN elem->>'url' = 'Submitted via Telegram'
-        THEN jsonb_set(elem, '{url}', '"https://t.me/sxngtri"')
+        THEN jsonb_set(elem, '{url}', '"https://t.me/bunsambath10"')
       ELSE elem
     END
   )
