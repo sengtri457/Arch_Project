@@ -29,8 +29,34 @@ import {
 
 import { useClassroomCourse, useClassroomLessons, useClassroomProgress, useClassroomCertificate, useVideoUrl, useClassroomAccess, useLessonExercise, useUpdateProgress } from "@/lib/react-query/hooks/use-classroom"
 import { LessonComments } from "@/components/lesson-comments"
-import { d5Modules, getLessonCoverImage } from "@/lib/courses-data"
+import { d5Modules, getLessonCoverImage, resolveLessonId } from "@/lib/courses-data"
 import { getMediaUrl } from "@/lib/utils"
+
+function getEmbedUrl(url: string | undefined | null): string | null {
+  if (!url) return null
+  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    let videoId = ""
+    if (url.includes("youtube.com/watch")) {
+      const match = url.match(/[?&]v=([^&#]+)/)
+      videoId = match ? match[1] : ""
+    } else if (url.includes("youtu.be/")) {
+      const parts = url.split("youtu.be/")
+      const lastPart = parts[parts.length - 1]
+      videoId = lastPart.split(/[?#]/)[0]
+    } else if (url.includes("youtube.com/embed/")) {
+      const parts = url.split("youtube.com/embed/")
+      const lastPart = parts[parts.length - 1]
+      videoId = lastPart.split(/[?#]/)[0]
+    }
+    return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1` : null
+  }
+  if (url.includes("vimeo.com")) {
+    const match = url.match(/vimeo\.com\/(\d+)/)
+    const videoId = match ? match[1] : ""
+    return videoId ? `https://player.vimeo.com/video/${videoId}?autoplay=1` : null
+  }
+  return null
+}
 
 interface LessonPageProps {
   params: Promise<{ slug: string; lessonId: string }>
@@ -72,12 +98,22 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     new Map(candidateLessons.map((l: any) => [l.order_index ?? l.lesson_id, l])).values()
   ).sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
 
-  const currentLesson = lessons.find((l: any) => l.lesson_id === lessonId || l.id === lessonId) || lessons[0] || null
+  const resolvedParamLessonId = resolveLessonId(lessonId)
+
+  const currentLesson = lessons.find((l: any) => 
+    l.lesson_id === resolvedParamLessonId || 
+    l.lesson_id === lessonId || 
+    l.id === resolvedParamLessonId || 
+    l.id === lessonId
+  ) || lessons[0] || null
   const currentLessonIdx = lessons.findIndex((l: any) => (l.lesson_id || l.id) === (currentLesson?.lesson_id || currentLesson?.id))
   const currentCoverUrl = getLessonCoverImage(course?.slug || course?.title || slug, currentLesson, currentLessonIdx)
 
+  const activeLessonId = currentLesson ? (currentLesson.lesson_id || currentLesson.id) : resolvedParamLessonId
+
   // Secure video delivery state
-  const { data: videoData, isLoading: loadingVideo } = useVideoUrl(currentLesson?.lesson_id || currentLesson?.id, hasAccess)
+  const canAccessVideo = Boolean(currentLesson?.is_preview || profile?.role === 'admin' || profile?.role === 'instructor' || hasAccess)
+  const { data: videoData, isLoading: loadingVideo } = useVideoUrl(activeLessonId, canAccessVideo)
   const activeVideo = videoData ? { source: videoData.source as string, format: videoData.format as 'hls' | 'direct', url: videoData.url } : null
 
   // Certificate modal state
@@ -475,11 +511,29 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
         </div>
       )
     }
+
+    const embedUrl = getEmbedUrl(activeVideo.url)
+    if (embedUrl) {
+      return (
+        <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-zinc-800">
+          <div className="absolute top-3 right-3 z-20 pointer-events-none select-none text-white/20 text-xs font-mono bg-black/40 px-2.5 py-1 rounded">
+            {user?.email || "student"}
+          </div>
+          <iframe
+            src={embedUrl}
+            className="w-full h-full border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      )
+    }
+
     return (
       <SecureVideoPlayer
         videoUrl={activeVideo.url}
-        userEmail={user.email || "student@archtipsbox.com"}
-        userId={user.id}
+        userEmail={user?.email || "student@archtipsbox.com"}
+        userId={user?.id || ""}
         format={activeVideo.format}
         poster={getMediaUrl(currentCoverUrl)}
         onTimeUpdate={handleTimeUpdate}

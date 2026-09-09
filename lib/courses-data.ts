@@ -115,9 +115,27 @@ export interface CourseModule {
   description?: string
 }
 
+export const D5_LESSON_ALIAS_MAP: Record<string, string> = {
+  "d5-m01": "d5d30129-234b-4b2a-8d19-450f612d4cf7",
+  "d5-m02": "d59a6cf7-7756-42d4-bb34-8c6a0c021c32",
+  "d5-m03": "d5030129-234b-4b2a-8d19-450f612d4cf7",
+  "d5-m04": "d5040129-234b-4b2a-8d19-450f612d4cf7",
+  "d5-m05": "d5050129-234b-4b2a-8d19-450f612d4cf7",
+  "d5-m06": "d5060129-234b-4b2a-8d19-450f612d4cf7",
+  "d5-m07": "d5070129-234b-4b2a-8d19-450f612d4cf7",
+  "d5-m08": "d5080129-234b-4b2a-8d19-450f612d4cf7",
+  "d5-m09": "d5090129-234b-4b2a-8d19-450f612d4cf7",
+  "d5-m10": "d5100129-234b-4b2a-8d19-450f612d4cf7",
+}
+
+export function resolveLessonId(lessonId: string | null | undefined): string {
+  if (!lessonId) return ""
+  return D5_LESSON_ALIAS_MAP[lessonId] || lessonId
+}
+
 export const d5Modules: CourseModule[] = [
   {
-    lesson_id: "d5-m01",
+    lesson_id: "d5d30129-234b-4b2a-8d19-450f612d4cf7",
     order_index: 1,
     module_number: "Module 01",
     title: "01. Introduction",
@@ -127,7 +145,7 @@ export const d5Modules: CourseModule[] = [
     description: "Welcome to D5 Masterclass 2.0. Introduction to the course structure, essential rendering concepts, and project roadmap."
   },
   {
-    lesson_id: "d5-m02",
+    lesson_id: "d59a6cf7-7756-42d4-bb34-8c6a0c021c32",
     order_index: 2,
     module_number: "Module 02",
     title: "02. Interface & Navigation",
@@ -137,7 +155,7 @@ export const d5Modules: CourseModule[] = [
     description: "Deep dive into the modern D5 Render 2.0 workspace, viewport navigation, toolbars, and shortcut configurations."
   },
   {
-    lesson_id: "d5-m03",
+    lesson_id: "d5030129-234b-4b2a-8d19-450f612d4cf7",
     order_index: 3,
     module_number: "Module 03",
     title: "03. Core Workflow",
@@ -147,7 +165,7 @@ export const d5Modules: CourseModule[] = [
     description: "Importing architectural models from SketchUp/Revit, live sync setups, scene organization, and layer hierarchies."
   },
   {
-    lesson_id: "d5-m04",
+    lesson_id: "d5040129-234b-4b2a-8d19-450f612d4cf7",
     order_index: 4,
     module_number: "Module 04",
     title: "04. Material",
@@ -157,7 +175,7 @@ export const d5Modules: CourseModule[] = [
     description: "PBR materials creation, normal maps, roughness, subsurface scattering, custom glass, water, and realistic textures."
   },
   {
-    lesson_id: "d5-m05",
+    lesson_id: "d5050129-234b-4b2a-8d19-450f612d4cf7",
     order_index: 5,
     module_number: "Module 05",
     title: "05. Lighting",
@@ -167,7 +185,7 @@ export const d5Modules: CourseModule[] = [
     description: "Geo & HDRI sky systems, sun positioning, emissive surfaces, spotlights, strip lights, and interior mood lighting."
   },
   {
-    lesson_id: "d5-m06",
+    lesson_id: "d5060129-234b-4b2a-8d19-450f612d4cf7",
     order_index: 6,
     module_number: "Module 06",
     title: "06. Assets",
@@ -177,7 +195,7 @@ export const d5Modules: CourseModule[] = [
     description: "Scattering vegetations, brush tool mastery, animated characters, vehicle paths, and library asset management."
   },
   {
-    lesson_id: "d5-m07",
+    lesson_id: "d5070129-234b-4b2a-8d19-450f612d4cf7",
     order_index: 7,
     module_number: "Module 07",
     title: "07. Composition",
@@ -187,7 +205,7 @@ export const d5Modules: CourseModule[] = [
     description: "Architectural camera framing, two-point perspective, focal lengths, depth of field, and visual storytelling."
   },
   {
-    lesson_id: "d5-m08",
+    lesson_id: "d5080129-234b-4b2a-8d19-450f612d4cf7",
     order_index: 8,
     module_number: "Module 08",
     title: "08. Post-Production",
@@ -197,7 +215,7 @@ export const d5Modules: CourseModule[] = [
     description: "D5 built-in post-processing, LUTs, exposure balancing, bloom, chromatic aberration, and final render channel passes."
   },
   {
-    lesson_id: "d5-m09",
+    lesson_id: "d5090129-234b-4b2a-8d19-450f612d4cf7",
     order_index: 9,
     module_number: "Module 09",
     title: "09. D5 AI Features",
@@ -207,7 +225,7 @@ export const d5Modules: CourseModule[] = [
     description: "Leveraging AI Atmosphere Match, AI Enhancer, texture upscalers, and modern generative toolsets in D5."
   },
   {
-    lesson_id: "d5-m10",
+    lesson_id: "d5100129-234b-4b2a-8d19-450f612d4cf7",
     order_index: 10,
     module_number: "Module 10",
     title: "10. Animation",

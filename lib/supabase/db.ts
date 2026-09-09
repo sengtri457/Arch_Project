@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Project } from '@/lib/projects-data'
-import { Course, d5Modules, getLessonCoverImage } from '@/lib/courses-data'
+import { Course, d5Modules, getLessonCoverImage, resolveLessonId } from '@/lib/courses-data'
 import { Testimonial } from '@/lib/testimonials-data'
 import { YoutubeVideo } from '@/types/youtube-video'
 
@@ -546,10 +546,15 @@ export const db = {
    */
   async getLessonExercise(supabase: SupabaseClient, lessonId: string): Promise<any | null> {
     try {
+      const resolvedId = resolveLessonId(lessonId)
+      if (!resolvedId || !/^[0-9a-f-]{36}$/i.test(resolvedId)) {
+        return null
+      }
+
       const { data, error } = await supabase
         .from('exercises')
         .select('*')
-        .eq('lesson_id', lessonId)
+        .eq('lesson_id', resolvedId)
         .order('exercise_id')
         .limit(1)
         .maybeSingle()

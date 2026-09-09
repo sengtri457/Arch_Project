@@ -67,7 +67,7 @@ export function useVideoUrl(lessonId: string | undefined, hasAccess: boolean | n
       if (!res.ok) return null
       return res.json() as Promise<{ source: string; format: string; url: string } | null>
     },
-    enabled: !!lessonId && hasAccess === true,
+    enabled: !!lessonId && Boolean(hasAccess),
     staleTime: 5 * 60 * 1000,
   })
 }
