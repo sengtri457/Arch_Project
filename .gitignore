@@ -9,7 +9,10 @@
 
 # production
 /build
-/public
+
+# Ignore large raw render files in public root (served via CDN)
+/public/Scene *.jpg
+/public/Exterior-*.jpg
 
 # debug
 npm-debug.log*

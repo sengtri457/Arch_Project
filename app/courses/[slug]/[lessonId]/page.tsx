@@ -50,7 +50,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const { data: existingCert } = useClassroomCertificate(user?.id, courseId)
 
   // Fallback to d5Modules if lessons not loaded or empty for D5 course
-  const lessons = rawLessons.length > 0
+  const candidateLessons = rawLessons.length > 0
     ? rawLessons
     : (slug === "d5-masterclass" || slug.includes("d5"))
       ? d5Modules.map(m => ({
@@ -65,6 +65,11 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
           cover_image: m.cover_image
         }))
       : []
+
+  // Deduplicate lessons by order_index and sort ascending
+  const lessons = Array.from(
+    new Map(candidateLessons.map((l: any) => [l.order_index ?? l.lesson_id, l])).values()
+  ).sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
 
   const currentLesson = lessons.find((l: any) => l.lesson_id === lessonId || l.id === lessonId) || lessons[0] || null
   const currentLessonIdx = lessons.findIndex((l: any) => (l.lesson_id || l.id) === (currentLesson?.lesson_id || currentLesson?.id))

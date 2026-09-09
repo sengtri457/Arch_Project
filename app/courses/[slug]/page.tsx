@@ -100,7 +100,12 @@ export default async function CourseLandingPage({ params }: PageProps) {
 
   if (!course) notFound()
 
-  const curriculum = await getCurriculum(slug)
+  const rawCurriculum = await getCurriculum(slug)
+  // Deduplicate curriculum by order_index and sort ascending
+  const curriculum = Array.from(
+    new Map(rawCurriculum.map((item: any) => [item.order_index ?? item.lesson_id, item])).values()
+  ).sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
+
   const features = Array.isArray((course as any).features) ? (course as any).features : []
   const totalMinutes = curriculum.reduce((sum, l) => sum + (l.duration_minutes || 0), 0)
 
