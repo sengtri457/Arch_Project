@@ -6,7 +6,7 @@ import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
 import { createClient } from "@/lib/supabase/client"
 import { Profile } from "@/components/auth-provider"
-import { Course } from "@/lib/courses-data"
+import { Course, getLessonCoverImage } from "@/lib/courses-data"
 import { Project } from "@/lib/projects-data"
 import { getMediaUrl } from "@/lib/utils"
 import Swal from "sweetalert2"
@@ -204,7 +204,8 @@ export default function AdminDashboard() {
     duration: "600",
     index: "1",
     source: "direct",
-    downloadable_asset_url: ""
+    downloadable_asset_url: "",
+    thumbnail_url: ""
   })
 
   // Projects CRUD States
@@ -229,6 +230,7 @@ export default function AdminDashboard() {
   })
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadingLessonAsset, setUploadingLessonAsset] = useState(false)
+  const [uploadingLessonThumbnail, setUploadingLessonThumbnail] = useState(false)
 
   // Student Work Showcase states
   const [showStudentWorkModal, setShowStudentWorkModal] = useState(false)
@@ -725,7 +727,8 @@ export default function AdminDashboard() {
           video_external_id: lessonForm.video_url,
           duration_minutes: Math.round(parseInt(lessonForm.duration) / 60),
           order_index: parseInt(lessonForm.index),
-          downloadable_asset_url: lessonForm.downloadable_asset_url
+          downloadable_asset_url: lessonForm.downloadable_asset_url,
+          thumbnail_url: lessonForm.thumbnail_url
         })
       })
 
@@ -800,6 +803,35 @@ export default function AdminDashboard() {
       MySwal.fire({ icon: 'error', title: 'Upload Failed', text: `Asset upload failed: ${err.message}` })
     } finally {
       setUploadingLessonAsset(false)
+    }
+  }
+
+  // Upload Lesson Cover Image / Thumbnail File
+  const handleLessonThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingLessonThumbnail(true)
+    try {
+      const fileExt = file.name.split('.').pop() || 'jpg'
+      const fileName = `lesson-thumb-${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+      const filePath = `lesson-thumbnails/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('projects')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage
+        .from('projects')
+        .getPublicUrl(filePath)
+
+      setLessonForm(prev => ({ ...prev, thumbnail_url: data.publicUrl }))
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Upload Failed', text: `Thumbnail upload failed: ${err.message}` })
+    } finally {
+      setUploadingLessonThumbnail(false)
     }
   }
 
@@ -4923,7 +4955,8 @@ export default function AdminDashboard() {
                         duration: "600",
                         index: (courseLessons.length + 1).toString(),
                         source: "direct",
-                        downloadable_asset_url: ""
+                        downloadable_asset_url: "",
+                        thumbnail_url: ""
                       })
                       setShowLessonModal(true)
                     }}
@@ -4938,45 +4971,54 @@ export default function AdminDashboard() {
                   {courseLessons.length === 0 ? (
                     <p className="text-xs text-zinc-500 italic text-center py-6">No lessons exist in this syllabus yet.</p>
                   ) : (
-                    courseLessons.map((les) => (
-                      <div key={les.lesson_id} className="p-3 bg-zinc-950 rounded-xl border border-zinc-850 flex justify-between items-center gap-4">
-                        <div>
-                          <h5 className="text-xs font-semibold text-white">
-                            {les.order_index || 1}. {les.title}
-                          </h5>
-                          <p className="text-[10px] text-zinc-500 mt-0.5 font-mono">ID: {les.video_external_id || "N/A"} • {les.duration_minutes || 0} mins</p>
+                    courseLessons.map((les) => {
+                      const thumb = les.thumbnail_url || getLessonCoverImage(activeSyllabusCourse.slug || activeSyllabusCourse.course_id || activeSyllabusCourse.id, les, (les.order_index || 1) - 1)
+                      return (
+                        <div key={les.lesson_id} className="p-3 bg-zinc-950 rounded-xl border border-zinc-850 flex justify-between items-center gap-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-14 h-9 rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 shrink-0 relative">
+                              <img src={getMediaUrl(thumb)} alt={les.title} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="min-w-0">
+                              <h5 className="text-xs font-semibold text-white truncate">
+                                {les.order_index || 1}. {les.title}
+                              </h5>
+                              <p className="text-[10px] text-zinc-500 mt-0.5 font-mono truncate">ID: {les.video_external_id || "N/A"} • {les.duration_minutes || 0} mins</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-1.5 shrink-0">
+                            <Button 
+                              onClick={() => {
+                                setEditingLesson(les)
+                                setLessonForm({
+                                  title: les.title,
+                                  video_url: les.video_external_id || "",
+                                  duration: ((les.duration_minutes || 10) * 60).toString(),
+                                  index: (les.order_index || 1).toString(),
+                                  source: les.video_source_type || "direct",
+                                  downloadable_asset_url: les.downloadable_asset_url || "",
+                                  thumbnail_url: les.thumbnail_url || ""
+                                })
+                                setShowLessonModal(true)
+                              }}
+                              size="sm" 
+                              variant="ghost" 
+                              className="hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button 
+                              onClick={() => handleDeleteLesson(les.lesson_id)}
+                              size="sm" 
+                              variant="ghost" 
+                              className="hover:bg-red-950/20 text-red-400 hover:text-red-400"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-1.5">
-                          <Button 
-                            onClick={() => {
-                              setEditingLesson(les)
-                              setLessonForm({
-                                title: les.title,
-                                video_url: les.video_external_id || "",
-                                duration: ((les.duration_minutes || 10) * 60).toString(),
-                                index: (les.order_index || 1).toString(),
-                                source: les.video_source_type || "direct",
-                                downloadable_asset_url: les.downloadable_asset_url || ""
-                              })
-                              setShowLessonModal(true)
-                            }}
-                            size="sm" 
-                            variant="ghost" 
-                            className="hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button 
-                            onClick={() => handleDeleteLesson(les.lesson_id)}
-                            size="sm" 
-                            variant="ghost" 
-                            className="hover:bg-red-950/20 text-red-400 hover:text-red-400"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))
+                      )
+                    })
                   )}
                 </div>
 
@@ -5076,6 +5118,41 @@ export default function AdminDashboard() {
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-700 font-mono" 
                       placeholder="1"
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Module Cover Image (Thumbnail)</label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        value={lessonForm.thumbnail_url} 
+                        onChange={(e) => setLessonForm({ ...lessonForm, thumbnail_url: e.target.value })} 
+                        className="flex-grow bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-700 font-mono text-[10px]" 
+                        placeholder="e.g. /assets/images/... or https://..."
+                      />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLessonThumbnailUpload}
+                        className="hidden"
+                        id="lesson-thumbnail-file"
+                        disabled={uploadingLessonThumbnail}
+                      />
+                      <label
+                        htmlFor="lesson-thumbnail-file"
+                        className={`bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center justify-center cursor-pointer transition-colors border border-zinc-800 shrink-0 ${uploadingLessonThumbnail ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {uploadingLessonThumbnail ? 'Uploading...' : 'Choose Image'}
+                      </label>
+                    </div>
+                    {lessonForm.thumbnail_url && (
+                      <div className="w-28 aspect-video rounded-lg overflow-hidden border border-zinc-800 bg-zinc-900 relative">
+                        <img src={getMediaUrl(lessonForm.thumbnail_url)} alt="Thumbnail Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <p className="text-[10px] text-zinc-500">Provide an image URL or upload directly. This cover image appears in the course syllabus list and classroom video player.</p>
                   </div>
                 </div>
 

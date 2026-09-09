@@ -215,3 +215,60 @@ ADD COLUMN IF NOT EXISTS promo_code TEXT REFERENCES public.promo_codes(code) ON 
 NOTIFY pgrst, 'reload schema';
 ```
 
+***
+
+## 🖼️ Step 6: Enable Syllabus Lesson Cover Images / Thumbnails
+
+Run this script in Supabase SQL Editor to allow admins to upload and customize cover images for syllabus lessons:
+
+```SQL
+-- 1. Add thumbnail_url to lessons table
+ALTER TABLE public.lessons ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
+
+-- 2. Grant permissions
+GRANT SELECT (thumbnail_url) ON public.lessons TO anon, authenticated;
+GRANT ALL (thumbnail_url) ON public.lessons TO authenticated;
+
+-- 3. Update curriculum RPC
+DROP FUNCTION IF EXISTS public.get_course_curriculum(text);
+
+CREATE OR REPLACE FUNCTION public.get_course_curriculum(p_slug text)
+RETURNS TABLE (
+  lesson_id uuid, 
+  order_index int, 
+  title text, 
+  duration_minutes int, 
+  is_preview boolean,
+  thumbnail_url text
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT 
+    l.lesson_id, 
+    l.order_index, 
+    l.title, 
+    l.duration_minutes, 
+    COALESCE(l.is_preview, false),
+    l.thumbnail_url
+  FROM public.lessons l
+  JOIN public.courses c ON c.course_id = l.course_id
+  WHERE (c.slug = p_slug OR c.course_id::text = p_slug) AND c.is_published = true
+  ORDER BY l.order_index ASC;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.get_course_curriculum(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_course_curriculum(text) TO anon, authenticated;
+
+-- 4. Set thumbnail_url for the 10 D5 Masterclass modules
+UPDATE public.lessons
+SET thumbnail_url = '/assets/images/D5_class_img/M' || order_index || '.jpg'
+WHERE course_id = 'd4a1b756-12d4-4047-93bd-8b58b94cb146'
+  AND order_index BETWEEN 1 AND 10;
+
+NOTIFY pgrst, 'reload schema';
+```
+
+

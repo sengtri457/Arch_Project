@@ -340,7 +340,7 @@ export const db = {
     try {
       const { data, error } = await supabase
         .from('lessons')
-        .select('lesson_id, course_id, title, duration_minutes, order_index, is_preview, downloadable_asset_url')
+        .select('*')
         .eq('course_id', courseId)
         .order('order_index', { ascending: true })
 
@@ -356,6 +356,7 @@ export const db = {
             is_preview: m.is_preview,
             order_index: m.order_index,
             downloadable_asset_url: null,
+            thumbnail_url: m.cover_image,
             cover_image: m.cover_image
           }))
         }
@@ -371,7 +372,8 @@ export const db = {
         is_preview: l.is_preview,
         order_index: l.order_index,
         downloadable_asset_url: l.downloadable_asset_url,
-        cover_image: getLessonCoverImage(courseId, l, idx)
+        thumbnail_url: l.thumbnail_url || null,
+        cover_image: l.thumbnail_url || getLessonCoverImage(courseId, l, idx)
       }))
     } catch (err) {
       console.warn(`Failed to fetch lessons for course ${courseId}:`, err)

@@ -115,7 +115,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Downloadable asset URL is too long' }, { status: 400 })
   }
 
-  const payload = {
+  const thumbnailUrl = typeof body.thumbnail_url === 'string' ? body.thumbnail_url.trim() : ''
+  if (thumbnailUrl.length > 500) {
+    return NextResponse.json({ error: 'Thumbnail URL is too long' }, { status: 400 })
+  }
+
+  const payload: Record<string, any> = {
     lesson_id: typeof body.lesson_id === 'string' && body.lesson_id ? body.lesson_id : undefined,
     course_id: courseId,
     title,
@@ -124,7 +129,8 @@ export async function POST(request: Request) {
     duration_minutes: durationMinutes,
     order_index: orderIndex,
     is_preview: Boolean(body.is_preview ?? false),
-    downloadable_asset_url: downloadableAssetUrl || null
+    downloadable_asset_url: downloadableAssetUrl || null,
+    thumbnail_url: thumbnailUrl || null
   }
 
   const supabase = serviceClient()
@@ -132,10 +138,17 @@ export async function POST(request: Request) {
   if (payload.lesson_id) {
     const lessonId = payload.lesson_id
     delete payload.lesson_id
-    const { error } = await supabase
+    let { error } = await supabase
       .from('lessons')
       .update(payload)
       .eq('lesson_id', lessonId)
+
+    if (error && (error.code === '42703' || error.message?.includes('thumbnail_url'))) {
+      const fallbackPayload = { ...payload }
+      delete fallbackPayload.thumbnail_url
+      const res = await supabase.from('lessons').update(fallbackPayload).eq('lesson_id', lessonId)
+      error = res.error
+    }
 
     if (error) {
       console.error('Admin lesson update failed:', error)
@@ -144,7 +157,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true })
   }
 
-  const { error } = await supabase.from('lessons').insert(payload)
+  let { error } = await supabase.from('lessons').insert(payload)
+  if (error && (error.code === '42703' || error.message?.includes('thumbnail_url'))) {
+    const fallbackPayload = { ...payload }
+    delete fallbackPayload.thumbnail_url
+    const res = await supabase.from('lessons').insert(fallbackPayload)
+    error = res.error
+  }
+
   if (error) {
     console.error('Admin lesson insert failed:', error)
     return NextResponse.json({ error: 'Failed to create lesson' }, { status: 500 })

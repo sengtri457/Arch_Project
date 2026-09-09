@@ -62,14 +62,15 @@ async function getCurriculum(slug: string) {
     if (Array.isArray(data) && data.length > 0) return data
   } catch {}
 
-  if (slug === "d5-masterclass" || slug.includes("d5")) {
+  if (slug === "d5-masterclass" || slug.includes("d5") || slug === "d4a1b756-12d4-4047-93bd-8b58b94cb146") {
     return d5Modules.map((m) => ({
       lesson_id: m.lesson_id,
       order_index: m.order_index,
       title: m.title,
       duration_minutes: m.duration_minutes,
       is_preview: m.is_preview,
-      cover_image: m.cover_image
+      cover_image: m.cover_image,
+      thumbnail_url: m.cover_image
     }))
   }
   return []
@@ -200,7 +201,7 @@ export default async function CourseLandingPage({ params }: PageProps) {
               ) : (
                 <div className="space-y-3">
                   {curriculum.map((lesson, idx) => {
-                    const coverUrl = getLessonCoverImage(slug, lesson, idx)
+                    const coverUrl = getLessonCoverImage(course.slug || course.title || slug, lesson, idx)
                     const moduleNum = `Module ${String(lesson.order_index || idx + 1).padStart(2, '0')}`
 
                     return (

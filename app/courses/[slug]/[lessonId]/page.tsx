@@ -52,7 +52,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   // Fallback to d5Modules if lessons not loaded or empty for D5 course
   const candidateLessons = rawLessons.length > 0
     ? rawLessons
-    : (slug === "d5-masterclass" || slug.includes("d5"))
+    : (slug === "d5-masterclass" || slug.includes("d5") || slug === "d4a1b756-12d4-4047-93bd-8b58b94cb146" || course?.title?.toLowerCase().includes("d5"))
       ? d5Modules.map(m => ({
           lesson_id: m.lesson_id,
           course_id: courseId,
@@ -62,6 +62,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
           is_preview: m.is_preview,
           order_index: m.order_index,
           downloadable_asset_url: null,
+          thumbnail_url: m.cover_image,
           cover_image: m.cover_image
         }))
       : []
@@ -73,7 +74,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
 
   const currentLesson = lessons.find((l: any) => l.lesson_id === lessonId || l.id === lessonId) || lessons[0] || null
   const currentLessonIdx = lessons.findIndex((l: any) => (l.lesson_id || l.id) === (currentLesson?.lesson_id || currentLesson?.id))
-  const currentCoverUrl = getLessonCoverImage(slug, currentLesson, currentLessonIdx)
+  const currentCoverUrl = getLessonCoverImage(course?.slug || course?.title || slug, currentLesson, currentLessonIdx)
 
   // Secure video delivery state
   const { data: videoData, isLoading: loadingVideo } = useVideoUrl(currentLesson?.lesson_id || currentLesson?.id, hasAccess)
@@ -719,7 +720,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
                 const progress = progressList.find((p: any) => p.lesson_id === item.lesson_id)
                 const isItemCompleted = progress?.is_completed || false
                 const isSelected = item.lesson_id === currentLesson?.lesson_id
-                const coverUrl = getLessonCoverImage(slug, item, idx)
+                const coverUrl = getLessonCoverImage(course?.slug || course?.title || slug, item, idx)
 
                 return (
                   <button

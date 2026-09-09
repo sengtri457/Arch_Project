@@ -1,6 +1,7 @@
 export interface Course {
   id: string
   course_id?: string
+  slug?: string
   title: string
   description: string
   image: string
@@ -222,11 +223,21 @@ export function getLessonCoverImage(
   lesson?: { order_index?: number; title?: string; cover_image?: string; thumbnail_url?: string } | null,
   index?: number
 ): string {
-  if (lesson?.cover_image) return lesson.cover_image
-  if (lesson?.thumbnail_url) return lesson.thumbnail_url
+  if (lesson?.thumbnail_url && !lesson.thumbnail_url.includes("placeholder.svg")) {
+    return lesson.thumbnail_url
+  }
+  if (lesson?.cover_image && !lesson.cover_image.includes("placeholder.svg")) {
+    return lesson.cover_image
+  }
 
   const slug = (courseSlugOrId || "").toLowerCase()
-  const isD5 = slug.includes("d5") || !courseSlugOrId
+  const isD5 =
+    slug.includes("d5") ||
+    slug.includes("render") ||
+    slug === "d4a1b756-12d4-4047-93bd-8b58b94cb146" ||
+    slug === "d5c66d93-3d02-466d-a77b-6c6a46cd4cf7" ||
+    !courseSlugOrId ||
+    (lesson?.title && lesson.title.toLowerCase().includes("d5"))
 
   if (isD5) {
     const order = lesson?.order_index ?? (index !== undefined ? index + 1 : 1)
