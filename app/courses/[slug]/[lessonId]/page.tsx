@@ -29,6 +29,8 @@ import {
 
 import { useClassroomCourse, useClassroomLessons, useClassroomProgress, useClassroomCertificate, useVideoUrl, useClassroomAccess, useLessonExercise, useUpdateProgress } from "@/lib/react-query/hooks/use-classroom"
 import { LessonComments } from "@/components/lesson-comments"
+import { d5Modules, getLessonCoverImage } from "@/lib/courses-data"
+import { getMediaUrl } from "@/lib/utils"
 
 interface LessonPageProps {
   params: Promise<{ slug: string; lessonId: string }>
@@ -41,13 +43,32 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
 
   const { data: course } = useClassroomCourse(slug)
   const courseId = course ? (course.course_id || course.id) : ""
-  const { data: lessons = [] } = useClassroomLessons(courseId)
+  const { data: rawLessons = [] } = useClassroomLessons(courseId)
   const { data: progressList = [], isLoading: loadingProgress } = useClassroomProgress(user?.id, courseId)
   const { data: hasAccessRaw, isLoading: loadingAccess } = useClassroomAccess(user?.id, courseId)
   const hasAccess = hasAccessRaw ?? null
   const { data: existingCert } = useClassroomCertificate(user?.id, courseId)
 
+  // Fallback to d5Modules if lessons not loaded or empty for D5 course
+  const lessons = rawLessons.length > 0
+    ? rawLessons
+    : (slug === "d5-masterclass" || slug.includes("d5"))
+      ? d5Modules.map(m => ({
+          lesson_id: m.lesson_id,
+          course_id: courseId,
+          title: m.title,
+          video_url: null,
+          duration: m.duration_minutes * 60,
+          is_preview: m.is_preview,
+          order_index: m.order_index,
+          downloadable_asset_url: null,
+          cover_image: m.cover_image
+        }))
+      : []
+
   const currentLesson = lessons.find((l: any) => l.lesson_id === lessonId || l.id === lessonId) || lessons[0] || null
+  const currentLessonIdx = lessons.findIndex((l: any) => (l.lesson_id || l.id) === (currentLesson?.lesson_id || currentLesson?.id))
+  const currentCoverUrl = getLessonCoverImage(slug, currentLesson, currentLessonIdx)
 
   // Secure video delivery state
   const { data: videoData, isLoading: loadingVideo } = useVideoUrl(currentLesson?.lesson_id || currentLesson?.id, hasAccess)
@@ -422,18 +443,29 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const renderPlayer = () => {
     if (loadingVideo) {
       return (
-        <div className="aspect-video w-full bg-black rounded-xl flex flex-col items-center justify-center gap-3 border border-zinc-850">
-          <Loader2 className="w-8 h-8 animate-spin text-zinc-500" />
-          <p className="text-xs text-zinc-500">Preparing secure stream...</p>
+        <div className="aspect-video w-full bg-black rounded-xl overflow-hidden relative border border-zinc-850 flex flex-col items-center justify-center gap-3">
+          <img src={getMediaUrl(currentCoverUrl)} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />
+          <div className="relative z-10 flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#9ACD32' }} />
+            <p className="text-xs text-zinc-300 font-medium drop-shadow">Preparing secure stream...</p>
+          </div>
         </div>
       )
     }
     if (!activeVideo) {
       return (
-        <div className="aspect-video w-full bg-black rounded-xl flex flex-col items-center justify-center gap-3 border border-zinc-850">
-          <Lock className="w-8 h-8 text-zinc-600" />
-          <p className="text-sm text-zinc-400 font-medium">Video for this lesson is not available yet</p>
-          <p className="text-xs text-zinc-600">Please contact your instructor if you believe this is an error.</p>
+        <div className="aspect-video w-full bg-black rounded-xl overflow-hidden relative border border-zinc-850 flex flex-col items-center justify-center p-6 text-center">
+          <img src={getMediaUrl(currentCoverUrl)} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+          <div className="relative z-10 max-w-md space-y-3">
+            <div className="w-12 h-12 rounded-full bg-zinc-900/90 border border-zinc-700 flex items-center justify-center mx-auto" style={{ color: '#9ACD32' }}>
+              <Play className="w-5 h-5 ml-0.5 fill-current" />
+            </div>
+            <h3 className="text-base font-bold text-white drop-shadow">{currentLesson?.title || "Lesson Module"}</h3>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              Video stream for this module is being processed. You can review the attached exercise and module resources below.
+            </p>
+          </div>
         </div>
       )
     }
@@ -443,6 +475,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
         userEmail={user.email || "student@archtipsbox.com"}
         userId={user.id}
         format={activeVideo.format}
+        poster={getMediaUrl(currentCoverUrl)}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleVideoEnded}
       />
@@ -495,6 +528,13 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
             {/* Lesson Title and Descriptions */}
             <div className="bg-zinc-900/20 border border-zinc-850 p-6 rounded-2xl space-y-4">
               <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#9ACD32]/10 text-[#9ACD32] border border-[#9ACD32]/20">
+                    Module {String(currentLesson?.order_index || currentLessonIdx + 1).padStart(2, '0')}
+                  </span>
+                  <span className="text-xs text-zinc-500">&bull;</span>
+                  <span className="text-xs text-zinc-400">{course?.title || "D5 Masterclass"}</span>
+                </div>
                 <h1 className="text-2xl font-bold text-white">{currentLesson?.title || "Loading Lesson..."}</h1>
                 <p className="text-zinc-400 text-sm mt-2 leading-relaxed">
                   Welcome to this lesson module. In this visualization tutorial, we cover the lighting configurations, material setups, and composition techniques required to produce high-end architectural renders. Follow along using the assets attached.
@@ -674,33 +714,54 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
                 const progress = progressList.find((p: any) => p.lesson_id === item.lesson_id)
                 const isItemCompleted = progress?.is_completed || false
                 const isSelected = item.lesson_id === currentLesson?.lesson_id
+                const coverUrl = getLessonCoverImage(slug, item, idx)
 
                 return (
                   <button
                     key={item.lesson_id || item.id}
                     onClick={() => handleSelectLesson(item)}
-                    className={`w-full text-left p-3 rounded-xl border transition-all duration-300 flex items-center gap-3.5 group ${
+                    className={`w-full text-left p-2.5 rounded-xl border transition-all duration-300 flex items-center gap-3 group ${
                       isSelected 
-                        ? "bg-primary/10 border-primary text-white" 
-                        : "bg-zinc-900/10 border-zinc-850/60 text-zinc-400 hover:border-zinc-800 hover:text-white"
+                        ? "bg-[#9ACD32]/10 border-[#9ACD32] text-white shadow-sm" 
+                        : "bg-zinc-900/20 border-zinc-850/60 text-zinc-400 hover:border-zinc-750 hover:text-white"
                     }`}
-                    style={isSelected ? { borderColor: '#9ACD32' } : {}}
                   >
-                    <div className="flex-shrink-0">
-                      {isItemCompleted ? (
-                        <CheckCircle className="w-5 h-5 text-primary fill-primary/10" style={{ color: '#9ACD32' }} />
-                      ) : (
-                        <Circle className="w-5 h-5 text-zinc-650 group-hover:text-zinc-400 transition-colors" />
+                    {/* Module Cover Thumbnail */}
+                    <div className="w-14 h-9 rounded-lg overflow-hidden bg-black/60 border border-zinc-800 shrink-0 relative">
+                      <img
+                        src={getMediaUrl(coverUrl)}
+                        alt={item.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      {isSelected && (
+                        <div className="absolute inset-0 bg-[#9ACD32]/20 border border-[#9ACD32]/40 rounded-lg" />
                       )}
                     </div>
 
                     <div className="flex-grow min-w-0">
                       <h4 className={`text-xs font-semibold truncate ${isSelected ? "text-white" : "text-zinc-300"}`}>
-                        {idx + 1}. {item.title}
+                        {item.title}
                       </h4>
-                      <p className="text-[10px] text-zinc-500 mt-0.5 font-mono">
-                        {formatSidebarDuration(item.duration)}
-                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-zinc-500 font-mono">
+                          {formatSidebarDuration(item.duration)}
+                        </span>
+                        {item.is_preview && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                            Preview
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex-shrink-0">
+                      {isItemCompleted ? (
+                        <CheckCircle className="w-4 h-4 text-primary fill-primary/10" style={{ color: '#9ACD32' }} />
+                      ) : isSelected ? (
+                        <Play className="w-3.5 h-3.5 text-primary fill-primary" style={{ color: '#9ACD32' }} />
+                      ) : (
+                        <Circle className="w-3.5 h-3.5 text-zinc-700 group-hover:text-zinc-500 transition-colors" />
+                      )}
                     </div>
                   </button>
                 )

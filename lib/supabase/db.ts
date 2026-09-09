@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Project } from '@/lib/projects-data'
-import { Course } from '@/lib/courses-data'
+import { Course, d5Modules, getLessonCoverImage } from '@/lib/courses-data'
 import { Testimonial } from '@/lib/testimonials-data'
 import { YoutubeVideo } from '@/types/youtube-video'
 
@@ -335,6 +335,8 @@ export const db = {
   },
 
   async getCourseLessons(supabase: SupabaseClient, courseId: string): Promise<any[]> {
+    const isD5 = courseId === 'd4a1b756-12d4-4047-93bd-8b58b94cb146' || courseId === 'd5c66d93-3d02-466d-a77b-6c6a46cd4cf7' || courseId === 'd5-masterclass'
+
     try {
       const { data, error } = await supabase
         .from('lessons')
@@ -343,9 +345,24 @@ export const db = {
         .order('order_index', { ascending: true })
 
       if (error) throw error
-      if (!data) return []
+      if (!data || data.length === 0) {
+        if (isD5) {
+          return d5Modules.map(m => ({
+            lesson_id: m.lesson_id,
+            course_id: courseId,
+            title: m.title,
+            video_url: null,
+            duration: m.duration_minutes * 60,
+            is_preview: m.is_preview,
+            order_index: m.order_index,
+            downloadable_asset_url: null,
+            cover_image: m.cover_image
+          }))
+        }
+        return []
+      }
 
-      return data.map((l: any) => ({
+      return data.map((l: any, idx: number) => ({
         lesson_id: l.lesson_id,
         course_id: l.course_id,
         title: l.title,
@@ -353,10 +370,24 @@ export const db = {
         duration: l.duration_minutes * 60, // Convert minutes to seconds for player
         is_preview: l.is_preview,
         order_index: l.order_index,
-        downloadable_asset_url: l.downloadable_asset_url
+        downloadable_asset_url: l.downloadable_asset_url,
+        cover_image: getLessonCoverImage(courseId, l, idx)
       }))
     } catch (err) {
       console.warn(`Failed to fetch lessons for course ${courseId}:`, err)
+      if (isD5) {
+        return d5Modules.map(m => ({
+          lesson_id: m.lesson_id,
+          course_id: courseId,
+          title: m.title,
+          video_url: null,
+          duration: m.duration_minutes * 60,
+          is_preview: m.is_preview,
+          order_index: m.order_index,
+          downloadable_asset_url: null,
+          cover_image: m.cover_image
+        }))
+      }
       return []
     }
   },

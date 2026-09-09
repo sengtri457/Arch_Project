@@ -55,6 +55,11 @@ export function getMediaUrl(url: string): string {
     return '/placeholder.svg'
   }
   
+  // If it's a local static asset in the public/assets directory, return as-is
+  if (url.startsWith('/assets/') || url.startsWith('assets/')) {
+    return url.startsWith('/') ? url : `/${url}`
+  }
+
   // If using local media, return the path as-is (Next.js serves public folder at root)
   if (USE_LOCAL_MEDIA) {
     return url.startsWith('/') ? url : `/${url}`

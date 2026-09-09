@@ -14,6 +14,11 @@ function convertTsToJs(srcPath, destPath, exportName) {
     throw new Error(`Could not find export const ${exportName} in ${srcPath}`);
   }
   let arrayContent = content.substring(index);
+  // Remove any TypeScript interfaces, types, or subsequent functions
+  const cutOffIdx = arrayContent.search(/export\s+(interface|type|function)/);
+  if (cutOffIdx !== -1) {
+    arrayContent = arrayContent.substring(0, cutOffIdx);
+  }
   // Replace "export const name: Type[] =" with "const name ="
   arrayContent = arrayContent.replace(/export\s+const\s+(\w+)(:\s*[\w<>|\[\]]+)?\s*=/g, 'const $1 =');
   // Append explicit module exports
@@ -233,11 +238,11 @@ ON CONFLICT (slug) DO UPDATE SET
         max_score: 100
       }
     },
-    // D5 Masterclass
+    // D5 Masterclass (10 Modules matching M1 - M10)
     {
       lesson_id: 'd5d30129-234b-4b2a-8d19-450f612d4cf7',
       course_id: courseUuids['d5-masterclass'],
-      title: '01. Getting Started with D5 Render Interface',
+      title: '01. Introduction',
       video_source_type: 'youtube',
       video_external_id: 'https://www.w3schools.com/html/movie.mp4',
       duration_minutes: 15,
@@ -245,15 +250,15 @@ ON CONFLICT (slug) DO UPDATE SET
       is_preview: true,
       exercise: {
         exercise_id: 'd5e30129-234b-4b2a-8d19-450f612d4cf7',
-        title: 'Practice Task: Interface & Import',
-        brief_prompt: 'Import your SketchUp model into D5, configure the base camera view, and export a preview rendering.',
+        title: 'Practice Task: Course Setup & Overview',
+        brief_prompt: 'Complete the environment readiness checklist and post your rendering goals for the course.',
         max_score: 100
       }
     },
     {
       lesson_id: 'd59a6cf7-7756-42d4-bb34-8c6a0c021c32',
       course_id: courseUuids['d5-masterclass'],
-      title: '02. Advanced Lighting & Environmental Controls',
+      title: '02. Interface & Navigation',
       video_source_type: 'youtube',
       video_external_id: 'https://www.w3schools.com/html/movie.mp4',
       duration_minutes: 20,
@@ -261,8 +266,136 @@ ON CONFLICT (slug) DO UPDATE SET
       is_preview: false,
       exercise: {
         exercise_id: 'd5ea6cf7-7756-42d4-bb34-8c6a0c021c32',
-        title: 'Practice Task: Custom Lighting Setup',
-        brief_prompt: 'Create a sunset lighting setup using HDRI and custom artificial lights. Submit the final rendering.',
+        title: 'Practice Task: Viewport & Navigation',
+        brief_prompt: 'Configure navigation shortcuts and set up custom viewport layouts for architectural modeling.',
+        max_score: 100
+      }
+    },
+    {
+      lesson_id: 'd5030129-234b-4b2a-8d19-450f612d4cf7',
+      course_id: courseUuids['d5-masterclass'],
+      title: '03. Core Workflow',
+      video_source_type: 'youtube',
+      video_external_id: 'https://www.w3schools.com/html/movie.mp4',
+      duration_minutes: 25,
+      order_index: 3,
+      is_preview: false,
+      exercise: {
+        exercise_id: 'd5e30129-234b-4b2a-8d19-450f612d4c03',
+        title: 'Practice Task: Model Import & Live Sync',
+        brief_prompt: 'Import your building model from SketchUp or Revit into D5 and establish a live synchronization.',
+        max_score: 100
+      }
+    },
+    {
+      lesson_id: 'd5040129-234b-4b2a-8d19-450f612d4cf7',
+      course_id: courseUuids['d5-masterclass'],
+      title: '04. Material',
+      video_source_type: 'youtube',
+      video_external_id: 'https://www.w3schools.com/html/movie.mp4',
+      duration_minutes: 30,
+      order_index: 4,
+      is_preview: false,
+      exercise: {
+        exercise_id: 'd5e30129-234b-4b2a-8d19-450f612d4c04',
+        title: 'Practice Task: PBR Material Configuration',
+        brief_prompt: 'Create high-fidelity concrete, wood, and architectural glass materials with bump and roughness channels.',
+        max_score: 100
+      }
+    },
+    {
+      lesson_id: 'd5050129-234b-4b2a-8d19-450f612d4cf7',
+      course_id: courseUuids['d5-masterclass'],
+      title: '05. Lighting',
+      video_source_type: 'youtube',
+      video_external_id: 'https://www.w3schools.com/html/movie.mp4',
+      duration_minutes: 30,
+      order_index: 5,
+      is_preview: false,
+      exercise: {
+        exercise_id: 'd5e30129-234b-4b2a-8d19-450f612d4c05',
+        title: 'Practice Task: Architectural Lighting Rig',
+        brief_prompt: 'Build day and twilight lighting scenarios using HDRI sky systems, sun studies, and interior spotlights.',
+        max_score: 100
+      }
+    },
+    {
+      lesson_id: 'd5060129-234b-4b2a-8d19-450f612d4cf7',
+      course_id: courseUuids['d5-masterclass'],
+      title: '06. Assets',
+      video_source_type: 'youtube',
+      video_external_id: 'https://www.w3schools.com/html/movie.mp4',
+      duration_minutes: 25,
+      order_index: 6,
+      is_preview: false,
+      exercise: {
+        exercise_id: 'd5e30129-234b-4b2a-8d19-450f612d4c06',
+        title: 'Practice Task: Landscape & Foliage Scattering',
+        brief_prompt: 'Populate the scene environment with trees, shrubs, characters, and animated vehicular paths.',
+        max_score: 100
+      }
+    },
+    {
+      lesson_id: 'd5070129-234b-4b2a-8d19-450f612d4cf7',
+      course_id: courseUuids['d5-masterclass'],
+      title: '07. Composition',
+      video_source_type: 'youtube',
+      video_external_id: 'https://www.w3schools.com/html/movie.mp4',
+      duration_minutes: 25,
+      order_index: 7,
+      is_preview: false,
+      exercise: {
+        exercise_id: 'd5e30129-234b-4b2a-8d19-450f612d4c07',
+        title: 'Practice Task: Camera Framing & Focal Lengths',
+        brief_prompt: 'Compose two exterior wide views and one tight vignette using two-point perspective rules.',
+        max_score: 100
+      }
+    },
+    {
+      lesson_id: 'd5080129-234b-4b2a-8d19-450f612d4cf7',
+      course_id: courseUuids['d5-masterclass'],
+      title: '08. Post-Production',
+      video_source_type: 'youtube',
+      video_external_id: 'https://www.w3schools.com/html/movie.mp4',
+      duration_minutes: 35,
+      order_index: 8,
+      is_preview: false,
+      exercise: {
+        exercise_id: 'd5e30129-234b-4b2a-8d19-450f612d4c08',
+        title: 'Practice Task: Color Grading & Final Polish',
+        brief_prompt: 'Apply LUTs, tone mapping, depth haze, and export high-resolution presentation renders.',
+        max_score: 100
+      }
+    },
+    {
+      lesson_id: 'd5090129-234b-4b2a-8d19-450f612d4cf7',
+      course_id: courseUuids['d5-masterclass'],
+      title: '09. D5 AI Features',
+      video_source_type: 'youtube',
+      video_external_id: 'https://www.w3schools.com/html/movie.mp4',
+      duration_minutes: 25,
+      order_index: 9,
+      is_preview: false,
+      exercise: {
+        exercise_id: 'd5e30129-234b-4b2a-8d19-450f612d4c09',
+        title: 'Practice Task: AI Atmosphere Match & Upscaling',
+        brief_prompt: 'Utilize D5 AI tools to match reference moods and upscale render textures for final output.',
+        max_score: 100
+      }
+    },
+    {
+      lesson_id: 'd5100129-234b-4b2a-8d19-450f612d4cf7',
+      course_id: courseUuids['d5-masterclass'],
+      title: '10. Animation',
+      video_source_type: 'youtube',
+      video_external_id: 'https://www.w3schools.com/html/movie.mp4',
+      duration_minutes: 40,
+      order_index: 10,
+      is_preview: false,
+      exercise: {
+        exercise_id: 'd5e30129-234b-4b2a-8d19-450f612d4c10',
+        title: 'Practice Task: Cinematic Walkthrough Animation',
+        brief_prompt: 'Create a 15-second keyframed video sequence showing camera movement, lighting changes, and exports.',
         max_score: 100
       }
     },

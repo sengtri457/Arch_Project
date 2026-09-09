@@ -1,6 +1,6 @@
 -- Supabase Database Seeding File
 -- Generated automatically from static TypeScript data files
--- Date: 2026-08-26T07:52:49.079Z
+-- Date: 2026-09-09T14:48:53.457Z
 
 -- Enable pgcrypto extension
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -55,7 +55,7 @@ VALUES (
   'D5 Masterclass',
   'd5-masterclass',
   'Master the art of real-time rendering with D5 Render. Create stunning photorealistic visualizations with speed and efficiency.',
-  '/16-SB TOWER (Commercial)/Render Image/LIGHTROOM/Exterior-1.jpg',
+  '/assets/images/D5_class_img/D5_Cover.jpg',
   2,
   'intermediate',
   'D5 Render',
@@ -65,7 +65,7 @@ VALUES (
   '["Real-time rendering workflow","Advanced lighting and materials","Animation and video production","Environment and landscape creation","Post-processing in D5"]',
   'Bun Sambath',
   1500,
-  42,
+  10,
   true
 )
 ON CONFLICT (slug) DO UPDATE SET
@@ -322,12 +322,12 @@ ON CONFLICT (exercise_id) DO UPDATE SET
   brief_prompt = EXCLUDED.brief_prompt,
   max_score = EXCLUDED.max_score;
 
--- Lesson: 01. Getting Started with D5 Render Interface
+-- Lesson: 01. Introduction
 INSERT INTO public.lessons (lesson_id, course_id, title, video_source_type, video_external_id, duration_minutes, order_index, is_preview)
 VALUES (
   'd5d30129-234b-4b2a-8d19-450f612d4cf7',
   (SELECT course_id FROM public.courses WHERE slug = 'd5-masterclass'),
-  '01. Getting Started with D5 Render Interface',
+  '01. Introduction',
   'youtube',
   'https://www.w3schools.com/html/movie.mp4',
   15,
@@ -345,8 +345,8 @@ INSERT INTO public.exercises (exercise_id, lesson_id, title, brief_prompt, max_s
 VALUES (
   'd5e30129-234b-4b2a-8d19-450f612d4cf7',
   'd5d30129-234b-4b2a-8d19-450f612d4cf7',
-  'Practice Task: Interface & Import',
-  'Import your SketchUp model into D5, configure the base camera view, and export a preview rendering.',
+  'Practice Task: Course Setup & Overview',
+  'Complete the environment readiness checklist and post your rendering goals for the course.',
   100
 )
 ON CONFLICT (exercise_id) DO UPDATE SET
@@ -354,12 +354,12 @@ ON CONFLICT (exercise_id) DO UPDATE SET
   brief_prompt = EXCLUDED.brief_prompt,
   max_score = EXCLUDED.max_score;
 
--- Lesson: 02. Advanced Lighting & Environmental Controls
+-- Lesson: 02. Interface & Navigation
 INSERT INTO public.lessons (lesson_id, course_id, title, video_source_type, video_external_id, duration_minutes, order_index, is_preview)
 VALUES (
   'd59a6cf7-7756-42d4-bb34-8c6a0c021c32',
   (SELECT course_id FROM public.courses WHERE slug = 'd5-masterclass'),
-  '02. Advanced Lighting & Environmental Controls',
+  '02. Interface & Navigation',
   'youtube',
   'https://www.w3schools.com/html/movie.mp4',
   20,
@@ -377,8 +377,264 @@ INSERT INTO public.exercises (exercise_id, lesson_id, title, brief_prompt, max_s
 VALUES (
   'd5ea6cf7-7756-42d4-bb34-8c6a0c021c32',
   'd59a6cf7-7756-42d4-bb34-8c6a0c021c32',
-  'Practice Task: Custom Lighting Setup',
-  'Create a sunset lighting setup using HDRI and custom artificial lights. Submit the final rendering.',
+  'Practice Task: Viewport & Navigation',
+  'Configure navigation shortcuts and set up custom viewport layouts for architectural modeling.',
+  100
+)
+ON CONFLICT (exercise_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  brief_prompt = EXCLUDED.brief_prompt,
+  max_score = EXCLUDED.max_score;
+
+-- Lesson: 03. Core Workflow
+INSERT INTO public.lessons (lesson_id, course_id, title, video_source_type, video_external_id, duration_minutes, order_index, is_preview)
+VALUES (
+  'd5030129-234b-4b2a-8d19-450f612d4cf7',
+  (SELECT course_id FROM public.courses WHERE slug = 'd5-masterclass'),
+  '03. Core Workflow',
+  'youtube',
+  'https://www.w3schools.com/html/movie.mp4',
+  25,
+  3,
+  false
+)
+ON CONFLICT (lesson_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  video_source_type = EXCLUDED.video_source_type,
+  video_external_id = EXCLUDED.video_external_id,
+  duration_minutes = EXCLUDED.duration_minutes,
+  order_index = EXCLUDED.order_index,
+  is_preview = EXCLUDED.is_preview;
+INSERT INTO public.exercises (exercise_id, lesson_id, title, brief_prompt, max_score)
+VALUES (
+  'd5e30129-234b-4b2a-8d19-450f612d4c03',
+  'd5030129-234b-4b2a-8d19-450f612d4cf7',
+  'Practice Task: Model Import & Live Sync',
+  'Import your building model from SketchUp or Revit into D5 and establish a live synchronization.',
+  100
+)
+ON CONFLICT (exercise_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  brief_prompt = EXCLUDED.brief_prompt,
+  max_score = EXCLUDED.max_score;
+
+-- Lesson: 04. Material
+INSERT INTO public.lessons (lesson_id, course_id, title, video_source_type, video_external_id, duration_minutes, order_index, is_preview)
+VALUES (
+  'd5040129-234b-4b2a-8d19-450f612d4cf7',
+  (SELECT course_id FROM public.courses WHERE slug = 'd5-masterclass'),
+  '04. Material',
+  'youtube',
+  'https://www.w3schools.com/html/movie.mp4',
+  30,
+  4,
+  false
+)
+ON CONFLICT (lesson_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  video_source_type = EXCLUDED.video_source_type,
+  video_external_id = EXCLUDED.video_external_id,
+  duration_minutes = EXCLUDED.duration_minutes,
+  order_index = EXCLUDED.order_index,
+  is_preview = EXCLUDED.is_preview;
+INSERT INTO public.exercises (exercise_id, lesson_id, title, brief_prompt, max_score)
+VALUES (
+  'd5e30129-234b-4b2a-8d19-450f612d4c04',
+  'd5040129-234b-4b2a-8d19-450f612d4cf7',
+  'Practice Task: PBR Material Configuration',
+  'Create high-fidelity concrete, wood, and architectural glass materials with bump and roughness channels.',
+  100
+)
+ON CONFLICT (exercise_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  brief_prompt = EXCLUDED.brief_prompt,
+  max_score = EXCLUDED.max_score;
+
+-- Lesson: 05. Lighting
+INSERT INTO public.lessons (lesson_id, course_id, title, video_source_type, video_external_id, duration_minutes, order_index, is_preview)
+VALUES (
+  'd5050129-234b-4b2a-8d19-450f612d4cf7',
+  (SELECT course_id FROM public.courses WHERE slug = 'd5-masterclass'),
+  '05. Lighting',
+  'youtube',
+  'https://www.w3schools.com/html/movie.mp4',
+  30,
+  5,
+  false
+)
+ON CONFLICT (lesson_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  video_source_type = EXCLUDED.video_source_type,
+  video_external_id = EXCLUDED.video_external_id,
+  duration_minutes = EXCLUDED.duration_minutes,
+  order_index = EXCLUDED.order_index,
+  is_preview = EXCLUDED.is_preview;
+INSERT INTO public.exercises (exercise_id, lesson_id, title, brief_prompt, max_score)
+VALUES (
+  'd5e30129-234b-4b2a-8d19-450f612d4c05',
+  'd5050129-234b-4b2a-8d19-450f612d4cf7',
+  'Practice Task: Architectural Lighting Rig',
+  'Build day and twilight lighting scenarios using HDRI sky systems, sun studies, and interior spotlights.',
+  100
+)
+ON CONFLICT (exercise_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  brief_prompt = EXCLUDED.brief_prompt,
+  max_score = EXCLUDED.max_score;
+
+-- Lesson: 06. Assets
+INSERT INTO public.lessons (lesson_id, course_id, title, video_source_type, video_external_id, duration_minutes, order_index, is_preview)
+VALUES (
+  'd5060129-234b-4b2a-8d19-450f612d4cf7',
+  (SELECT course_id FROM public.courses WHERE slug = 'd5-masterclass'),
+  '06. Assets',
+  'youtube',
+  'https://www.w3schools.com/html/movie.mp4',
+  25,
+  6,
+  false
+)
+ON CONFLICT (lesson_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  video_source_type = EXCLUDED.video_source_type,
+  video_external_id = EXCLUDED.video_external_id,
+  duration_minutes = EXCLUDED.duration_minutes,
+  order_index = EXCLUDED.order_index,
+  is_preview = EXCLUDED.is_preview;
+INSERT INTO public.exercises (exercise_id, lesson_id, title, brief_prompt, max_score)
+VALUES (
+  'd5e30129-234b-4b2a-8d19-450f612d4c06',
+  'd5060129-234b-4b2a-8d19-450f612d4cf7',
+  'Practice Task: Landscape & Foliage Scattering',
+  'Populate the scene environment with trees, shrubs, characters, and animated vehicular paths.',
+  100
+)
+ON CONFLICT (exercise_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  brief_prompt = EXCLUDED.brief_prompt,
+  max_score = EXCLUDED.max_score;
+
+-- Lesson: 07. Composition
+INSERT INTO public.lessons (lesson_id, course_id, title, video_source_type, video_external_id, duration_minutes, order_index, is_preview)
+VALUES (
+  'd5070129-234b-4b2a-8d19-450f612d4cf7',
+  (SELECT course_id FROM public.courses WHERE slug = 'd5-masterclass'),
+  '07. Composition',
+  'youtube',
+  'https://www.w3schools.com/html/movie.mp4',
+  25,
+  7,
+  false
+)
+ON CONFLICT (lesson_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  video_source_type = EXCLUDED.video_source_type,
+  video_external_id = EXCLUDED.video_external_id,
+  duration_minutes = EXCLUDED.duration_minutes,
+  order_index = EXCLUDED.order_index,
+  is_preview = EXCLUDED.is_preview;
+INSERT INTO public.exercises (exercise_id, lesson_id, title, brief_prompt, max_score)
+VALUES (
+  'd5e30129-234b-4b2a-8d19-450f612d4c07',
+  'd5070129-234b-4b2a-8d19-450f612d4cf7',
+  'Practice Task: Camera Framing & Focal Lengths',
+  'Compose two exterior wide views and one tight vignette using two-point perspective rules.',
+  100
+)
+ON CONFLICT (exercise_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  brief_prompt = EXCLUDED.brief_prompt,
+  max_score = EXCLUDED.max_score;
+
+-- Lesson: 08. Post-Production
+INSERT INTO public.lessons (lesson_id, course_id, title, video_source_type, video_external_id, duration_minutes, order_index, is_preview)
+VALUES (
+  'd5080129-234b-4b2a-8d19-450f612d4cf7',
+  (SELECT course_id FROM public.courses WHERE slug = 'd5-masterclass'),
+  '08. Post-Production',
+  'youtube',
+  'https://www.w3schools.com/html/movie.mp4',
+  35,
+  8,
+  false
+)
+ON CONFLICT (lesson_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  video_source_type = EXCLUDED.video_source_type,
+  video_external_id = EXCLUDED.video_external_id,
+  duration_minutes = EXCLUDED.duration_minutes,
+  order_index = EXCLUDED.order_index,
+  is_preview = EXCLUDED.is_preview;
+INSERT INTO public.exercises (exercise_id, lesson_id, title, brief_prompt, max_score)
+VALUES (
+  'd5e30129-234b-4b2a-8d19-450f612d4c08',
+  'd5080129-234b-4b2a-8d19-450f612d4cf7',
+  'Practice Task: Color Grading & Final Polish',
+  'Apply LUTs, tone mapping, depth haze, and export high-resolution presentation renders.',
+  100
+)
+ON CONFLICT (exercise_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  brief_prompt = EXCLUDED.brief_prompt,
+  max_score = EXCLUDED.max_score;
+
+-- Lesson: 09. D5 AI Features
+INSERT INTO public.lessons (lesson_id, course_id, title, video_source_type, video_external_id, duration_minutes, order_index, is_preview)
+VALUES (
+  'd5090129-234b-4b2a-8d19-450f612d4cf7',
+  (SELECT course_id FROM public.courses WHERE slug = 'd5-masterclass'),
+  '09. D5 AI Features',
+  'youtube',
+  'https://www.w3schools.com/html/movie.mp4',
+  25,
+  9,
+  false
+)
+ON CONFLICT (lesson_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  video_source_type = EXCLUDED.video_source_type,
+  video_external_id = EXCLUDED.video_external_id,
+  duration_minutes = EXCLUDED.duration_minutes,
+  order_index = EXCLUDED.order_index,
+  is_preview = EXCLUDED.is_preview;
+INSERT INTO public.exercises (exercise_id, lesson_id, title, brief_prompt, max_score)
+VALUES (
+  'd5e30129-234b-4b2a-8d19-450f612d4c09',
+  'd5090129-234b-4b2a-8d19-450f612d4cf7',
+  'Practice Task: AI Atmosphere Match & Upscaling',
+  'Utilize D5 AI tools to match reference moods and upscale render textures for final output.',
+  100
+)
+ON CONFLICT (exercise_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  brief_prompt = EXCLUDED.brief_prompt,
+  max_score = EXCLUDED.max_score;
+
+-- Lesson: 10. Animation
+INSERT INTO public.lessons (lesson_id, course_id, title, video_source_type, video_external_id, duration_minutes, order_index, is_preview)
+VALUES (
+  'd5100129-234b-4b2a-8d19-450f612d4cf7',
+  (SELECT course_id FROM public.courses WHERE slug = 'd5-masterclass'),
+  '10. Animation',
+  'youtube',
+  'https://www.w3schools.com/html/movie.mp4',
+  40,
+  10,
+  false
+)
+ON CONFLICT (lesson_id) DO UPDATE SET
+  title = EXCLUDED.title,
+  video_source_type = EXCLUDED.video_source_type,
+  video_external_id = EXCLUDED.video_external_id,
+  duration_minutes = EXCLUDED.duration_minutes,
+  order_index = EXCLUDED.order_index,
+  is_preview = EXCLUDED.is_preview;
+INSERT INTO public.exercises (exercise_id, lesson_id, title, brief_prompt, max_score)
+VALUES (
+  'd5e30129-234b-4b2a-8d19-450f612d4c10',
+  'd5100129-234b-4b2a-8d19-450f612d4cf7',
+  'Practice Task: Cinematic Walkthrough Animation',
+  'Create a 15-second keyframed video sequence showing camera movement, lighting changes, and exports.',
   100
 )
 ON CONFLICT (exercise_id) DO UPDATE SET

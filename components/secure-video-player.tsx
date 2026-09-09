@@ -8,6 +8,7 @@ interface SecureVideoPlayerProps {
   userEmail: string
   userId: string
   format?: 'hls' | 'direct'
+  poster?: string
   onTimeUpdate?: (currentTime: number, duration: number) => void
   onEnded?: () => void
 }
@@ -17,6 +18,7 @@ export function SecureVideoPlayer({
   userEmail,
   userId,
   format,
+  poster,
   onTimeUpdate,
   onEnded
 }: SecureVideoPlayerProps) {
@@ -228,6 +230,7 @@ export function SecureVideoPlayer({
       <video
         ref={videoRef}
         src={isHlsStream ? undefined : videoUrl}
+        poster={poster}
         className="w-full h-full object-contain cursor-pointer"
         onClick={togglePlay}
         onTimeUpdate={handleTimeUpdate}

@@ -10,6 +10,7 @@ import { CourseEnrollCta } from "@/components/course-enroll-cta"
 import { VideoIntroductionPlayer } from "@/components/video-introduction-player"
 import { getMediaUrl } from "@/lib/utils"
 import { Lock, PlayCircle, Clock, BarChart3, User, Award, CheckCircle2 } from "lucide-react"
+import { courses as mockCourses, d5Modules, getLessonCoverImage } from "@/lib/courses-data"
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -23,18 +24,55 @@ function anonClient() {
 }
 
 async function getCourse(slug: string) {
-  const { data } = await anonClient()
-    .from("courses")
-    .select("course_id, title, slug, description, thumbnail_url, price, difficulty, duration, instructor, category, software_used, features, lessons, introduction_url")
-    .eq("slug", slug)
-    .eq("is_published", true)
-    .maybeSingle()
-  return data
+  try {
+    const { data } = await anonClient()
+      .from("courses")
+      .select("course_id, title, slug, description, thumbnail_url, price, difficulty, duration, instructor, category, software_used, features, lessons, introduction_url")
+      .eq("slug", slug)
+      .eq("is_published", true)
+      .maybeSingle()
+    if (data) return data
+  } catch {}
+
+  const fallback = mockCourses.find((c) => c.id === slug)
+  if (fallback) {
+    return {
+      course_id: fallback.course_id || fallback.id,
+      title: fallback.title,
+      slug: fallback.id,
+      description: fallback.description,
+      thumbnail_url: fallback.image,
+      price: parseFloat(fallback.price.replace(/[^0-9.]/g, '')) || 49.99,
+      difficulty: fallback.level,
+      duration: fallback.duration,
+      instructor: fallback.instructor,
+      category: fallback.category,
+      software_used: fallback.software_used,
+      features: fallback.features,
+      lessons: fallback.lessons,
+      introduction_url: fallback.introduction_url || null
+    }
+  }
+  return null
 }
 
 async function getCurriculum(slug: string) {
-  const { data } = await anonClient().rpc("get_course_curriculum", { p_slug: slug })
-  return Array.isArray(data) ? data : []
+  try {
+    const { data } = await anonClient().rpc("get_course_curriculum", { p_slug: slug })
+    if (Array.isArray(data) && data.length > 0) return data
+  } catch {}
+
+  if (slug === "d5-masterclass" || slug.includes("d5")) {
+    return d5Modules.map((m) => ({
+      lesson_id: m.lesson_id,
+      order_index: m.order_index,
+      title: m.title,
+      duration_minutes: m.duration_minutes,
+      is_preview: m.is_preview,
+      cover_image: m.cover_image
+    }))
+  }
+  return []
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -146,30 +184,78 @@ export default async function CourseLandingPage({ params }: PageProps) {
             )}
 
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">Curriculum</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white">Curriculum &amp; Syllabus</h2>
+                <span className="text-xs text-zinc-400 font-mono">
+                  {curriculum.length} Modules &bull; {totalMinutes}m Total
+                </span>
+              </div>
               {curriculum.length === 0 ? (
                 <p className="text-sm text-zinc-500 italic">The full syllabus will be published soon.</p>
               ) : (
-                <div className="rounded-2xl border border-zinc-800/60 divide-y divide-zinc-800/60 overflow-hidden">
-                  {curriculum.map((lesson) => (
-                    <div key={lesson.lesson_id} className="flex items-center justify-between gap-4 p-4 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Lock className="w-3.5 h-3.5 shrink-0 text-zinc-500" />
-                        <span className="text-sm text-zinc-300 truncate">{lesson.title}</span>
+                <div className="space-y-3">
+                  {curriculum.map((lesson, idx) => {
+                    const coverUrl = getLessonCoverImage(slug, lesson, idx)
+                    const moduleNum = `Module ${String(lesson.order_index || idx + 1).padStart(2, '0')}`
+
+                    return (
+                      <div
+                        key={lesson.lesson_id}
+                        className="bg-zinc-900/30 border border-zinc-800/60 hover:border-zinc-700/80 rounded-2xl p-3.5 sm:p-4 transition-all duration-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group"
+                      >
+                        <div className="flex items-center gap-4 min-w-0 w-full sm:w-auto flex-grow">
+                          {/* 16:9 Module Cover Thumbnail */}
+                          <div className="w-28 sm:w-36 aspect-video rounded-xl overflow-hidden bg-black/50 border border-zinc-800/80 shrink-0 relative">
+                            <img
+                              src={getMediaUrl(coverUrl)}
+                              alt={lesson.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                            <span className="absolute bottom-1.5 left-2 text-[10px] font-bold font-mono text-zinc-300 drop-shadow">
+                              {lesson.duration_minutes || 0}m
+                            </span>
+                          </div>
+
+                          <div className="min-w-0 flex-grow">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-[#9ACD32]/10 text-[#9ACD32] border border-[#9ACD32]/20">
+                                {moduleNum}
+                              </span>
+                              {lesson.is_preview && (
+                                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                  Free Preview
+                                </span>
+                              )}
+                            </div>
+                            <h3 className="text-sm font-semibold text-white truncate group-hover:text-[#9ACD32] transition-colors">
+                              {lesson.title}
+                            </h3>
+                            <p className="text-xs text-zinc-500 line-clamp-1 mt-0.5 hidden sm:block">
+                              Visual architectural rendering module with hands-on exercises and scene assets.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                          {lesson.is_preview ? (
+                            <Link
+                              href={`/courses/${slug}/${lesson.lesson_id}`}
+                              className="text-xs font-semibold px-4 py-2 rounded-xl border border-[#9ACD32]/40 text-[#9ACD32] hover:bg-[#9ACD32]/10 transition-colors flex items-center gap-1.5"
+                            >
+                              <PlayCircle className="w-3.5 h-3.5" />
+                              Preview Lesson
+                            </Link>
+                          ) : (
+                            <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-medium px-3 py-1.5 rounded-lg bg-zinc-900/60 border border-zinc-850">
+                              <Lock className="w-3.5 h-3.5 text-zinc-500" />
+                              <span>Locked</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-xs text-zinc-500">{lesson.duration_minutes || 0}m</span>
-                        {lesson.is_preview ? (
-                          <Link
-                            href={`/courses/${slug}/${lesson.lesson_id}`}
-                            className="text-xs font-semibold px-3 py-1 rounded-lg border border-[#9ACD32]/40 text-[#9ACD32] hover:bg-[#9ACD32]/10 transition-colors"
-                          >
-                            Preview
-                          </Link>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </section>
