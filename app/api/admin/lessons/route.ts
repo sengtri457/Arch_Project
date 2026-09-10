@@ -123,6 +123,7 @@ export async function POST(request: Request) {
   const payload: Record<string, any> = {
     lesson_id: typeof body.lesson_id === 'string' && body.lesson_id ? body.lesson_id : undefined,
     course_id: courseId,
+    module_id: typeof body.module_id === 'string' && body.module_id ? body.module_id : null,
     title,
     video_source_type: sourceType,
     video_external_id: videoExternalId,

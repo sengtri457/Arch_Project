@@ -64,6 +64,69 @@ export default function EditCoursePage() {
     is_published: true
   })
 
+  // Lesson to Module State
+  const [showLessonModal, setShowLessonModal] = useState(false)
+  const [savingLesson, setSavingLesson] = useState(false)
+  const [lessonForm, setLessonForm] = useState({
+    title: "",
+    module_id: "",
+    video_source_type: "direct",
+    video_external_id: "",
+    duration_minutes: 15,
+    order_index: 1,
+    is_preview: false,
+    downloadable_asset_url: ""
+  })
+
+  const handleOpenAddLessonToModule = (targetModuleId?: string) => {
+    setLessonForm({
+      title: "",
+      module_id: targetModuleId || (modules[0]?.module_id || ""),
+      video_source_type: "direct",
+      video_external_id: "",
+      duration_minutes: 15,
+      order_index: 1,
+      is_preview: false,
+      downloadable_asset_url: ""
+    })
+    setShowLessonModal(true)
+  }
+
+  const handleSaveLessonToModule = async () => {
+    if (!lessonForm.title || !courseId) return
+    setSavingLesson(true)
+    try {
+      const res = await fetch("/api/admin/lessons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...lessonForm,
+          course_id: courseId
+        })
+      })
+
+      if (res.ok) {
+        setShowLessonModal(false)
+        loadModules(courseId)
+        MySwal.fire({
+          icon: "success",
+          title: "Lesson Created & Assigned to Module",
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 2000
+        })
+      } else {
+        const data = await res.json()
+        alert(data.error || "Failed to create lesson")
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to create lesson")
+    } finally {
+      setSavingLesson(false)
+    }
+  }
+
   const loadModules = async (cId: string) => {
     try {
       setLoadingModules(true)
@@ -715,6 +778,15 @@ export default function EditCoursePage() {
                         <Button
                           type="button"
                           variant="ghost"
+                          onClick={() => handleOpenAddLessonToModule(mod.module_id)}
+                          className="text-xs text-[#9ACD32] hover:bg-[#9ACD32]/10 border border-[#9ACD32]/30 px-3 py-1.5 rounded-lg flex items-center gap-1"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Add Lesson
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
                           onClick={() => handleOpenEditModule(mod)}
                           className="text-xs text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg"
                         >
@@ -825,6 +897,122 @@ export default function EditCoursePage() {
                 className="bg-[#9ACD32] text-black font-bold px-6 rounded-xl hover:bg-[#8ab82b]"
               >
                 {savingModule ? "Saving..." : editingModuleId ? "Update Module" : "Create Module"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Lesson to Specific Module Dialog Modal */}
+      {showLessonModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 p-6 md:p-8 rounded-3xl max-w-lg w-full space-y-6">
+            <h3 className="text-xl font-bold text-white">Add Lesson to Module</h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Target Module</label>
+                <select
+                  value={lessonForm.module_id}
+                  onChange={(e) => setLessonForm({ ...lessonForm, module_id: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                >
+                  <option value="">No Module (Unassigned)</option>
+                  {modules.map((m: any, idx: number) => (
+                    <option key={m.module_id || idx} value={m.module_id}>
+                      {m.module_number || `Module ${String(idx + 1).padStart(2, '0')}`}: {m.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Lesson Title</label>
+                <input
+                  type="text"
+                  required
+                  value={lessonForm.title}
+                  onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
+                  placeholder="e.g. 1.1 Welcome & Viewport Basics"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Video Stream Source URL / ID</label>
+                <input
+                  type="text"
+                  required
+                  value={lessonForm.video_external_id}
+                  onChange={(e) => setLessonForm({ ...lessonForm, video_external_id: e.target.value })}
+                  placeholder="Paste YouTube URL, Vimeo URL, or Bunny Video ID..."
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Duration (Minutes)</label>
+                  <input
+                    type="number"
+                    value={lessonForm.duration_minutes}
+                    onChange={(e) => setLessonForm({ ...lessonForm, duration_minutes: Number(e.target.value) })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1 font-mono">Order Index</label>
+                  <input
+                    type="number"
+                    value={lessonForm.order_index}
+                    onChange={(e) => setLessonForm({ ...lessonForm, order_index: Number(e.target.value) })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Downloadable Asset URL</label>
+                <input
+                  type="text"
+                  value={lessonForm.downloadable_asset_url}
+                  onChange={(e) => setLessonForm({ ...lessonForm, downloadable_asset_url: e.target.value })}
+                  placeholder="https://... asset zip link"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="is-preview-chk"
+                  checked={lessonForm.is_preview}
+                  onChange={(e) => setLessonForm({ ...lessonForm, is_preview: e.target.checked })}
+                  className="w-4 h-4 rounded bg-zinc-950 border-zinc-800 text-[#9ACD32] focus:ring-0"
+                />
+                <label htmlFor="is-preview-chk" className="text-xs text-zinc-300 font-medium cursor-pointer">
+                  Free Preview Lesson (Visible to non-enrolled students)
+                </label>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowLessonModal(false)}
+                className="text-zinc-400 hover:text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSaveLessonToModule}
+                disabled={savingLesson}
+                className="bg-[#9ACD32] text-black font-bold px-6 rounded-xl hover:bg-[#8ab82b]"
+              >
+                {savingLesson ? "Saving..." : "Add Lesson"}
               </Button>
             </div>
           </div>
