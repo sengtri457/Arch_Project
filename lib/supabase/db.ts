@@ -456,9 +456,12 @@ export const db = {
           title: m.module_title,
           description: m.module_description || '',
           cover_image: m.module_cover_image || getLessonCoverImage(courseIdOrSlug, null, m.module_order_index - 1),
-          duration_minutes: (m.lessons || []).reduce((acc: number, l: any) => acc + (l.duration_minutes || 0), 0),
-          is_preview: (m.lessons || []).some((l: any) => l.is_preview),
-          lessons: m.lessons || []
+          lessons: (m.lessons || []).map((l: any, lIdx: number) => ({
+            ...l,
+            video_url: l.video_external_id || l.video_url || null,
+            video_external_id: l.video_external_id || l.video_url || null,
+            cover_image: l.cover_image || getLessonCoverImage(courseIdOrSlug, l, lIdx)
+          }))
         }))
       }
     } catch (err) {
