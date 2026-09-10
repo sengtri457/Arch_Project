@@ -367,7 +367,7 @@ export const db = {
     try {
       const { data, error } = await supabase
         .from('lessons')
-        .select('lesson_id, course_id, title, duration_minutes, order_index, is_preview, thumbnail_url, downloadable_asset_url')
+        .select('lesson_id, course_id, title, duration_minutes, order_index, is_preview, thumbnail_url, downloadable_asset_url, video_external_id, video_source_type')
         .eq('course_id', courseId)
         .order('order_index', { ascending: true })
 
@@ -376,7 +376,9 @@ export const db = {
           lesson_id: l.lesson_id,
           course_id: l.course_id,
           title: l.title,
-          video_url: null as string | null,
+          video_url: l.video_external_id || null,
+          video_external_id: l.video_external_id || null,
+          video_source_type: l.video_source_type || 'direct',
           duration: (l.duration_minutes || 0) * 60,
           is_preview: Boolean(l.is_preview),
           order_index: l.order_index ?? idx + 1,

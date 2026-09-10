@@ -43,7 +43,7 @@ export async function GET(
     // Fetch lessons for the resolved course ID (non-sensitive columns only)
     const { data: lessons, error } = await supabase
       .from('lessons')
-      .select('lesson_id, course_id, title, duration_minutes, order_index, is_preview, thumbnail_url, downloadable_asset_url')
+      .select('lesson_id, course_id, title, duration_minutes, order_index, is_preview, thumbnail_url, downloadable_asset_url, video_external_id, video_source_type')
       .eq('course_id', targetCourseId)
       .order('order_index', { ascending: true })
 

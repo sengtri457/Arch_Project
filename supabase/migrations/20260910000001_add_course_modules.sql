@@ -68,7 +68,10 @@ AS $$
           'duration_minutes', l.duration_minutes,
           'order_index', l.order_index,
           'is_preview', COALESCE(l.is_preview, false),
-          'downloadable_asset_url', l.downloadable_asset_url
+          'downloadable_asset_url', l.downloadable_asset_url,
+          'video_external_id', l.video_external_id,
+          'video_source_type', l.video_source_type,
+          'video_url', l.video_external_id
         ) ORDER BY l.order_index ASC
       ) FILTER (WHERE l.lesson_id IS NOT NULL),
       '[]'::jsonb
