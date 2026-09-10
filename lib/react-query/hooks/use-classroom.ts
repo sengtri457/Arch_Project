@@ -22,6 +22,16 @@ export function useClassroomLessons(courseId: string) {
   })
 }
 
+export function useClassroomModules(courseIdOrSlug: string) {
+  const supabase = createClient()
+  return useQuery({
+    queryKey: ["classroom", "modules", courseIdOrSlug],
+    queryFn: () => db.getCourseModules(supabase, courseIdOrSlug),
+    enabled: !!courseIdOrSlug,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
 export function useClassroomProgress(userId: string | undefined, courseId: string) {
   const supabase = createClient()
   return useQuery({

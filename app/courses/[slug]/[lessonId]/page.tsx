@@ -27,7 +27,7 @@ import {
   RotateCcw
 } from "lucide-react"
 
-import { useClassroomCourse, useClassroomLessons, useClassroomProgress, useClassroomCertificate, useVideoUrl, useClassroomAccess, useLessonExercise, useUpdateProgress } from "@/lib/react-query/hooks/use-classroom"
+import { useClassroomCourse, useClassroomLessons, useClassroomModules, useClassroomProgress, useClassroomCertificate, useVideoUrl, useClassroomAccess, useLessonExercise, useUpdateProgress } from "@/lib/react-query/hooks/use-classroom"
 import { LessonComments } from "@/components/lesson-comments"
 import { d5Modules, getLessonCoverImage, resolveLessonId } from "@/lib/courses-data"
 import { getMediaUrl } from "@/lib/utils"
@@ -71,27 +71,32 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const courseId = course ? (course.course_id || course.id) : ""
   const courseIdentifier = courseId || slug
   const { data: rawLessons = [], isLoading: loadingLessons } = useClassroomLessons(courseIdentifier)
+  const { data: modulesList = [] } = useClassroomModules(courseIdentifier)
   const { data: progressList = [], isLoading: loadingProgress } = useClassroomProgress(user?.id, courseId)
   const { data: hasAccessRaw, isLoading: loadingAccess } = useClassroomAccess(user?.id, courseId)
   const hasAccess = hasAccessRaw ?? null
   const { data: existingCert } = useClassroomCertificate(user?.id, courseId)
 
-  // Fallback to d5Modules if lessons not loaded or empty for D5 course
+  // Fallback to modules lessons or rawLessons
+  const moduleLessons = (modulesList.length > 0 ? modulesList : d5Modules).flatMap(m => (m.lessons || []).map(l => ({
+    lesson_id: l.lesson_id,
+    course_id: courseId,
+    title: l.title,
+    video_url: l.video_url || null,
+    duration: (l.duration_minutes || 0) * 60,
+    is_preview: l.is_preview,
+    order_index: l.order_index,
+    downloadable_asset_url: l.downloadable_asset_url || null,
+    thumbnail_url: l.cover_image || m.cover_image,
+    cover_image: l.cover_image || m.cover_image,
+    module_title: m.title,
+    module_number: m.module_number || `Module ${String(m.order_index).padStart(2, '0')}`
+  })))
+
   const candidateLessons = rawLessons.length > 0
     ? rawLessons
-    : (slug === "d5-masterclass" || slug.includes("d5") || slug === "d4a1b756-12d4-4047-93bd-8b58b94cb146" || course?.title?.toLowerCase().includes("d5"))
-      ? d5Modules.map(m => ({
-          lesson_id: m.lesson_id,
-          course_id: courseId,
-          title: m.title,
-          video_url: null,
-          duration: m.duration_minutes * 60,
-          is_preview: m.is_preview,
-          order_index: m.order_index,
-          downloadable_asset_url: null,
-          thumbnail_url: m.cover_image,
-          cover_image: m.cover_image
-        }))
+    : moduleLessons.length > 0
+      ? moduleLessons
       : []
 
   // Deduplicate lessons by order_index and sort ascending

@@ -417,18 +417,54 @@ export const db = {
 
     // Tier 4: Fallback for D5 Masterclass
     if (isD5) {
-      return d5Modules.map(m => ({
-        lesson_id: m.lesson_id,
+      return d5Modules.flatMap(m => m.lessons || []).map(l => ({
+        lesson_id: l.lesson_id,
         course_id: courseId,
-        title: m.title,
+        title: l.title,
         video_url: null,
-        duration: m.duration_minutes * 60,
-        is_preview: m.is_preview,
-        order_index: m.order_index,
+        duration: (l.duration_minutes || 0) * 60,
+        is_preview: l.is_preview,
+        order_index: l.order_index,
         downloadable_asset_url: null,
-        thumbnail_url: m.cover_image,
-        cover_image: m.cover_image
+        thumbnail_url: l.cover_image,
+        cover_image: l.cover_image
       }))
+    }
+
+    return []
+  },
+
+  async getCourseModules(supabase: SupabaseClient, courseIdOrSlug: string): Promise<CourseModule[]> {
+    if (!courseIdOrSlug) return []
+
+    const isD5 = courseIdOrSlug === 'd4a1b756-12d4-4047-93bd-8b58b94cb146' ||
+      courseIdOrSlug === 'd5c66d93-3d02-466d-a77b-6c6a46cd4cf7' ||
+      courseIdOrSlug === 'd5-masterclass' ||
+      courseIdOrSlug.toLowerCase().includes('d5')
+
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_course_modules', { p_slug: courseIdOrSlug })
+
+      if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+        return rpcData.map((m: any) => ({
+          module_id: m.module_id,
+          course_id: m.course_id,
+          order_index: m.module_order_index,
+          module_number: `Module ${String(m.module_order_index).padStart(2, '0')}`,
+          title: m.module_title,
+          description: m.module_description || '',
+          cover_image: m.module_cover_image || getLessonCoverImage(courseIdOrSlug, null, m.module_order_index - 1),
+          duration_minutes: (m.lessons || []).reduce((acc: number, l: any) => acc + (l.duration_minutes || 0), 0),
+          is_preview: (m.lessons || []).some((l: any) => l.is_preview),
+          lessons: m.lessons || []
+        }))
+      }
+    } catch (err) {
+      console.warn(`RPC get_course_modules failed for ${courseIdOrSlug}:`, err)
+    }
+
+    if (isD5) {
+      return d5Modules
     }
 
     return []
