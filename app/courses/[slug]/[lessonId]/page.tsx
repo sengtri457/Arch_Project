@@ -69,7 +69,8 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
 
   const { data: course } = useClassroomCourse(slug)
   const courseId = course ? (course.course_id || course.id) : ""
-  const { data: rawLessons = [] } = useClassroomLessons(courseId)
+  const courseIdentifier = courseId || slug
+  const { data: rawLessons = [], isLoading: loadingLessons } = useClassroomLessons(courseIdentifier)
   const { data: progressList = [], isLoading: loadingProgress } = useClassroomProgress(user?.id, courseId)
   const { data: hasAccessRaw, isLoading: loadingAccess } = useClassroomAccess(user?.id, courseId)
   const hasAccess = hasAccessRaw ?? null
@@ -107,9 +108,12 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     l.id === lessonId
   ) || lessons[0] || null
   const currentLessonIdx = lessons.findIndex((l: any) => (l.lesson_id || l.id) === (currentLesson?.lesson_id || currentLesson?.id))
-  const currentCoverUrl = getLessonCoverImage(course?.slug || course?.title || slug, currentLesson, currentLessonIdx)
+  const courseFallbackCover = course?.thumbnail_url || (course as any)?.image || null
+  const currentCoverUrl = getLessonCoverImage(course?.slug || course?.title || slug, currentLesson, currentLessonIdx, courseFallbackCover)
 
-  const activeLessonId = currentLesson ? (currentLesson.lesson_id || currentLesson.id) : resolvedParamLessonId
+  const activeLessonId = currentLesson 
+    ? (currentLesson.lesson_id || currentLesson.id) 
+    : (resolvedParamLessonId !== "start" && /^[0-9a-f-]{36}$/i.test(resolvedParamLessonId) ? resolvedParamLessonId : undefined)
 
   // Secure video delivery state
   const canAccessVideo = Boolean(currentLesson?.is_preview || profile?.role === 'admin' || profile?.role === 'instructor' || hasAccess)
@@ -145,6 +149,17 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
       router.push(`/login?next=/courses/${slug}/${lessonId}`)
     }
   }, [user, loading, router, slug, lessonId])
+
+  // Auto-redirect /courses/[slug]/start to first lesson UUID once lessons load
+  useEffect(() => {
+    if (lessonId === "start" && lessons.length > 0) {
+      const firstLesson = lessons[0]
+      const targetId = firstLesson?.lesson_id || firstLesson?.id
+      if (targetId && targetId !== "start") {
+        router.replace(`/courses/${slug}/${targetId}`)
+      }
+    }
+  }, [lessonId, lessons, slug, router])
 
   // Auto-certificate check when all videos watched
   useEffect(() => {
@@ -483,13 +498,29 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   }
 
   const renderPlayer = () => {
-    if (loadingVideo) {
+    if (!loadingLessons && lessons.length === 0) {
+      return (
+        <div className="aspect-video w-full bg-black rounded-xl overflow-hidden relative border border-zinc-850 flex flex-col items-center justify-center p-6 text-center">
+          <div className="relative z-10 max-w-md space-y-3">
+            <div className="w-12 h-12 rounded-full bg-zinc-900/90 border border-zinc-700 flex items-center justify-center mx-auto text-zinc-500">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <h3 className="text-base font-bold text-white drop-shadow">No Lessons Available Yet</h3>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              The instructor is currently preparing curriculum modules for this course. Please check back soon.
+            </p>
+          </div>
+        </div>
+      )
+    }
+
+    if (loadingVideo || loadingLessons) {
       return (
         <div className="aspect-video w-full bg-black rounded-xl overflow-hidden relative border border-zinc-850 flex flex-col items-center justify-center gap-3">
           <img src={getMediaUrl(currentCoverUrl)} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />
           <div className="relative z-10 flex flex-col items-center gap-3">
             <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#9ACD32' }} />
-            <p className="text-xs text-zinc-300 font-medium drop-shadow">Preparing secure stream...</p>
+            <p className="text-xs text-zinc-300 font-medium drop-shadow">Preparing stream...</p>
           </div>
         </div>
       )
@@ -770,62 +801,75 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
             </div>
 
             <div className="flex-grow overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-              {lessons.map((item: any, idx: number) => {
-                const progress = progressList.find((p: any) => p.lesson_id === item.lesson_id)
-                const isItemCompleted = progress?.is_completed || false
-                const isSelected = item.lesson_id === currentLesson?.lesson_id
-                const coverUrl = getLessonCoverImage(course?.slug || course?.title || slug, item, idx)
+              {loadingLessons && lessons.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-48 text-center text-zinc-500 gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-[#9ACD32]" />
+                  <span className="text-xs text-zinc-400">Loading syllabus...</span>
+                </div>
+              ) : lessons.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-48 text-center text-zinc-500 gap-2 px-4">
+                  <BookOpen className="w-8 h-8 opacity-40 text-zinc-600 mb-1" />
+                  <p className="text-xs font-semibold text-zinc-400">No lessons published yet</p>
+                  <p className="text-[11px] text-zinc-600">Modules will appear here once added by the instructor.</p>
+                </div>
+              ) : (
+                lessons.map((item: any, idx: number) => {
+                  const progress = progressList.find((p: any) => p.lesson_id === item.lesson_id)
+                  const isItemCompleted = progress?.is_completed || false
+                  const isSelected = item.lesson_id === currentLesson?.lesson_id
+                  const coverUrl = getLessonCoverImage(course?.slug || course?.title || slug, item, idx, courseFallbackCover)
 
-                return (
-                  <button
-                    key={item.lesson_id || item.id}
-                    onClick={() => handleSelectLesson(item)}
-                    className={`w-full text-left p-2.5 rounded-xl border transition-all duration-300 flex items-center gap-3 group ${
-                      isSelected 
-                        ? "bg-[#9ACD32]/10 border-[#9ACD32] text-white shadow-sm" 
-                        : "bg-zinc-900/20 border-zinc-850/60 text-zinc-400 hover:border-zinc-750 hover:text-white"
-                    }`}
-                  >
-                    {/* Module Cover Thumbnail */}
-                    <div className="w-14 h-9 rounded-lg overflow-hidden bg-black/60 border border-zinc-800 shrink-0 relative">
-                      <img
-                        src={getMediaUrl(coverUrl)}
-                        alt={item.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      {isSelected && (
-                        <div className="absolute inset-0 bg-[#9ACD32]/20 border border-[#9ACD32]/40 rounded-lg" />
-                      )}
-                    </div>
-
-                    <div className="flex-grow min-w-0">
-                      <h4 className={`text-xs font-semibold truncate ${isSelected ? "text-white" : "text-zinc-300"}`}>
-                        {item.title}
-                      </h4>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-zinc-500 font-mono">
-                          {formatSidebarDuration(item.duration)}
-                        </span>
-                        {item.is_preview && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                            Preview
-                          </span>
+                  return (
+                    <button
+                      key={item.lesson_id || item.id}
+                      onClick={() => handleSelectLesson(item)}
+                      className={`w-full text-left p-2.5 rounded-xl border transition-all duration-300 flex items-center gap-3 group ${
+                        isSelected 
+                          ? "bg-[#9ACD32]/10 border-[#9ACD32] text-white shadow-sm" 
+                          : "bg-zinc-900/20 border-zinc-850/60 text-zinc-400 hover:border-zinc-750 hover:text-white"
+                      }`}
+                    >
+                      {/* Module Cover Thumbnail */}
+                      <div className="w-14 h-9 rounded-lg overflow-hidden bg-black/60 border border-zinc-800 shrink-0 relative">
+                        <img
+                          src={getMediaUrl(coverUrl)}
+                          alt={item.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-[#9ACD32]/20 border border-[#9ACD32]/40 rounded-lg" />
                         )}
                       </div>
-                    </div>
 
-                    <div className="flex-shrink-0">
-                      {isItemCompleted ? (
-                        <CheckCircle className="w-4 h-4 text-primary fill-primary/10" style={{ color: '#9ACD32' }} />
-                      ) : isSelected ? (
-                        <Play className="w-3.5 h-3.5 text-primary fill-primary" style={{ color: '#9ACD32' }} />
-                      ) : (
-                        <Circle className="w-3.5 h-3.5 text-zinc-700 group-hover:text-zinc-500 transition-colors" />
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
+                      <div className="flex-grow min-w-0">
+                        <h4 className={`text-xs font-semibold truncate ${isSelected ? "text-white" : "text-zinc-300"}`}>
+                          {item.title}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-zinc-500 font-mono">
+                            {formatSidebarDuration(item.duration)}
+                          </span>
+                          {item.is_preview && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                              Preview
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex-shrink-0">
+                        {isItemCompleted ? (
+                          <CheckCircle className="w-4 h-4 text-primary fill-primary/10" style={{ color: '#9ACD32' }} />
+                        ) : isSelected ? (
+                          <Play className="w-3.5 h-3.5 text-primary fill-primary" style={{ color: '#9ACD32' }} />
+                        ) : (
+                          <Circle className="w-3.5 h-3.5 text-zinc-700 group-hover:text-zinc-500 transition-colors" />
+                        )}
+                      </div>
+                    </button>
+                  )
+                })
+              )}
             </div>
           </div>
 

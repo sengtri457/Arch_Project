@@ -15,6 +15,7 @@ export interface Course {
   lessons: number
   introduction_url?: string
   software_used?: string | null
+  thumbnail_url?: string
 }
 
 export const courses: Course[] = [
@@ -239,7 +240,8 @@ export const d5Modules: CourseModule[] = [
 export function getLessonCoverImage(
   courseSlugOrId?: string | null,
   lesson?: { order_index?: number; title?: string; cover_image?: string; thumbnail_url?: string } | null,
-  index?: number
+  index?: number,
+  fallbackCover?: string | null
 ): string {
   if (lesson?.thumbnail_url && !lesson.thumbnail_url.includes("placeholder.svg")) {
     return lesson.thumbnail_url
@@ -261,6 +263,10 @@ export function getLessonCoverImage(
     const order = lesson?.order_index ?? (index !== undefined ? index + 1 : 1)
     const normalizedOrder = Math.max(1, Math.min(10, order))
     return `/assets/images/D5_class_img/M${normalizedOrder}.jpg`
+  }
+
+  if (fallbackCover && !fallbackCover.includes("placeholder.svg")) {
+    return fallbackCover
   }
 
   return "/placeholder.svg"

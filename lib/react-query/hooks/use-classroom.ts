@@ -17,6 +17,7 @@ export function useClassroomLessons(courseId: string) {
   return useQuery({
     queryKey: queryKeys.classroom.lessons(courseId),
     queryFn: () => db.getCourseLessons(supabase, courseId),
+    enabled: !!courseId,
     staleTime: 10 * 60 * 1000,
   })
 }
@@ -62,12 +63,12 @@ export function useVideoUrl(lessonId: string | undefined, hasAccess: boolean | n
   return useQuery({
     queryKey: queryKeys.classroom.video(lessonId ?? "none"),
     queryFn: async () => {
-      if (!lessonId) return null
+      if (!lessonId || lessonId === "start") return null
       const res = await fetch(`/api/lessons/${lessonId}/video`)
       if (!res.ok) return null
       return res.json() as Promise<{ source: string; format: string; url: string } | null>
     },
-    enabled: !!lessonId && Boolean(hasAccess),
+    enabled: !!lessonId && lessonId !== "start" && Boolean(hasAccess),
     staleTime: 5 * 60 * 1000,
   })
 }
