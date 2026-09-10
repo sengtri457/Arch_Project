@@ -802,14 +802,14 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
           <div className="lg:col-span-1 bg-zinc-950 border border-zinc-850 rounded-2xl p-5 flex flex-col h-[600px]">
             <div className="flex items-center gap-2 border-b border-zinc-850 pb-4 mb-4">
               <BookOpen className="w-5 h-5 text-primary" style={{ color: '#9ACD32' }} />
-              <h2 className="text-lg font-bold text-white">Course Syllabus</h2>
+              <h2 className="text-lg font-bold text-white">Course Modules</h2>
             </div>
 
             <div className="flex-grow overflow-y-auto space-y-2 pr-1 custom-scrollbar">
               {loadingLessons && lessons.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-48 text-center text-zinc-500 gap-2">
                   <Loader2 className="w-5 h-5 animate-spin text-[#9ACD32]" />
-                  <span className="text-xs text-zinc-400">Loading syllabus...</span>
+                  <span className="text-xs text-zinc-400">Loading modules...</span>
                 </div>
               ) : lessons.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-48 text-center text-zinc-500 gap-2 px-4">

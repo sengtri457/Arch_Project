@@ -739,7 +739,7 @@ export default function AdminDashboard() {
       await MySwal.fire({
         icon: 'success',
         title: 'Success!',
-        text: editingLesson ? "Lesson updated successfully!" : "Lesson added to syllabus successfully!"
+        text: editingLesson ? "Lesson updated successfully!" : "Lesson added to module successfully!"
       })
 
       setShowLessonModal(false)
@@ -4969,7 +4969,7 @@ export default function AdminDashboard() {
 
                 <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
                   {courseLessons.length === 0 ? (
-                    <p className="text-xs text-zinc-500 italic text-center py-6">No lessons exist in this syllabus yet.</p>
+                    <p className="text-xs text-zinc-500 italic text-center py-6">No lessons exist in this module yet.</p>
                   ) : (
                     courseLessons.map((les) => {
                       const thumb = les.thumbnail_url || getLessonCoverImage(activeSyllabusCourse.slug || activeSyllabusCourse.course_id || activeSyllabusCourse.id, les, (les.order_index || 1) - 1)
@@ -5152,7 +5152,7 @@ export default function AdminDashboard() {
                         <img src={getMediaUrl(lessonForm.thumbnail_url)} alt="Thumbnail Preview" className="w-full h-full object-cover" />
                       </div>
                     )}
-                    <p className="text-[10px] text-zinc-500">Provide an image URL or upload directly. This cover image appears in the course syllabus list and classroom video player.</p>
+                    <p className="text-[10px] text-zinc-500">Provide an image URL or upload directly. This cover image appears in the course modules list and classroom video player.</p>
                   </div>
                 </div>
 

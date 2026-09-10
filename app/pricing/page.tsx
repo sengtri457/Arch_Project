@@ -100,7 +100,7 @@ export default function PricingPage() {
       case "STUDENT_PRO":
         return [
           "Unlock D5 Masterclass & Enscape Masterclass",
-          "Unlock InDesign Masterclass syllabus",
+          "Unlock full course modules & lessons",
           "Downloadable starter models & HDRIs",
           "Dynamic homework exercises & feedback",
           "Priority student community support"
