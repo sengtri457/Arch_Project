@@ -78,8 +78,8 @@ AS $$
     ) AS lessons
   FROM public.course_modules m
   JOIN public.courses c ON c.course_id = m.course_id
-  LEFT JOIN public.lessons l ON l.module_id = m.module_id
-  WHERE c.slug = p_slug AND c.is_published = true AND m.is_published = true
+  LEFT JOIN public.lessons l ON (l.module_id = m.module_id OR (l.course_id = m.course_id AND l.module_id IS NULL))
+  WHERE (c.slug = p_slug OR c.course_id::text = p_slug) AND c.is_published = true AND m.is_published = true
   GROUP BY m.module_id, m.course_id, m.title, m.description, m.cover_image_url, m.order_index
   ORDER BY m.order_index ASC;
 $$;

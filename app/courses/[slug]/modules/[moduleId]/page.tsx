@@ -43,8 +43,16 @@ interface PageProps {
   params: Promise<{ slug: string; moduleId: string }>
 }
 
-function getEmbedUrl(url: string | undefined | null): string | null {
+function getEmbedUrl(rawUrl: string | undefined | null): string | null {
+  if (!rawUrl) return null
+  const url = rawUrl.trim()
   if (!url) return null
+
+  // Direct 11-character YouTube video ID
+  if (/^[a-[#0-9A-Za-z_-]{11}$/.test(url)) {
+    return `https://www.youtube.com/embed/${url}?autoplay=1`
+  }
+
   if (url.includes("youtube.com") || url.includes("youtu.be")) {
     let videoId = ""
     if (url.includes("youtube.com/watch")) {
@@ -61,11 +69,13 @@ function getEmbedUrl(url: string | undefined | null): string | null {
     }
     return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1` : null
   }
-  if (url.includes("vimeo.com")) {
+
+  if (url.includes("vimeo.com") || /^\d+$/.test(url)) {
     const match = url.match(/vimeo\.com\/(\d+)/)
-    const videoId = match ? match[1] : ""
+    const videoId = match ? match[1] : (/^\d+$/.test(url) ? url : "")
     return videoId ? `https://player.vimeo.com/video/${videoId}?autoplay=1` : null
   }
+
   return null
 }
 
@@ -101,8 +111,14 @@ export default function SpecificModuleClassroomPage({ params }: PageProps) {
       ? d5Modules
       : []
 
+  const decodedModuleId = decodeURIComponent(moduleId || "")
   const mod: CourseModule | undefined = candidateModules.find(
-    (m, idx) => m.module_id === moduleId || m.lesson_id === moduleId || String(m.order_index) === moduleId || String(idx + 1) === moduleId
+    (m, idx) =>
+      m.module_id === moduleId ||
+      m.lesson_id === moduleId ||
+      String(m.order_index) === moduleId ||
+      String(idx + 1) === moduleId ||
+      m.module_id === decodedModuleId
   ) || candidateModules[0]
 
   const lessons: Lesson[] = mod?.lessons || []

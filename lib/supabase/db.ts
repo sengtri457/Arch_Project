@@ -469,6 +469,38 @@ export const db = {
       return d5Modules
     }
 
+    // Tier 3: Fetch lessons directly and group into a default Module 01 if no explicit modules exist
+    try {
+      const fallbackLessons = await this.getCourseLessons(supabase, courseIdOrSlug)
+      if (Array.isArray(fallbackLessons) && fallbackLessons.length > 0) {
+        return [{
+          module_id: `mod-01-${courseIdOrSlug}`,
+          course_id: courseIdOrSlug,
+          order_index: 1,
+          module_number: "Module 01",
+          title: "Module 01: Course Curriculum",
+          description: "All lessons included in this course.",
+          cover_image: getLessonCoverImage(courseIdOrSlug, null, 0),
+          duration_minutes: fallbackLessons.reduce((acc: number, l: any) => acc + Math.round((l.duration || 0) / 60), 0),
+          is_preview: fallbackLessons.some((l: any) => l.is_preview),
+          lessons: fallbackLessons.map((l: any, idx: number) => ({
+            lesson_id: l.lesson_id,
+            module_id: `mod-01-${courseIdOrSlug}`,
+            order_index: l.order_index ?? idx + 1,
+            title: l.title,
+            duration_minutes: Math.round((l.duration || 0) / 60) || 15,
+            is_preview: Boolean(l.is_preview),
+            downloadable_asset_url: l.downloadable_asset_url || null,
+            video_url: l.video_url || l.video_external_id || null,
+            video_external_id: l.video_external_id || l.video_url || null,
+            cover_image: l.cover_image || l.thumbnail_url
+          }))
+        }]
+      }
+    } catch (fallbackErr) {
+      console.warn(`Fallback lessons fetch failed for ${courseIdOrSlug}:`, fallbackErr)
+    }
+
     return []
   },
 
