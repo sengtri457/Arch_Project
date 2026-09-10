@@ -49,7 +49,7 @@ function getEmbedUrl(rawUrl: string | undefined | null): string | null {
   if (!url) return null
 
   // Direct 11-character YouTube video ID
-  if (/^[a-[#0-9A-Za-z_-]{11}$/.test(url)) {
+  if (/^[0-9A-Za-z_-]{11}$/.test(url)) {
     return `https://www.youtube.com/embed/${url}?autoplay=1`
   }
 
