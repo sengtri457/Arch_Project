@@ -50,6 +50,134 @@ export default function EditCoursePage() {
 
   const [features, setFeatures] = useState<string[]>([])
 
+  // Modules State
+  const [modules, setModules] = useState<any[]>([])
+  const [loadingModules, setLoadingModules] = useState(false)
+  const [showModuleModal, setShowModuleModal] = useState(false)
+  const [editingModuleId, setEditingModuleId] = useState<string | null>(null)
+  const [savingModule, setSavingModule] = useState(false)
+  const [moduleForm, setModuleForm] = useState({
+    title: "",
+    description: "",
+    cover_image_url: "",
+    order_index: 1,
+    is_published: true
+  })
+
+  const loadModules = async (cId: string) => {
+    try {
+      setLoadingModules(true)
+      const res = await fetch(`/api/admin/modules?courseId=${cId}`)
+      if (res.ok) {
+        const json = await res.json()
+        if (json.success && Array.isArray(json.modules)) {
+          setModules(json.modules)
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load course modules:", err)
+    } finally {
+      setLoadingModules(false)
+    }
+  }
+
+  const handleOpenCreateModule = () => {
+    setEditingModuleId(null)
+    setModuleForm({
+      title: "",
+      description: "",
+      cover_image_url: "",
+      order_index: modules.length + 1,
+      is_published: true
+    })
+    setShowModuleModal(true)
+  }
+
+  const handleOpenEditModule = (mod: any) => {
+    setEditingModuleId(mod.module_id)
+    setModuleForm({
+      title: mod.title || "",
+      description: mod.description || "",
+      cover_image_url: mod.cover_image_url || mod.cover_image || "",
+      order_index: mod.order_index || 1,
+      is_published: mod.is_published !== false
+    })
+    setShowModuleModal(true)
+  }
+
+  const handleSaveModule = async () => {
+    if (!moduleForm.title || !courseId) return
+    setSavingModule(true)
+    try {
+      const url = "/api/admin/modules"
+      const method = editingModuleId ? "PUT" : "POST"
+      const payload = {
+        ...moduleForm,
+        course_id: courseId,
+        ...(editingModuleId ? { module_id: editingModuleId } : {})
+      }
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+
+      if (res.ok) {
+        setShowModuleModal(false)
+        loadModules(courseId)
+        MySwal.fire({
+          icon: "success",
+          title: editingModuleId ? "Module Updated" : "Module Created",
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 2000
+        })
+      } else {
+        const data = await res.json()
+        alert(data.error || "Failed to save module")
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to save module")
+    } finally {
+      setSavingModule(false)
+    }
+  }
+
+  const handleDeleteModule = async (mId: string) => {
+    const confirm = await MySwal.fire({
+      icon: "warning",
+      title: "Delete Module?",
+      text: "This will remove the module group. Lessons in this module will be preserved.",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel"
+    })
+
+    if (!confirm.isConfirmed) return
+
+    try {
+      const res = await fetch(`/api/admin/modules?moduleId=${mId}`, { method: "DELETE" })
+      if (res.ok) {
+        loadModules(courseId!)
+        MySwal.fire({
+          icon: "success",
+          title: "Module Deleted",
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 2000
+        })
+      } else {
+        const data = await res.json()
+        alert(data.error || "Failed to delete module")
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to delete module")
+    }
+  }
+
   useEffect(() => {
     if (!loading && (!user || profile?.role !== 'admin')) {
       router.replace("/")
@@ -97,6 +225,7 @@ export default function EditCoursePage() {
           })
 
           setFeatures(Array.isArray(course.features) ? course.features : [])
+          loadModules(courseId)
         }
       } catch (err: any) {
         MySwal.fire({
@@ -520,6 +649,91 @@ export default function EditCoursePage() {
                 </div>
               )}
             </div>
+
+            {/* Course Modules Management Section */}
+            <div className="md:col-span-2 border-t border-zinc-800 pt-8 space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-base font-bold text-white uppercase tracking-wide flex items-center gap-2">
+                    <span>Course Modules</span>
+                    <span className="text-xs font-normal text-zinc-400 font-mono">({modules.length} modules)</span>
+                  </h3>
+                  <p className="text-xs text-zinc-500 mt-0.5">Manage the 3-tier hierarchy: Course → Modules → Lessons</p>
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleOpenCreateModule}
+                  className="bg-[#9ACD32]/10 hover:bg-[#9ACD32]/20 text-[#9ACD32] border border-[#9ACD32]/30 font-semibold flex items-center gap-1.5 px-4 py-2 text-xs rounded-xl"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Module
+                </Button>
+              </div>
+
+              {loadingModules ? (
+                <div className="flex items-center justify-center py-8 text-zinc-500 gap-2 text-xs">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#9ACD32]" />
+                  <span>Loading modules...</span>
+                </div>
+              ) : modules.length === 0 ? (
+                <div className="text-center py-8 border border-dashed border-zinc-800 rounded-2xl text-xs text-zinc-500">
+                  No modules created yet. Click "Add Module" above to group course lessons into modules.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {modules.map((mod: any, idx: number) => (
+                    <div
+                      key={mod.module_id || idx}
+                      className="p-4 bg-zinc-950 border border-zinc-800 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0 flex-grow">
+                        <div className="w-24 aspect-video rounded-xl bg-black/60 border border-zinc-800 shrink-0 overflow-hidden relative">
+                          {mod.cover_image_url || mod.cover_image ? (
+                            <img src={mod.cover_image_url || mod.cover_image} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-600 font-mono">No Cover</div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-[#9ACD32]/10 text-[#9ACD32] border border-[#9ACD32]/20">
+                              Module {String(mod.order_index || idx + 1).padStart(2, '0')}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              {mod.lessons?.length || 0} Lessons
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-semibold text-white truncate">{mod.title}</h4>
+                          {mod.description && (
+                            <p className="text-xs text-zinc-400 line-clamp-1 mt-0.5">{mod.description}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => handleOpenEditModule(mod)}
+                          className="text-xs text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => handleDeleteModule(mod.module_id)}
+                          className="text-xs text-red-400 hover:bg-red-950/20 bg-zinc-900 border border-zinc-800 p-2 rounded-lg"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-3 justify-end pt-4 border-t border-zinc-800">
@@ -539,6 +753,83 @@ export default function EditCoursePage() {
           </div>
         </form>
       </div>
+
+      {/* Module Add/Edit Dialog Modal */}
+      {showModuleModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 p-6 md:p-8 rounded-3xl max-w-lg w-full space-y-6">
+            <h3 className="text-xl font-bold text-white">
+              {editingModuleId ? "Edit Course Module" : "Add New Course Module"}
+            </h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Module Title</label>
+                <input
+                  type="text"
+                  required
+                  value={moduleForm.title}
+                  onChange={(e) => setModuleForm({ ...moduleForm, title: e.target.value })}
+                  placeholder="e.g. 01. Introduction & Overview"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Order Index</label>
+                <input
+                  type="number"
+                  required
+                  value={moduleForm.order_index}
+                  onChange={(e) => setModuleForm({ ...moduleForm, order_index: Number(e.target.value) })}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Cover Image URL</label>
+                <input
+                  type="text"
+                  value={moduleForm.cover_image_url}
+                  onChange={(e) => setModuleForm({ ...moduleForm, cover_image_url: e.target.value })}
+                  placeholder="https://..."
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Description</label>
+                <textarea
+                  rows={3}
+                  value={moduleForm.description}
+                  onChange={(e) => setModuleForm({ ...moduleForm, description: e.target.value })}
+                  placeholder="Brief description of lessons included in this module..."
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowModuleModal(false)}
+                className="text-zinc-400 hover:text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSaveModule}
+                disabled={savingModule}
+                className="bg-[#9ACD32] text-black font-bold px-6 rounded-xl hover:bg-[#8ab82b]"
+              >
+                {savingModule ? "Saving..." : editingModuleId ? "Update Module" : "Create Module"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </main>

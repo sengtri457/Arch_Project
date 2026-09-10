@@ -73,12 +73,12 @@ export function CourseEnrollCta({ courseId, slug }: CourseEnrollCtaProps) {
   if (state === "owned") {
     return (
       <Link
-        href={`/courses/${slug}/start`}
+        href={`/courses/${slug}/modules`}
         className="w-full flex items-center justify-center gap-2.5 py-4 rounded-xl font-bold text-sm transition-all hover:brightness-110"
         style={{ backgroundColor: "#9ACD32", color: "#000" }}
       >
         <Play className="w-4 h-4 fill-current" />
-        Start Learning
+        Go to Course Modules
       </Link>
     )
   }
