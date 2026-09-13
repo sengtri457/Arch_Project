@@ -75,46 +75,70 @@ export default function EditCoursePage() {
   const loadCourseLessons = async (cId: string, loadedModules: any[] = modules) => {
     try {
       const targetSlug = courseForm.slug || cId
-      const { data } = await supabase
+
+      // 1. Fetch DB lessons for course_id UUID or slug
+      const { data: dbLessons } = await supabase
         .from('lessons')
         .select('*')
         .or(`course_id.eq.${cId},course_id.eq.${targetSlug}`)
         .order('order_index', { ascending: true })
 
-      let allLessons = data || []
+      const dbList = dbLessons || []
 
-      // If DB lessons query returned nothing, extract from loadedModules or fallback to d5Modules
-      if (allLessons.length === 0) {
-        const fromModules = (loadedModules || []).flatMap((m: any) => m.lessons || [])
-        if (fromModules.length > 0) {
-          allLessons = fromModules.map((l: any, idx: number) => ({
-            lesson_id: l.lesson_id,
-            course_id: cId,
-            module_id: l.module_id,
-            title: l.title,
-            video_external_id: l.video_external_id || l.video_url || null,
-            duration_minutes: l.duration_minutes || 10,
-            order_index: l.order_index ?? idx + 1,
-            is_preview: Boolean(l.is_preview)
-          }))
-        } else {
-          const isD5 = cId.toLowerCase().includes('d5') || targetSlug.toLowerCase().includes('d5')
-          if (isD5) {
-            allLessons = d5Modules.flatMap(m => m.lessons || []).map((l, idx) => ({
-              lesson_id: l.lesson_id,
-              course_id: cId,
-              module_id: m.module_id,
-              title: l.title,
-              video_external_id: l.video_url || null,
-              duration_minutes: l.duration_minutes || 10,
-              order_index: l.order_index ?? idx + 1,
-              is_preview: Boolean(l.is_preview)
-            }))
+      // 2. Gather template/syllabus lessons from loadedModules or d5Modules
+      let templateLessons: any[] = []
+      const fromModules = (loadedModules || []).flatMap((m: any) => m.lessons || [])
+      if (fromModules.length > 0) {
+        templateLessons = [...fromModules]
+      }
+
+      const isD5 = cId.toLowerCase().includes('d5') || targetSlug.toLowerCase().includes('d5')
+      if (isD5) {
+        const d5Syllabus = d5Modules.flatMap((m: any) => m.lessons || [])
+        const existingKeys = new Set(templateLessons.map((l: any) => l.lesson_id || l.title))
+        for (const d5l of d5Syllabus) {
+          const key = d5l.lesson_id || d5l.title
+          if (!existingKeys.has(key)) {
+            templateLessons.push(d5l)
           }
         }
       }
 
-      setCourseLessons(allLessons)
+      // 3. Merge template lessons with DB lessons (DB lessons override template lessons)
+      const lessonMap = new Map<string, any>()
+
+      // Add template lessons first
+      templateLessons.forEach((tLes: any, idx: number) => {
+        const key = tLes.lesson_id || tLes.title
+        lessonMap.set(key, {
+          lesson_id: tLes.lesson_id || `temp-les-${idx}`,
+          course_id: cId,
+          module_id: tLes.module_id || null,
+          title: tLes.title,
+          video_external_id: tLes.video_external_id || tLes.video_url || null,
+          duration_minutes: tLes.duration_minutes || 10,
+          order_index: tLes.order_index ?? idx + 1,
+          is_preview: Boolean(tLes.is_preview)
+        })
+      })
+
+      // Add DB lessons (updates module_id and custom fields)
+      dbList.forEach((dbLes: any, idx: number) => {
+        const key = dbLes.lesson_id || dbLes.title
+        const existing = lessonMap.get(key)
+        lessonMap.set(key, {
+          ...(existing || {}),
+          ...dbLes,
+          duration_minutes: dbLes.duration_minutes || (existing?.duration_minutes ?? 10),
+          order_index: dbLes.order_index ?? existing?.order_index ?? idx + 1
+        })
+      })
+
+      const mergedList = Array.from(lessonMap.values()).sort(
+        (a, b) => (a.order_index || 0) - (b.order_index || 0)
+      )
+
+      setCourseLessons(mergedList)
     } catch (err) {
       console.error("Failed to load course lessons:", err)
     }
@@ -351,8 +375,8 @@ export default function EditCoursePage() {
         const { data: course, error } = await supabase
           .from('courses')
           .select('*')
-          .eq('course_id', courseId)
-          .single()
+          .or(`course_id.eq.${courseId},slug.eq.${courseId}`)
+          .maybeSingle()
 
         if (error) throw error
 
