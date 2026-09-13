@@ -3,6 +3,10 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 
+function isUUID(str: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
+}
+
 async function requireAdmin() {
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -31,7 +35,7 @@ async function requireAdmin() {
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (!profile || profile.role !== 'admin') return null
   return user
@@ -57,12 +61,13 @@ export async function GET(request: Request) {
   const supabase = serviceClient()
 
   if (courseId) {
-    // Resolve course UUID and slug so lessons saved under either UUID or slug are matched
-    const { data: course } = await supabase
-      .from('courses')
-      .select('course_id, slug')
-      .or(`course_id.eq.${courseId},slug.eq.${courseId}`)
-      .maybeSingle()
+    let courseQuery = supabase.from('courses').select('course_id, slug')
+    if (isUUID(courseId)) {
+      courseQuery = courseQuery.eq('course_id', courseId)
+    } else {
+      courseQuery = courseQuery.eq('slug', courseId)
+    }
+    const { data: course } = await courseQuery.maybeSingle()
 
     const targetIds = new Set<string>([courseId])
     if (course?.course_id) targetIds.add(course.course_id)
@@ -74,27 +79,35 @@ export async function GET(request: Request) {
     }
 
     const idList = Array.from(targetIds)
-    const { data, error } = await supabase
-      .from('lessons')
-      .select('*')
-      .in('course_id', idList)
-      .order('order_index', { ascending: true })
+    const uuidIds = idList.filter(isUUID)
+    const textIds = idList.filter(id => !isUUID(id))
 
-    if (error) {
-      console.error('Admin lessons fetch failed:', error)
-      return NextResponse.json({ error: 'Failed to fetch lessons' }, { status: 500 })
+    let lessonsQuery = supabase.from('lessons').select('*').order('order_index', { ascending: true })
+
+    if (uuidIds.length > 0 && textIds.length > 0) {
+      lessonsQuery = lessonsQuery.or(`course_id.in.(${uuidIds.join(',')}),course_id.in.(${textIds.join(',')})`)
+    } else if (uuidIds.length > 0) {
+      lessonsQuery = lessonsQuery.in('course_id', uuidIds)
+    } else {
+      lessonsQuery = lessonsQuery.in('course_id', textIds)
     }
 
-    return NextResponse.json({ success: true, lessons: data })
+    const { data, error } = await lessonsQuery
+    if (error) {
+      console.error('Admin lessons fetch failed:', error)
+      return NextResponse.json({ error: error.message || 'Failed to fetch lessons' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, lessons: data || [] })
   }
 
   const { data, error } = await supabase.from('lessons').select('*').order('order_index', { ascending: true })
   if (error) {
     console.error('Admin lessons fetch failed:', error)
-    return NextResponse.json({ error: 'Failed to fetch lessons' }, { status: 500 })
+    return NextResponse.json({ error: error.message || 'Failed to fetch lessons' }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, lessons: data })
+  return NextResponse.json({ success: true, lessons: data || [] })
 }
 
 export async function POST(request: Request) {
@@ -186,20 +199,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true })
   }
 
-  let { error } = await supabase.from('lessons').insert(payload)
+  let { data, error } = await supabase.from('lessons').insert(payload).select().maybeSingle()
   if (error && (error.code === '42703' || error.message?.includes('thumbnail_url'))) {
     const fallbackPayload = { ...payload }
     delete fallbackPayload.thumbnail_url
-    const res = await supabase.from('lessons').insert(fallbackPayload)
+    const res = await supabase.from('lessons').insert(fallbackPayload).select().maybeSingle()
+    data = res.data
     error = res.error
   }
 
   if (error) {
     console.error('Admin lesson insert failed:', error)
-    return NextResponse.json({ error: 'Failed to create lesson' }, { status: 500 })
+    return NextResponse.json({ error: error.message || 'Failed to create lesson' }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, lesson: data })
 }
 
 export async function DELETE(request: Request) {

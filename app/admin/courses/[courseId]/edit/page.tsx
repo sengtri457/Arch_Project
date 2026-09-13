@@ -168,35 +168,46 @@ export default function EditCoursePage() {
     if (!targetAssignModule || !courseId) return
     setSavingAssign(true)
     try {
-      // 1. Ensure any selected fallback lessons are saved to the lessons table first
+      const finalSelectedIds: string[] = []
+
+      // 1. Process selected lessons (create DB records for temp lessons first)
       for (const lesId of assignLessonIds) {
-        const les = courseLessons.find(l => l.lesson_id === lesId)
-        if (les) {
-          await fetch('/api/admin/lessons', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              lesson_id: les.lesson_id,
-              course_id: courseId,
-              module_id: targetAssignModule.module_id,
-              title: les.title,
-              video_source_type: les.video_source_type || 'direct',
-              video_external_id: les.video_external_id || '',
-              duration_minutes: les.duration_minutes || 10,
-              order_index: les.order_index || 1,
-              is_preview: Boolean(les.is_preview)
+        if (lesId.startsWith('temp-les-')) {
+          const les = courseLessons.find(l => l.lesson_id === lesId)
+          if (les) {
+            const createRes = await fetch('/api/admin/lessons', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                course_id: courseId,
+                module_id: targetAssignModule.module_id,
+                title: les.title,
+                video_source_type: les.video_source_type || 'direct',
+                video_external_id: les.video_external_id || '',
+                duration_minutes: les.duration_minutes || 10,
+                order_index: les.order_index || 1,
+                is_preview: Boolean(les.is_preview)
+              })
             })
-          }).catch(() => {})
+            if (createRes.ok) {
+              const json = await createRes.json().catch(() => ({}))
+              if (json.lesson?.lesson_id) {
+                finalSelectedIds.push(json.lesson.lesson_id)
+              }
+            }
+          }
+        } else {
+          finalSelectedIds.push(lesId)
         }
       }
 
-      // 2. Update module bindings
+      // 2. Update module bindings with valid DB lesson IDs
       const res = await fetch("/api/admin/modules", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           module_id: targetAssignModule.module_id,
-          selected_lesson_ids: assignLessonIds
+          selected_lesson_ids: finalSelectedIds
         })
       })
 
@@ -212,7 +223,7 @@ export default function EditCoursePage() {
           timer: 2000
         })
       } else {
-        const data = await res.json()
+        const data = await res.json().catch(() => ({}))
         alert(data.error || "Failed to assign lessons")
       }
     } catch (err: any) {
@@ -271,24 +282,35 @@ export default function EditCoursePage() {
     if (!moduleForm.title || !courseId) return
     setSavingModule(true)
     try {
-      // 1. Ensure any selected fallback lessons are saved to DB first
+      const finalSelectedIds: string[] = []
+
+      // 1. Process selected lessons
       for (const lesId of moduleForm.selectedLessonIds) {
-        const les = courseLessons.find(l => l.lesson_id === lesId)
-        if (les) {
-          await fetch('/api/admin/lessons', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              lesson_id: les.lesson_id,
-              course_id: courseId,
-              title: les.title,
-              video_source_type: les.video_source_type || 'direct',
-              video_external_id: les.video_external_id || '',
-              duration_minutes: les.duration_minutes || 10,
-              order_index: les.order_index || 1,
-              is_preview: Boolean(les.is_preview)
+        if (lesId.startsWith('temp-les-')) {
+          const les = courseLessons.find(l => l.lesson_id === lesId)
+          if (les) {
+            const createRes = await fetch('/api/admin/lessons', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                course_id: courseId,
+                title: les.title,
+                video_source_type: les.video_source_type || 'direct',
+                video_external_id: les.video_external_id || '',
+                duration_minutes: les.duration_minutes || 10,
+                order_index: les.order_index || 1,
+                is_preview: Boolean(les.is_preview)
+              })
             })
-          }).catch(() => {})
+            if (createRes.ok) {
+              const json = await createRes.json().catch(() => ({}))
+              if (json.lesson?.lesson_id) {
+                finalSelectedIds.push(json.lesson.lesson_id)
+              }
+            }
+          }
+        } else {
+          finalSelectedIds.push(lesId)
         }
       }
 
@@ -298,7 +320,7 @@ export default function EditCoursePage() {
       const payload = {
         ...moduleForm,
         course_id: courseId,
-        selected_lesson_ids: moduleForm.selectedLessonIds,
+        selected_lesson_ids: finalSelectedIds,
         ...(editingModuleId ? { module_id: editingModuleId } : {})
       }
 
@@ -320,7 +342,7 @@ export default function EditCoursePage() {
           timer: 2000
         })
       } else {
-        const data = await res.json()
+        const data = await res.json().catch(() => ({}))
         alert(data.error || "Failed to save module")
       }
     } catch (err: any) {
