@@ -112,6 +112,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || 'Failed to create module' }, { status: 500 })
   }
 
+  // Handle binding lessons if selected_lesson_ids provided
+  const selectedLessonIds = Array.isArray(body.selected_lesson_ids) ? body.selected_lesson_ids : []
+  if (selectedLessonIds.length > 0 && data?.module_id) {
+    await supabase
+      .from('lessons')
+      .update({ module_id: data.module_id })
+      .in('lesson_id', selectedLessonIds)
+  }
+
   return NextResponse.json({ success: true, module: data })
 }
 
@@ -151,6 +160,22 @@ export async function PUT(request: Request) {
   if (error) {
     console.error('Admin module update failed:', error)
     return NextResponse.json({ error: error.message || 'Failed to update module' }, { status: 500 })
+  }
+
+  if (Array.isArray(body.selected_lesson_ids)) {
+    // Unassign previous lessons from this module
+    await supabase
+      .from('lessons')
+      .update({ module_id: null })
+      .eq('module_id', moduleId)
+
+    // Assign new selected lessons to this module
+    if (body.selected_lesson_ids.length > 0) {
+      await supabase
+        .from('lessons')
+        .update({ module_id: moduleId })
+        .in('lesson_id', body.selected_lesson_ids)
+    }
   }
 
   return NextResponse.json({ success: true, module: data })

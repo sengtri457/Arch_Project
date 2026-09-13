@@ -50,8 +50,9 @@ export default function EditCoursePage() {
 
   const [features, setFeatures] = useState<string[]>([])
 
-  // Modules State
+  // Modules & Course Lessons State
   const [modules, setModules] = useState<any[]>([])
+  const [courseLessons, setCourseLessons] = useState<any[]>([])
   const [loadingModules, setLoadingModules] = useState(false)
   const [showModuleModal, setShowModuleModal] = useState(false)
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null)
@@ -61,7 +62,8 @@ export default function EditCoursePage() {
     description: "",
     cover_image_url: "",
     order_index: 1,
-    is_published: true
+    is_published: true,
+    selectedLessonIds: [] as string[]
   })
 
   // Lesson to Module State
@@ -77,6 +79,19 @@ export default function EditCoursePage() {
     is_preview: false,
     downloadable_asset_url: ""
   })
+
+  const loadCourseLessons = async (cId: string) => {
+    try {
+      const { data } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('course_id', cId)
+        .order('order_index', { ascending: true })
+      if (data) setCourseLessons(data)
+    } catch (err) {
+      console.error("Failed to load course lessons:", err)
+    }
+  }
 
   const handleOpenAddLessonToModule = (targetModuleId?: string) => {
     setLessonForm({
@@ -108,6 +123,7 @@ export default function EditCoursePage() {
       if (res.ok) {
         setShowLessonModal(false)
         loadModules(courseId)
+        loadCourseLessons(courseId)
         MySwal.fire({
           icon: "success",
           title: "Lesson Created & Assigned to Module",
@@ -151,19 +167,22 @@ export default function EditCoursePage() {
       description: "",
       cover_image_url: "",
       order_index: modules.length + 1,
-      is_published: true
+      is_published: true,
+      selectedLessonIds: []
     })
     setShowModuleModal(true)
   }
 
   const handleOpenEditModule = (mod: any) => {
     setEditingModuleId(mod.module_id)
+    const currentLessonIds = (mod.lessons || []).map((l: any) => l.lesson_id)
     setModuleForm({
       title: mod.title || "",
       description: mod.description || "",
       cover_image_url: mod.cover_image_url || mod.cover_image || "",
       order_index: mod.order_index || 1,
-      is_published: mod.is_published !== false
+      is_published: mod.is_published !== false,
+      selectedLessonIds: currentLessonIds
     })
     setShowModuleModal(true)
   }
@@ -177,6 +196,7 @@ export default function EditCoursePage() {
       const payload = {
         ...moduleForm,
         course_id: courseId,
+        selected_lesson_ids: moduleForm.selectedLessonIds,
         ...(editingModuleId ? { module_id: editingModuleId } : {})
       }
 
@@ -189,6 +209,7 @@ export default function EditCoursePage() {
       if (res.ok) {
         setShowModuleModal(false)
         loadModules(courseId)
+        loadCourseLessons(courseId)
         MySwal.fire({
           icon: "success",
           title: editingModuleId ? "Module Updated" : "Module Created",
@@ -289,6 +310,7 @@ export default function EditCoursePage() {
 
           setFeatures(Array.isArray(course.features) ? course.features : [])
           loadModules(courseId)
+          loadCourseLessons(courseId)
         }
       } catch (err: any) {
         MySwal.fire({
@@ -878,6 +900,76 @@ export default function EditCoursePage() {
                   placeholder="Brief description of lessons included in this module..."
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 resize-none"
                 />
+              </div>
+
+              {/* Bind Course Lessons Checklist */}
+              <div className="border-t border-zinc-800 pt-3">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-zinc-400 uppercase">
+                    Bind Course Lessons ({moduleForm.selectedLessonIds.length} selected)
+                  </label>
+                  {courseLessons.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allIds = courseLessons.map((l) => l.lesson_id)
+                        const allSelected = allIds.every((id) => moduleForm.selectedLessonIds.includes(id))
+                        setModuleForm((prev) => ({
+                          ...prev,
+                          selectedLessonIds: allSelected ? [] : allIds
+                        }))
+                      }}
+                      className="text-[10px] text-[#9ACD32] hover:underline"
+                    >
+                      {courseLessons.every((l) => moduleForm.selectedLessonIds.includes(l.lesson_id))
+                        ? "Deselect All"
+                        : "Select All"}
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-500 mb-2">
+                  Select existing lessons in this course to attach to this module:
+                </p>
+                {courseLessons.length === 0 ? (
+                  <p className="text-xs text-zinc-600 italic py-2">No lessons exist in this course yet.</p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 border border-zinc-800 rounded-xl p-2.5 bg-zinc-950">
+                    {courseLessons.map((les: any) => {
+                      const isChecked = moduleForm.selectedLessonIds.includes(les.lesson_id)
+                      return (
+                        <label
+                          key={les.lesson_id}
+                          className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer border transition-colors ${
+                            isChecked
+                              ? 'bg-[#9ACD32]/10 border-[#9ACD32]/30 text-white'
+                              : 'bg-zinc-900 border-zinc-850 text-zinc-400 hover:text-zinc-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                const checked = e.target.checked
+                                setModuleForm((prev) => ({
+                                  ...prev,
+                                  selectedLessonIds: checked
+                                    ? [...prev.selectedLessonIds, les.lesson_id]
+                                    : prev.selectedLessonIds.filter((id) => id !== les.lesson_id)
+                                }))
+                              }}
+                              className="w-4 h-4 rounded bg-zinc-950 border-zinc-800 text-[#9ACD32] focus:ring-0 shrink-0"
+                            />
+                            <span className="truncate font-medium">{les.title}</span>
+                          </div>
+                          <span className="text-[10px] font-mono text-zinc-500 shrink-0 ml-2">
+                            {les.duration_minutes || 0}m
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
