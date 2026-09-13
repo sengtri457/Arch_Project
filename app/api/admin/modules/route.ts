@@ -118,7 +118,7 @@ export async function POST(request: Request) {
       is_published: isPublished
     })
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Admin module create failed:', error)
@@ -163,16 +163,33 @@ export async function PUT(request: Request) {
   if (body.is_published !== undefined) updatePayload.is_published = Boolean(body.is_published)
 
   const supabase = serviceClient()
-  const { data, error } = await supabase
-    .from('course_modules')
-    .update(updatePayload)
-    .eq('module_id', moduleId)
-    .select()
-    .single()
+  let moduleData: any = null
 
-  if (error) {
-    console.error('Admin module update failed:', error)
-    return NextResponse.json({ error: error.message || 'Failed to update module' }, { status: 500 })
+  if (Object.keys(updatePayload).length > 0) {
+    const { data, error } = await supabase
+      .from('course_modules')
+      .update(updatePayload)
+      .eq('module_id', moduleId)
+      .select()
+      .maybeSingle()
+
+    if (error) {
+      console.error('Admin module update failed:', error)
+      return NextResponse.json({ error: error.message || 'Failed to update module' }, { status: 500 })
+    }
+    moduleData = data
+  } else {
+    const { data, error } = await supabase
+      .from('course_modules')
+      .select('*')
+      .eq('module_id', moduleId)
+      .maybeSingle()
+
+    if (error) {
+      console.error('Admin module fetch failed:', error)
+      return NextResponse.json({ error: error.message || 'Failed to fetch module' }, { status: 500 })
+    }
+    moduleData = data
   }
 
   if (Array.isArray(body.selected_lesson_ids)) {
@@ -191,7 +208,7 @@ export async function PUT(request: Request) {
     }
   }
 
-  return NextResponse.json({ success: true, module: data })
+  return NextResponse.json({ success: true, module: moduleData || { module_id: moduleId } })
 }
 
 export async function DELETE(request: Request) {
