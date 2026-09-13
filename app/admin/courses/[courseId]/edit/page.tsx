@@ -10,6 +10,7 @@ import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
 import { ArrowLeft, Plus, Trash2, Upload, Loader2 } from "lucide-react"
 import Swal from "sweetalert2"
+import { d5Modules } from "@/lib/courses-data"
 
 const MySwal = Swal.mixin({
   customClass: {
@@ -71,14 +72,49 @@ export default function EditCoursePage() {
   const [assignLessonIds, setAssignLessonIds] = useState<string[]>([])
   const [savingAssign, setSavingAssign] = useState(false)
 
-  const loadCourseLessons = async (cId: string) => {
+  const loadCourseLessons = async (cId: string, loadedModules: any[] = modules) => {
     try {
+      const targetSlug = courseForm.slug || cId
       const { data } = await supabase
         .from('lessons')
         .select('*')
-        .eq('course_id', cId)
+        .or(`course_id.eq.${cId},course_id.eq.${targetSlug}`)
         .order('order_index', { ascending: true })
-      if (data) setCourseLessons(data)
+
+      let allLessons = data || []
+
+      // If DB lessons query returned nothing, extract from loadedModules or fallback to d5Modules
+      if (allLessons.length === 0) {
+        const fromModules = (loadedModules || []).flatMap((m: any) => m.lessons || [])
+        if (fromModules.length > 0) {
+          allLessons = fromModules.map((l: any, idx: number) => ({
+            lesson_id: l.lesson_id,
+            course_id: cId,
+            module_id: l.module_id,
+            title: l.title,
+            video_external_id: l.video_external_id || l.video_url || null,
+            duration_minutes: l.duration_minutes || 10,
+            order_index: l.order_index ?? idx + 1,
+            is_preview: Boolean(l.is_preview)
+          }))
+        } else {
+          const isD5 = cId.toLowerCase().includes('d5') || targetSlug.toLowerCase().includes('d5')
+          if (isD5) {
+            allLessons = d5Modules.flatMap(m => m.lessons || []).map((l, idx) => ({
+              lesson_id: l.lesson_id,
+              course_id: cId,
+              module_id: m.module_id,
+              title: l.title,
+              video_external_id: l.video_url || null,
+              duration_minutes: l.duration_minutes || 10,
+              order_index: l.order_index ?? idx + 1,
+              is_preview: Boolean(l.is_preview)
+            }))
+          }
+        }
+      }
+
+      setCourseLessons(allLessons)
     } catch (err) {
       console.error("Failed to load course lessons:", err)
     }
@@ -97,6 +133,29 @@ export default function EditCoursePage() {
     if (!targetAssignModule || !courseId) return
     setSavingAssign(true)
     try {
+      // 1. Ensure any selected fallback lessons are saved to the lessons table first
+      for (const lesId of assignLessonIds) {
+        const les = courseLessons.find(l => l.lesson_id === lesId)
+        if (les) {
+          await fetch('/api/admin/lessons', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              lesson_id: les.lesson_id,
+              course_id: courseId,
+              module_id: targetAssignModule.module_id,
+              title: les.title,
+              video_source_type: les.video_source_type || 'direct',
+              video_external_id: les.video_external_id || '',
+              duration_minutes: les.duration_minutes || 10,
+              order_index: les.order_index || 1,
+              is_preview: Boolean(les.is_preview)
+            })
+          }).catch(() => {})
+        }
+      }
+
+      // 2. Update module bindings
       const res = await fetch("/api/admin/modules", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -109,7 +168,6 @@ export default function EditCoursePage() {
       if (res.ok) {
         setTargetAssignModule(null)
         loadModules(courseId)
-        loadCourseLessons(courseId)
         MySwal.fire({
           icon: "success",
           title: "Syllabus Lessons Assigned to Module!",
@@ -137,6 +195,7 @@ export default function EditCoursePage() {
         const json = await res.json()
         if (json.success && Array.isArray(json.modules)) {
           setModules(json.modules)
+          loadCourseLessons(cId, json.modules)
         }
       }
     } catch (err) {
@@ -177,6 +236,28 @@ export default function EditCoursePage() {
     if (!moduleForm.title || !courseId) return
     setSavingModule(true)
     try {
+      // 1. Ensure any selected fallback lessons are saved to DB first
+      for (const lesId of moduleForm.selectedLessonIds) {
+        const les = courseLessons.find(l => l.lesson_id === lesId)
+        if (les) {
+          await fetch('/api/admin/lessons', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              lesson_id: les.lesson_id,
+              course_id: courseId,
+              title: les.title,
+              video_source_type: les.video_source_type || 'direct',
+              video_external_id: les.video_external_id || '',
+              duration_minutes: les.duration_minutes || 10,
+              order_index: les.order_index || 1,
+              is_preview: Boolean(les.is_preview)
+            })
+          }).catch(() => {})
+        }
+      }
+
+      // 2. Save module
       const url = "/api/admin/modules"
       const method = editingModuleId ? "PUT" : "POST"
       const payload = {
@@ -195,7 +276,6 @@ export default function EditCoursePage() {
       if (res.ok) {
         setShowModuleModal(false)
         loadModules(courseId)
-        loadCourseLessons(courseId)
         MySwal.fire({
           icon: "success",
           title: editingModuleId ? "Module Updated" : "Module Created",
