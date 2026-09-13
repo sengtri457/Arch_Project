@@ -55,12 +55,40 @@ export async function GET(request: Request) {
   const courseId = searchParams.get('courseId')
 
   const supabase = serviceClient()
-  let query = supabase.from('lessons').select('*').order('order_index', { ascending: true })
+
   if (courseId) {
-    query = query.eq('course_id', courseId)
+    // Resolve course UUID and slug so lessons saved under either UUID or slug are matched
+    const { data: course } = await supabase
+      .from('courses')
+      .select('course_id, slug')
+      .or(`course_id.eq.${courseId},slug.eq.${courseId}`)
+      .maybeSingle()
+
+    const targetIds = new Set<string>([courseId])
+    if (course?.course_id) targetIds.add(course.course_id)
+    if (course?.slug) targetIds.add(course.slug)
+    if (courseId.toLowerCase().includes('d5') || course?.slug?.toLowerCase().includes('d5')) {
+      targetIds.add('d5-masterclass')
+      targetIds.add('d4a1b756-12d4-4047-93bd-8b58b94cb146')
+      targetIds.add('d5c66d93-3d02-466d-a77b-6c6a46cd4cf7')
+    }
+
+    const idList = Array.from(targetIds)
+    const { data, error } = await supabase
+      .from('lessons')
+      .select('*')
+      .in('course_id', idList)
+      .order('order_index', { ascending: true })
+
+    if (error) {
+      console.error('Admin lessons fetch failed:', error)
+      return NextResponse.json({ error: 'Failed to fetch lessons' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, lessons: data })
   }
 
-  const { data, error } = await query
+  const { data, error } = await supabase.from('lessons').select('*').order('order_index', { ascending: true })
   if (error) {
     console.error('Admin lessons fetch failed:', error)
     return NextResponse.json({ error: 'Failed to fetch lessons' }, { status: 500 })

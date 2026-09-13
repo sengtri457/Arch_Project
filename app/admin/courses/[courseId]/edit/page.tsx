@@ -76,14 +76,25 @@ export default function EditCoursePage() {
     try {
       const targetSlug = courseForm.slug || cId
 
-      // 1. Fetch DB lessons for course_id UUID or slug
-      const { data: dbLessons } = await supabase
-        .from('lessons')
-        .select('*')
-        .or(`course_id.eq.${cId},course_id.eq.${targetSlug}`)
-        .order('order_index', { ascending: true })
-
-      const dbList = dbLessons || []
+      // 1. Fetch DB lessons using admin API endpoint (bypasses RLS & resolves all course aliases)
+      let dbList: any[] = []
+      try {
+        const res = await fetch(`/api/admin/lessons?courseId=${encodeURIComponent(cId)}`)
+        if (res.ok) {
+          const json = await res.json()
+          if (json.success && Array.isArray(json.lessons)) {
+            dbList = json.lessons
+          }
+        }
+      } catch (err) {
+        console.warn("API /api/admin/lessons call failed, fallback to direct query:", err)
+        const { data } = await supabase
+          .from('lessons')
+          .select('*')
+          .or(`course_id.eq.${cId},course_id.eq.${targetSlug}`)
+          .order('order_index', { ascending: true })
+        if (data) dbList = data
+      }
 
       // 2. Gather template/syllabus lessons from loadedModules or d5Modules
       let templateLessons: any[] = []
