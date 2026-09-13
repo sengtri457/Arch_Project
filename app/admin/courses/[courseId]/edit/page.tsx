@@ -66,19 +66,10 @@ export default function EditCoursePage() {
     selectedLessonIds: [] as string[]
   })
 
-  // Lesson to Module State
-  const [showLessonModal, setShowLessonModal] = useState(false)
-  const [savingLesson, setSavingLesson] = useState(false)
-  const [lessonForm, setLessonForm] = useState({
-    title: "",
-    module_id: "",
-    video_source_type: "direct",
-    video_external_id: "",
-    duration_minutes: 15,
-    order_index: 1,
-    is_preview: false,
-    downloadable_asset_url: ""
-  })
+  // Quick Syllabus Lesson Assignment State
+  const [targetAssignModule, setTargetAssignModule] = useState<any | null>(null)
+  const [assignLessonIds, setAssignLessonIds] = useState<string[]>([])
+  const [savingAssign, setSavingAssign] = useState(false)
 
   const loadCourseLessons = async (cId: string) => {
     try {
@@ -93,40 +84,35 @@ export default function EditCoursePage() {
     }
   }
 
-  const handleOpenAddLessonToModule = (targetModuleId?: string) => {
-    setLessonForm({
-      title: "",
-      module_id: targetModuleId || (modules[0]?.module_id || ""),
-      video_source_type: "direct",
-      video_external_id: "",
-      duration_minutes: 15,
-      order_index: 1,
-      is_preview: false,
-      downloadable_asset_url: ""
-    })
-    setShowLessonModal(true)
+  const handleOpenAssignLessons = (mod: any) => {
+    setTargetAssignModule(mod)
+    // Pre-select lessons currently assigned to this module
+    const currentlyAssigned = courseLessons
+      .filter((l) => l.module_id === mod.module_id)
+      .map((l) => l.lesson_id)
+    setAssignLessonIds(currentlyAssigned)
   }
 
-  const handleSaveLessonToModule = async () => {
-    if (!lessonForm.title || !courseId) return
-    setSavingLesson(true)
+  const handleSaveAssignLessons = async () => {
+    if (!targetAssignModule || !courseId) return
+    setSavingAssign(true)
     try {
-      const res = await fetch("/api/admin/lessons", {
-        method: "POST",
+      const res = await fetch("/api/admin/modules", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...lessonForm,
-          course_id: courseId
+          module_id: targetAssignModule.module_id,
+          selected_lesson_ids: assignLessonIds
         })
       })
 
       if (res.ok) {
-        setShowLessonModal(false)
+        setTargetAssignModule(null)
         loadModules(courseId)
         loadCourseLessons(courseId)
         MySwal.fire({
           icon: "success",
-          title: "Lesson Created & Assigned to Module",
+          title: "Syllabus Lessons Assigned to Module!",
           toast: true,
           position: "top-end",
           showConfirmButton: false,
@@ -134,12 +120,12 @@ export default function EditCoursePage() {
         })
       } else {
         const data = await res.json()
-        alert(data.error || "Failed to create lesson")
+        alert(data.error || "Failed to assign lessons")
       }
     } catch (err: any) {
-      alert(err.message || "Failed to create lesson")
+      alert(err.message || "Failed to assign lessons")
     } finally {
-      setSavingLesson(false)
+      setSavingAssign(false)
     }
   }
 
@@ -800,11 +786,11 @@ export default function EditCoursePage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          onClick={() => handleOpenAddLessonToModule(mod.module_id)}
+                          onClick={() => handleOpenAssignLessons(mod)}
                           className="text-xs text-[#9ACD32] hover:bg-[#9ACD32]/10 border border-[#9ACD32]/30 px-3 py-1.5 rounded-lg flex items-center gap-1"
                         >
                           <Plus className="w-3.5 h-3.5" />
-                          Add Lesson
+                          Assign Lessons
                         </Button>
                         <Button
                           type="button"
@@ -995,116 +981,97 @@ export default function EditCoursePage() {
         </div>
       )}
 
-      {/* Add Lesson to Specific Module Dialog Modal */}
-      {showLessonModal && (
+      {/* Assign Syllabus Lessons to Module Modal */}
+      {targetAssignModule && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 border border-zinc-800 p-6 md:p-8 rounded-3xl max-w-lg w-full space-y-6">
-            <h3 className="text-xl font-bold text-white">Add Lesson to Module</h3>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Target Module</label>
-                <select
-                  value={lessonForm.module_id}
-                  onChange={(e) => setLessonForm({ ...lessonForm, module_id: e.target.value })}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
-                >
-                  <option value="">No Module (Unassigned)</option>
-                  {modules.map((m: any, idx: number) => (
-                    <option key={m.module_id || idx} value={m.module_id}>
-                      {m.module_number || `Module ${String(idx + 1).padStart(2, '0')}`}: {m.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Lesson Title</label>
-                <input
-                  type="text"
-                  required
-                  value={lessonForm.title}
-                  onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
-                  placeholder="e.g. 1.1 Welcome & Viewport Basics"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Video Stream Source URL / ID</label>
-                <input
-                  type="text"
-                  required
-                  value={lessonForm.video_external_id}
-                  onChange={(e) => setLessonForm({ ...lessonForm, video_external_id: e.target.value })}
-                  placeholder="Paste YouTube URL, Vimeo URL, or Bunny Video ID..."
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Duration (Minutes)</label>
-                  <input
-                    type="number"
-                    value={lessonForm.duration_minutes}
-                    onChange={(e) => setLessonForm({ ...lessonForm, duration_minutes: Number(e.target.value) })}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1 font-mono">Order Index</label>
-                  <input
-                    type="number"
-                    value={lessonForm.order_index}
-                    onChange={(e) => setLessonForm({ ...lessonForm, order_index: Number(e.target.value) })}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Downloadable Asset URL</label>
-                <input
-                  type="text"
-                  value={lessonForm.downloadable_asset_url}
-                  onChange={(e) => setLessonForm({ ...lessonForm, downloadable_asset_url: e.target.value })}
-                  placeholder="https://... asset zip link"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <input
-                  type="checkbox"
-                  id="is-preview-chk"
-                  checked={lessonForm.is_preview}
-                  onChange={(e) => setLessonForm({ ...lessonForm, is_preview: e.target.checked })}
-                  className="w-4 h-4 rounded bg-zinc-950 border-zinc-800 text-[#9ACD32] focus:ring-0"
-                />
-                <label htmlFor="is-preview-chk" className="text-xs text-zinc-300 font-medium cursor-pointer">
-                  Free Preview Lesson (Visible to non-enrolled students)
-                </label>
-              </div>
+            <div>
+              <h3 className="text-xl font-bold text-white">Assign Syllabus Lessons</h3>
+              <p className="text-xs text-zinc-400 mt-1">
+                Module: <span className="text-[#9ACD32] font-semibold">{targetAssignModule.title}</span>
+              </p>
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-zinc-400 uppercase">
+                  Select Lessons from Course Syllabus ({assignLessonIds.length} selected)
+                </label>
+                {courseLessons.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allIds = courseLessons.map((l) => l.lesson_id)
+                      const allSelected = allIds.every((id) => assignLessonIds.includes(id))
+                      setAssignLessonIds(allSelected ? [] : allIds)
+                    }}
+                    className="text-[10px] text-[#9ACD32] hover:underline"
+                  >
+                    {courseLessons.every((l) => assignLessonIds.includes(l.lesson_id)) ? "Deselect All" : "Select All"}
+                  </button>
+                )}
+              </div>
+
+              {courseLessons.length === 0 ? (
+                <div className="p-6 text-center border border-dashed border-zinc-800 rounded-2xl">
+                  <p className="text-xs text-zinc-400">No lessons created in the course syllabus yet.</p>
+                  <p className="text-[11px] text-zinc-500 mt-1">Add lessons in the Syllabus Editor to assign them here.</p>
+                </div>
+              ) : (
+                <div className="max-h-64 overflow-y-auto space-y-2 pr-1 border border-zinc-800 rounded-xl p-3 bg-zinc-950">
+                  {courseLessons.map((les: any) => {
+                    const isChecked = assignLessonIds.includes(les.lesson_id)
+                    return (
+                      <label
+                        key={les.lesson_id}
+                        className={`flex items-center justify-between p-2.5 rounded-xl text-xs cursor-pointer border transition-colors ${
+                          isChecked
+                            ? 'bg-[#9ACD32]/10 border-[#9ACD32]/30 text-white'
+                            : 'bg-zinc-900 border-zinc-850 text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              const checked = e.target.checked
+                              setAssignLessonIds((prev) =>
+                                checked
+                                  ? [...prev, les.lesson_id]
+                                  : prev.filter((id) => id !== les.lesson_id)
+                              )
+                            }}
+                            className="w-4 h-4 rounded bg-zinc-950 border-zinc-800 text-[#9ACD32] focus:ring-0 shrink-0"
+                          />
+                          <span className="truncate font-medium">{les.title}</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-zinc-500 shrink-0 ml-2">
+                          {les.duration_minutes || 0}m
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2 border-t border-zinc-800">
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => setShowLessonModal(false)}
+                onClick={() => setTargetAssignModule(null)}
                 className="text-zinc-400 hover:text-white"
               >
                 Cancel
               </Button>
               <Button
                 type="button"
-                onClick={handleSaveLessonToModule}
-                disabled={savingLesson}
+                onClick={handleSaveAssignLessons}
+                disabled={savingAssign}
                 className="bg-[#9ACD32] text-black font-bold px-6 rounded-xl hover:bg-[#8ab82b]"
               >
-                {savingLesson ? "Saving..." : "Add Lesson"}
+                {savingAssign ? "Saving..." : "Save Assignment"}
               </Button>
             </div>
           </div>
