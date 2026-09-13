@@ -79,20 +79,35 @@ export async function GET(request: Request) {
     }
 
     const idList = Array.from(targetIds)
-    const uuidIds = idList.filter(isUUID)
-    const textIds = idList.filter(id => !isUUID(id))
+    const textSlugs = idList.filter(id => !isUUID(id))
+    const validUuids = new Set<string>(idList.filter(isUUID))
 
-    let lessonsQuery = supabase.from('lessons').select('*').order('order_index', { ascending: true })
+    if (textSlugs.length > 0) {
+      const { data: slugCourses } = await supabase
+        .from('courses')
+        .select('course_id')
+        .in('slug', textSlugs)
 
-    if (uuidIds.length > 0 && textIds.length > 0) {
-      lessonsQuery = lessonsQuery.or(`course_id.in.(${uuidIds.join(',')}),course_id.in.(${textIds.join(',')})`)
-    } else if (uuidIds.length > 0) {
-      lessonsQuery = lessonsQuery.in('course_id', uuidIds)
-    } else {
-      lessonsQuery = lessonsQuery.in('course_id', textIds)
+      if (slugCourses) {
+        for (const c of slugCourses) {
+          if (c.course_id && isUUID(c.course_id)) {
+            validUuids.add(c.course_id)
+          }
+        }
+      }
     }
 
-    const { data, error } = await lessonsQuery
+    const finalUuids = Array.from(validUuids)
+    if (finalUuids.length === 0) {
+      return NextResponse.json({ success: true, lessons: [] })
+    }
+
+    const { data, error } = await supabase
+      .from('lessons')
+      .select('*')
+      .in('course_id', finalUuids)
+      .order('order_index', { ascending: true })
+
     if (error) {
       console.error('Admin lessons fetch failed:', error)
       return NextResponse.json({ error: error.message || 'Failed to fetch lessons' }, { status: 500 })

@@ -57,7 +57,7 @@ export default function NewCoursePage() {
       const { data } = await supabase
         .from('subscription_plans')
         .select('*')
-        .order('price', { ascending: true })
+        .order('price_usd', { ascending: true })
       if (data) setPlans(data)
     }
     loadPlans()

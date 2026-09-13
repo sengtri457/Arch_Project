@@ -3,6 +3,10 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 
+function isUUID(str: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
+}
+
 async function requireAdmin() {
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -57,7 +61,16 @@ export async function GET(request: Request) {
   const supabase = serviceClient()
   let query = supabase.from('course_modules').select('*, lessons(*)').order('order_index', { ascending: true })
   if (courseId) {
-    query = query.eq('course_id', courseId)
+    if (isUUID(courseId)) {
+      query = query.eq('course_id', courseId)
+    } else {
+      const { data: course } = await supabase.from('courses').select('course_id').eq('slug', courseId).maybeSingle()
+      if (course?.course_id) {
+        query = query.eq('course_id', course.course_id)
+      } else {
+        return NextResponse.json({ success: true, modules: [] })
+      }
+    }
   }
 
   const { data, error } = await query

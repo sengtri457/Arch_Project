@@ -401,7 +401,7 @@ export default function EditCoursePage() {
         const { data: plansData } = await supabase
           .from('subscription_plans')
           .select('*')
-          .order('price', { ascending: true })
+          .order('price_usd', { ascending: true })
         if (plansData) setPlans(plansData)
 
         // 2. Fetch course
