@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
-import { getBunnyConfig, signBunnyHlsUrl, signBunnyMp4Url } from '@/lib/bunny'
+import { getBunnyConfig, signBunnyHlsUrl, signBunnyMp4Url, signBunnyEmbedUrl } from '@/lib/bunny'
 import { getClientIp, rateLimit } from '@/lib/rate-limit'
 import { resolveLessonId } from '@/lib/courses-data'
 
@@ -9,13 +9,14 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ lessonId: string }> }
 ) {
-  const limiter = rateLimit(`lesson-video:${getClientIp(request)}`, 30, 60_000)
-  if (!limiter.ok) {
-    return NextResponse.json(
-      { error: 'Too many requests' },
-      { status: 429, headers: { 'Retry-After': String(limiter.retryAfter) } }
-    )
-  }
+  try {
+    const limiter = rateLimit(`lesson-video:${getClientIp(request)}`, 30, 60_000)
+    if (!limiter.ok) {
+      return NextResponse.json(
+        { error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': String(limiter.retryAfter) } }
+      )
+    }
 
   const { lessonId: rawLessonId } = await params
   const lessonId = resolveLessonId(rawLessonId)
@@ -188,4 +189,11 @@ export async function GET(
     format: 'direct',
     url: signBunnyMp4Url(config, row.video_url, { clientIp })
   })
+  } catch (err: any) {
+    console.error('Unhandled error in lesson video API route:', err)
+    return NextResponse.json(
+      { error: err?.message || 'Failed to process video stream request' },
+      { status: 500 }
+    )
+  }
 }
