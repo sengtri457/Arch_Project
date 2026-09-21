@@ -262,10 +262,16 @@ export default function SpecificModuleClassroomPage({ params }: PageProps) {
     }
   }
 
-  // Active video stream resolution (from API signed video, lesson body video_url, or video_external_id)
-  const activeVideo = videoData || (currentLesson ? {
-    url: currentLesson.video_url || (currentLesson as any).video_external_id || null,
-    format: (currentLesson as any).video_source_type || "direct"
+  // Active video stream resolution (from API signed video or full HTTP fallback URL)
+  const rawFallbackUrl = currentLesson?.video_url || (currentLesson as any)?.video_external_id || null
+  const isFullUrl = Boolean(rawFallbackUrl && (rawFallbackUrl.startsWith('http://') || rawFallbackUrl.startsWith('https://')))
+
+  const activeVideo = videoData ? {
+    url: videoData.url,
+    format: videoData.format || "direct"
+  } : (isFullUrl ? {
+    url: rawFallbackUrl,
+    format: (currentLesson as any)?.video_source_type || "direct"
   } : null)
 
   const coverUrl = getLessonCoverImage(slug, mod, (mod?.order_index || 1) - 1)
