@@ -127,10 +127,21 @@ export async function GET(
     return NextResponse.json({ error: 'Video not available for this lesson' }, { status: 404 })
   }
 
-  const source = String(row.video_source ?? 'direct')
+  const rawVideoUrl = String(row.video_url || '').trim()
 
-  if (source !== 'bunny' || (row.video_url && (row.video_url.startsWith('http://') || row.video_url.startsWith('https://')))) {
-    return NextResponse.json({ success: true, source: 'direct', format: 'direct', url: row.video_url })
+  // Auto-resolve LIBRARY_ID/VIDEO_ID or LIBRARY_ID:VIDEO_ID strings (e.g. "758923/984df13a-39a6-43e0-a78a-35520feab012")
+  if (/^\d+[\/:][0-9a-f-]{36}$/i.test(rawVideoUrl)) {
+    const formatted = rawVideoUrl.replace(':', '/')
+    return NextResponse.json({
+      success: true,
+      source: 'bunny',
+      format: 'direct',
+      url: `https://iframe.mediadelivery.net/embed/${formatted}`
+    })
+  }
+
+  if (source !== 'bunny' || (rawVideoUrl.startsWith('http://') || rawVideoUrl.startsWith('https://'))) {
+    return NextResponse.json({ success: true, source: 'direct', format: 'direct', url: rawVideoUrl })
   }
 
   const config = getBunnyConfig()
