@@ -1,4 +1,4 @@
-import { createHmac } from 'crypto'
+import { createHash, createHmac } from 'crypto'
 
 const DEFAULT_TTL_SECONDS = 2 * 60 * 60
 
@@ -173,8 +173,8 @@ export function signBunnyEmbedUrl(
   ttlSeconds = DEFAULT_TTL_SECONDS
 ): string {
   const expires = Math.floor(Date.now() / 1000) + ttlSeconds
-  const hash = createHmac('sha256', tokenSecurityKey)
-    .update(`${libraryId}${videoId}${expires}`)
+  const hash = createHash('sha256')
+    .update(`${tokenSecurityKey}${videoId}${expires}`)
     .digest('hex')
 
   return `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?token=${hash}&expires=${expires}&autoplay=true`
