@@ -248,10 +248,18 @@ export function SecureVideoPlayer({
       </div>
 
       {streamError && (
-        <div className="absolute inset-0 z-30 bg-black/90 flex flex-col items-center justify-center gap-2 text-center px-6">
-          <p className="text-sm font-semibold text-red-400">Playback stream failed</p>
-          <p className="text-xs text-zinc-300 font-mono">{streamError.details}{streamError.responseCode ? ` (HTTP ${streamError.responseCode})` : ''}</p>
-          <p className="text-xs text-zinc-500 max-w-md">403 = token/key mismatch or IP validation enabled · 404 = wrong video GUID or still encoding · no request = wrong BUNNY_STREAM_PULL_ZONE_HOST</p>
+        <div className="absolute inset-0 z-30 bg-black/95 flex flex-col items-center justify-center gap-3 text-center px-6">
+          <div className="w-12 h-12 rounded-full bg-red-950/40 border border-red-900/50 flex items-center justify-center text-red-400 mb-1">
+            <span className="text-xl font-bold">!</span>
+          </div>
+          <p className="text-sm font-bold text-red-400">Video Stream Unavailable</p>
+          <p className="text-xs text-zinc-300 max-w-lg leading-relaxed">{streamError.details}</p>
+          <div className="text-[11px] text-zinc-500 bg-zinc-900/80 p-3 rounded-lg border border-zinc-800 max-w-md space-y-1 text-left mt-1 font-mono">
+            <p className="text-zinc-400 font-bold">💡 How to resolve this issue:</p>
+            <p>1. Ensure video is uploaded to Bunny Stream library</p>
+            <p>2. Copy the valid Bunny Video GUID or YouTube / Vimeo URL</p>
+            <p>3. Update lesson video link in <span className="text-zinc-300">Admin Panel &gt; Courses</span></p>
+          </div>
         </div>
       )}
 
@@ -271,7 +279,10 @@ export function SecureVideoPlayer({
           const mediaError = (e.currentTarget as HTMLVideoElement).error
           if (mediaError) {
             console.warn("[Video element error]", mediaError.code, mediaError.message)
-            setStreamError({ details: mediaError.message || `Media error code ${mediaError.code}` })
+            const details = mediaError.message.includes("Format error") || mediaError.code === 4
+              ? "The video server returned a 404 Not Found error (or invalid media stream). The video file has not been uploaded to Bunny Stream yet or is missing."
+              : mediaError.message
+            setStreamError({ details, responseCode: 404 })
           }
         }}
         onContextMenu={(e) => e.preventDefault()}

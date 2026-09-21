@@ -48,6 +48,10 @@ function getEmbedUrl(rawUrl: string | undefined | null): string | null {
   const url = rawUrl.trim()
   if (!url) return null
 
+  if (url.includes("mediadelivery.net") || url.includes("iframe.mediadelivery.net")) {
+    return url.includes("?") ? `${url}&autoplay=1` : `${url}?autoplay=1`
+  }
+
   // Direct 11-character YouTube video ID
   if (/^[0-9A-Za-z_-]{11}$/.test(url)) {
     return `https://www.youtube.com/embed/${url}?autoplay=1`

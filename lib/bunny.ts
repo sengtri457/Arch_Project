@@ -66,9 +66,10 @@ export interface BunnyPlaybackConfig {
   host: string
   tokenSecurityKey: string
   quality: string
-  format: 'hls' | 'mp4'
+  format: 'hls' | 'mp4' | 'embed'
   bindTokenIp: boolean
   ttlSeconds: number
+  libraryId?: string
 }
 
 export function getBunnyConfig(): BunnyPlaybackConfig | null {
@@ -76,8 +77,10 @@ export function getBunnyConfig(): BunnyPlaybackConfig | null {
   const tokenSecurityKey = process.env.BUNNY_STREAM_TOKEN_SECURITY_KEY?.trim()
   if (!host || !tokenSecurityKey) return null
 
-  const format = process.env.BUNNY_STREAM_FORMAT?.trim() === 'mp4' ? 'mp4' : 'hls'
+  const formatRaw = process.env.BUNNY_STREAM_FORMAT?.trim()
+  const format = formatRaw === 'mp4' ? 'mp4' : formatRaw === 'embed' ? 'embed' : 'hls'
   const ttlRaw = Number(process.env.BUNNY_STREAM_TTL_SECONDS)
+  const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID?.trim()
 
   return {
     host: normalizeHost(host),
@@ -85,7 +88,8 @@ export function getBunnyConfig(): BunnyPlaybackConfig | null {
     quality: process.env.BUNNY_STREAM_QUALITY?.trim() || '720p',
     format,
     bindTokenIp: process.env.BUNNY_STREAM_BIND_TOKEN_IP === 'true',
-    ttlSeconds: Number.isFinite(ttlRaw) && ttlRaw >= 60 ? Math.floor(ttlRaw) : DEFAULT_TTL_SECONDS
+    ttlSeconds: Number.isFinite(ttlRaw) && ttlRaw >= 60 ? Math.floor(ttlRaw) : DEFAULT_TTL_SECONDS,
+    libraryId
   }
 }
 
@@ -112,8 +116,14 @@ function signBunnyUrl(config: BunnyPlaybackConfig, options: SignOptions): string
   let ipBytes = Buffer.alloc(0)
   let flagsPrefix = ''
   if (config.bindTokenIp && options.clientIp) {
-    ipBytes = userIpToBytes(options.clientIp.trim())
-    flagsPrefix = '1-'
+    try {
+      ipBytes = userIpToBytes(options.clientIp.trim())
+      flagsPrefix = '1-'
+    } catch {
+      // Fallback if client IP resolution fails
+      ipBytes = Buffer.alloc(0)
+      flagsPrefix = ''
+    }
   }
 
   const hmac = createHmac('sha256', config.tokenSecurityKey)
@@ -154,4 +164,18 @@ export function signBunnyMp4Url(
     pathname: `/${videoId}/play_${config.quality}.mp4`,
     clientIp: options?.clientIp
   })
+}
+
+export function signBunnyEmbedUrl(
+  libraryId: string,
+  videoId: string,
+  tokenSecurityKey: string,
+  ttlSeconds = DEFAULT_TTL_SECONDS
+): string {
+  const expires = Math.floor(Date.now() / 1000) + ttlSeconds
+  const hash = createHmac('sha256', tokenSecurityKey)
+    .update(`${libraryId}${videoId}${expires}`)
+    .digest('hex')
+
+  return `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?token=${hash}&expires=${expires}&autoplay=true`
 }

@@ -141,6 +141,16 @@ export async function GET(
 
   const clientIp = getClientIp(request)
 
+  if (config.format === 'embed' && config.libraryId) {
+    const { signBunnyEmbedUrl } = await import('@/lib/bunny')
+    return NextResponse.json({
+      success: true,
+      source,
+      format: 'direct',
+      url: signBunnyEmbedUrl(config.libraryId, row.video_url, config.tokenSecurityKey, config.ttlSeconds)
+    })
+  }
+
   if (config.format === 'hls') {
     return NextResponse.json({
       success: true,

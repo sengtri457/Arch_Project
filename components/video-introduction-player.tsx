@@ -9,8 +9,15 @@ interface VideoIntroductionPlayerProps {
   title: string
 }
 
-function getEmbedUrl(url: string | undefined | null): string | null {
+function getEmbedUrl(rawUrl: string | undefined | null): string | null {
+  if (!rawUrl) return null
+  const url = rawUrl.trim()
   if (!url) return null
+
+  if (url.includes("mediadelivery.net") || url.includes("iframe.mediadelivery.net")) {
+    return url.includes("?") ? `${url}&autoplay=1` : `${url}?autoplay=1`
+  }
+
   if (url.includes("youtube.com") || url.includes("youtu.be")) {
     let videoId = ""
     if (url.includes("youtube.com/watch")) {
