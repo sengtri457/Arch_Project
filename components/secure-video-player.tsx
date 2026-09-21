@@ -128,6 +128,16 @@ export function SecureVideoPlayer({
           return
         }
 
+        if (data.response?.code === 403) {
+          setStreamError({
+            details: "Bunny Stream Token Authentication Mismatch (HTTP 403 Forbidden). Your BUNNY_STREAM_TOKEN_SECURITY_KEY in Vercel environment variables does not match Bunny Stream Security settings, or BUNNY_STREAM_BIND_TOKEN_IP is enabled.",
+            responseCode: 403
+          })
+          hls.destroy()
+          if (instance === hls) instance = null
+          return
+        }
+
         setStreamError({
           details: String(data.details ?? 'unknown'),
           responseCode: data.response?.code
