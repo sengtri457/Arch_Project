@@ -150,12 +150,13 @@ VALUES
 ON CONFLICT (exercise_id) DO NOTHING;
 ```
 
----
+***
 
 ## 🎓 Step 3: Certificate Table & Policies
+
 Run this query block to create the certificates schema table, setup row-level security policy, and reload schema cache:
 
-```sql
+```SQL
 CREATE TABLE IF NOT EXISTS public.certificates (
     certificate_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -177,12 +178,13 @@ CREATE POLICY "Anyone can view certificates" ON public.certificates
 NOTIFY pgrst, 'reload schema';
 ```
 
----
+***
 
 ## 🎟️ Step 4: Promo Codes Schema
+
 Run this query block to create the promo codes table, alter payments schema, and set security policies:
 
-```sql
+```SQL
 CREATE TABLE IF NOT EXISTS public.promo_codes (
     code TEXT PRIMARY KEY,
     discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
@@ -271,13 +273,13 @@ WHERE course_id = 'd4a1b756-12d4-4047-93bd-8b58b94cb146'
 NOTIFY pgrst, 'reload schema';
 ```
 
----
+***
 
 ### Step 10: Fix Lesson Syllabus Visibility and Column Permissions (For All Courses)
 
 If you create courses or modules from the admin dashboard (e.g. Design Course, AutoCAD, etc.), run this script in **Supabase Dashboard > SQL Editor > New query** to grant SELECT on lesson metadata to both authenticated and anonymous visitors, and update the curriculum RPC:
 
-```sql
+```SQL
 -- 1. Grant SELECT on non-sensitive lesson metadata columns to authenticated and anon users
 GRANT SELECT (lesson_id, course_id, title, duration_minutes, order_index, is_preview, thumbnail_url, downloadable_asset_url)
   ON public.lessons TO authenticated;
@@ -322,5 +324,4 @@ GRANT EXECUTE ON FUNCTION public.get_course_curriculum(text) TO anon, authentica
 
 NOTIFY pgrst, 'reload schema';
 ```
-
 

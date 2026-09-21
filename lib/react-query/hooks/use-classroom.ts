@@ -98,6 +98,19 @@ export function useLessonExercise(lessonId: string | undefined) {
   })
 }
 
+export function useLessonResources(lessonId: string | undefined) {
+  const supabase = createClient()
+  return useQuery({
+    queryKey: ["classroom", "resources", lessonId ?? "none"],
+    queryFn: async () => {
+      if (!lessonId) return []
+      return db.getLessonResources(supabase, lessonId)
+    },
+    enabled: !!lessonId,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
 export function useClassroomAccess(userId: string | undefined, courseId: string) {
   const supabase = createClient()
   return useQuery({

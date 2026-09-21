@@ -27,8 +27,9 @@ import {
   RotateCcw
 } from "lucide-react"
 
-import { useClassroomCourse, useClassroomLessons, useClassroomModules, useClassroomProgress, useClassroomCertificate, useVideoUrl, useClassroomAccess, useLessonExercise, useUpdateProgress } from "@/lib/react-query/hooks/use-classroom"
+import { useClassroomCourse, useClassroomLessons, useClassroomModules, useClassroomProgress, useClassroomCertificate, useVideoUrl, useClassroomAccess, useLessonExercise, useUpdateProgress, useLessonResources } from "@/lib/react-query/hooks/use-classroom"
 import { LessonComments } from "@/components/lesson-comments"
+import { LessonResourceDrawer } from "@/components/lesson-resource-drawer"
 import { d5Modules, getLessonCoverImage, resolveLessonId, resolveCourseUuid } from "@/lib/courses-data"
 import { getMediaUrl } from "@/lib/utils"
 
@@ -85,7 +86,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const { data: existingCert } = useClassroomCertificate(user?.id, courseId)
 
   // Fallback to modules lessons or rawLessons
-  const moduleLessons = (modulesList.length > 0 ? modulesList : d5Modules).flatMap(m => (m.lessons || []).map(l => ({
+  const moduleLessons = (modulesList.length > 0 ? modulesList : d5Modules).flatMap((m: any) => (m.lessons || []).map((l: any) => ({
     lesson_id: l.lesson_id,
     course_id: courseId,
     title: l.title,
@@ -132,6 +133,12 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const canAccessVideo = Boolean(currentLesson?.is_preview || profile?.role === 'admin' || profile?.role === 'instructor' || hasAccess)
   const { data: videoData, isLoading: loadingVideo } = useVideoUrl(activeLessonId, canAccessVideo)
   const activeVideo = videoData ? { source: videoData.source as string, format: videoData.format as 'hls' | 'direct', url: videoData.url } : null
+
+  // Lesson Multi-Resource attachments state
+  const { data: dbResources = [] } = useLessonResources(activeLessonId)
+  const lessonResources = (dbResources && dbResources.length > 0)
+    ? dbResources
+    : (currentLesson?.resources || null)
 
   // Certificate modal state
   const [showCertModal, setShowCertModal] = useState(false)
@@ -645,35 +652,12 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
                 </p>
               </div>
 
-              {/* Resource Downloads */}
-              {currentLesson?.downloadable_asset_url && (
-                <div className="border-t border-zinc-850 pt-5">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 mb-3 flex items-center gap-2">
-                    <Download className="w-4 h-4 text-primary" style={{ color: '#9ACD32' }} />
-                    Lesson Attachments
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div 
-                      className="p-3 bg-zinc-900/50 border border-zinc-850 rounded-xl flex items-center justify-between group hover:border-zinc-700 transition-colors"
-                    >
-                      <div className="truncate max-w-[80%]">
-                        <h4 className="text-xs font-semibold text-white truncate">
-                          {decodeURIComponent(currentLesson.downloadable_asset_url.split('/').pop() || "Lesson Attachment / Resources")}
-                        </h4>
-                        <p className="text-[10px] text-zinc-500 mt-0.5">Attached Resource File</p>
-                      </div>
-                      <a 
-                        href={currentLesson.downloadable_asset_url} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="inline-flex items-center justify-center rounded-lg hover:bg-[#9ACD32]/10 text-[#9ACD32] p-2 transition-colors border border-transparent hover:border-[#9ACD32]/20"
-                      >
-                        <Download className="w-4.5 h-4.5" />
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Multi-Resource Downloads Drawer */}
+              <LessonResourceDrawer 
+                resources={lessonResources}
+                fallbackUrl={currentLesson?.downloadable_asset_url}
+                lessonTitle={currentLesson?.title}
+              />
 
               {/* Homework / Exercise Submission Box */}
               <div className="border-t border-zinc-850 pt-5 space-y-4">

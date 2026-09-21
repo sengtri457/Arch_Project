@@ -10,7 +10,7 @@ import { CourseEnrollCta } from "@/components/course-enroll-cta"
 import { VideoIntroductionPlayer } from "@/components/video-introduction-player"
 import { getMediaUrl } from "@/lib/utils"
 import { Lock, PlayCircle, Clock, BarChart3, User, Award, CheckCircle2 } from "lucide-react"
-import { courses as mockCourses, d5Modules, getLessonCoverImage } from "@/lib/courses-data"
+import { courses as mockCourses, d5Modules, getLessonCoverImage, CourseModule } from "@/lib/courses-data"
 
 interface PageProps {
   params: Promise<{ slug: string }>

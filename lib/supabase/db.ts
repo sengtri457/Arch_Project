@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Project } from '@/lib/projects-data'
-import { Course, d5Modules, getLessonCoverImage, resolveLessonId, resolveCourseUuid, COURSE_UUID_MAP } from '@/lib/courses-data'
+import { Course, CourseModule, d5Modules, getLessonCoverImage, resolveLessonId, resolveCourseUuid, COURSE_UUID_MAP } from '@/lib/courses-data'
 import { Testimonial } from '@/lib/testimonials-data'
 import { YoutubeVideo } from '@/types/youtube-video'
 
@@ -469,6 +469,8 @@ export const db = {
           title: m.module_title,
           description: m.module_description || '',
           cover_image: m.module_cover_image || getLessonCoverImage(courseIdOrSlug, null, m.module_order_index - 1),
+          duration_minutes: m.duration_minutes || 0,
+          is_preview: Boolean(m.is_preview),
           lessons: (m.lessons || []).map((l: any, lIdx: number) => ({
             ...l,
             video_url: l.video_external_id || l.video_url || null,
@@ -1052,5 +1054,23 @@ export const db = {
       .eq('id', id)
 
     if (error) throw error
+  },
+
+  async getLessonResources(
+    supabase: SupabaseClient,
+    lessonId: string
+  ): Promise<any[]> {
+    if (!lessonId) return []
+    const resolvedId = resolveLessonId(lessonId)
+    const { data, error } = await supabase
+      .from('lesson_resources')
+      .select('*')
+      .eq('lesson_id', resolvedId)
+      .order('order_index', { ascending: true })
+
+    if (error || !data || data.length === 0) {
+      return []
+    }
+    return data
   }
 }

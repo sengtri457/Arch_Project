@@ -113,6 +113,19 @@ export const courses: Course[] = [
   }
 ]
 
+export type ResourceFileType = 'archive' | 'pdf' | 'preset' | 'image' | 'generic'
+
+export interface LessonResource {
+  resource_id: string
+  lesson_id: string
+  title: string
+  description?: string | null
+  file_type: ResourceFileType
+  file_size_mb: number
+  download_url: string
+  order_index?: number
+}
+
 export interface Lesson {
   lesson_id: string
   module_id?: string
@@ -121,6 +134,7 @@ export interface Lesson {
   duration_minutes: number
   is_preview: boolean
   downloadable_asset_url?: string | null
+  resources?: LessonResource[]
   cover_image?: string
   thumbnail_url?: string
   description?: string
@@ -135,8 +149,8 @@ export interface CourseModule {
   module_number: string
   title: string
   cover_image: string
-  duration_minutes: number
-  is_preview: boolean
+  duration_minutes?: number
+  is_preview?: boolean
   description?: string
   lessons: Lesson[]
 }
@@ -191,7 +205,25 @@ export const d5Modules: CourseModule[] = [
         title: "1.1 Welcome & Course Overview",
         duration_minutes: 8,
         is_preview: true,
-        description: "Overview of D5 Render capabilities and how to get the most out of this masterclass."
+        description: "Overview of D5 Render capabilities and how to get the most out of this masterclass.",
+        resources: [
+          {
+            resource_id: "res-d5-01",
+            lesson_id: "d5d30129-234b-4b2a-8d19-450f612d4cf7",
+            title: "Board 01 - Grid Composition Board Project File (.RAR)",
+            file_type: "archive",
+            file_size_mb: 249.07,
+            download_url: "/resources&Video/Chapter 01-Project Resources-20260921T020356Z-1-001/Chapter 01-Project Resources/02-Board 01 -Grid Composition Board/Board 01 - Grid Composition Board.rar"
+          },
+          {
+            resource_id: "res-d5-02",
+            lesson_id: "d5d30129-234b-4b2a-8d19-450f612d4cf7",
+            title: "Grid Composition Reference Cheatsheet (PDF)",
+            file_type: "pdf",
+            file_size_mb: 0.88,
+            download_url: "/resources&Video/Chapter 01-Project Resources-20260921T020356Z-1-001/Chapter 01-Project Resources/00-3 Type of Board References/Grid Composition_Ref.pdf"
+          }
+        ]
       },
       {
         lesson_id: "d5d30129-234b-4b2a-8d19-450f612d4cf8",
