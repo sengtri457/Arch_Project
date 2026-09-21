@@ -43,16 +43,20 @@ export async function GET(
     }
   )
 
-  const { data, error } = await supabase.rpc('get_lesson_video', {
-    p_lesson_id: lessonId
-  })
+  let row: any = null
 
-  if (error) {
-    console.error('get_lesson_video rpc failed:', error.message)
-    return NextResponse.json({ error: 'Failed to resolve video access' }, { status: 500 })
+  try {
+    const { data, error } = await supabase.rpc('get_lesson_video', {
+      p_lesson_id: lessonId
+    })
+    if (!error && data) {
+      row = Array.isArray(data) ? data[0] : data
+    } else if (error) {
+      console.warn('get_lesson_video rpc notice (falling back to direct query):', error.message)
+    }
+  } catch (rpcErr) {
+    console.warn('get_lesson_video rpc exception (falling back to direct query):', rpcErr)
   }
-
-  let row = Array.isArray(data) ? data[0] : data
 
   if (!row || !row.video_url) {
     const { createClient } = await import('@supabase/supabase-js')
