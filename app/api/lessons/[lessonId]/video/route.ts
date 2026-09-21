@@ -129,8 +129,8 @@ export async function GET(
 
   const source = String(row.video_source ?? 'direct')
 
-  if (source !== 'bunny') {
-    return NextResponse.json({ success: true, source, url: row.video_url })
+  if (source !== 'bunny' || (row.video_url && (row.video_url.startsWith('http://') || row.video_url.startsWith('https://')))) {
+    return NextResponse.json({ success: true, source: 'direct', format: 'direct', url: row.video_url })
   }
 
   const config = getBunnyConfig()
