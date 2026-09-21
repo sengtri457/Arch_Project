@@ -132,11 +132,17 @@ export async function GET(
   // Auto-resolve LIBRARY_ID/VIDEO_ID or LIBRARY_ID:VIDEO_ID strings (e.g. "758923/984df13a-39a6-43e0-a78a-35520feab012")
   if (/^\d+[\/:][0-9a-f-]{36}$/i.test(rawVideoUrl)) {
     const formatted = rawVideoUrl.replace(':', '/')
+    const [libId, vidId] = formatted.split('/')
+    const tokenSecurityKey = process.env.BUNNY_STREAM_TOKEN_SECURITY_KEY?.trim()
+    const finalUrl = tokenSecurityKey 
+      ? signBunnyEmbedUrl(libId, vidId, tokenSecurityKey)
+      : `https://iframe.mediadelivery.net/embed/${formatted}`
+
     return NextResponse.json({
       success: true,
       source: 'bunny',
       format: 'direct',
-      url: `https://iframe.mediadelivery.net/embed/${formatted}`
+      url: finalUrl
     })
   }
 
