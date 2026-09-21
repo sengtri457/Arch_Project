@@ -157,7 +157,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Video URL/ID is too long' }, { status: 400 })
   }
   if (sourceType === 'bunny' && !/^[0-9a-f-]{36}$/i.test(videoExternalId)) {
-    return NextResponse.json({ error: 'Bunny source requires a valid video ID (GUID)' }, { status: 400 })
+    if (!videoExternalId.startsWith('http://') && !videoExternalId.startsWith('https://')) {
+      return NextResponse.json({ error: 'Bunny source requires a valid video ID (GUID) or full video/embed URL' }, { status: 400 })
+    }
   }
 
   const durationMinutes = Math.min(600, Math.max(0, Math.round(Number(body.duration_minutes ?? 10))))
