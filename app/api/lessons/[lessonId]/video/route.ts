@@ -127,6 +127,7 @@ export async function GET(
     return NextResponse.json({ error: 'Video not available for this lesson' }, { status: 404 })
   }
 
+  const source = String(row.video_source ?? 'direct')
   const rawVideoUrl = String(row.video_url || '').trim()
 
   // Auto-resolve LIBRARY_ID/VIDEO_ID or LIBRARY_ID:VIDEO_ID strings (e.g. "758923/984df13a-39a6-43e0-a78a-35520feab012")
