@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { resolveCourseUuid } from '@/lib/courses-data'
 
 function isUUID(str: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
@@ -139,10 +140,12 @@ export async function POST(request: Request) {
   }
 
   const title = String(body.title ?? '').trim()
-  const courseId = String(body.course_id ?? '').trim()
-  if (!title || !courseId) {
+  const rawCourseId = String(body.course_id ?? '').trim()
+  if (!title || !rawCourseId) {
     return NextResponse.json({ error: 'title and course_id are required' }, { status: 400 })
   }
+  const courseUuid = resolveCourseUuid(rawCourseId) || (isUUID(rawCourseId) ? rawCourseId : rawCourseId)
+
   if (title.length > 200) {
     return NextResponse.json({ error: 'Lesson title is too long' }, { status: 400 })
   }
@@ -157,8 +160,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Video URL/ID is too long' }, { status: 400 })
   }
   if (sourceType === 'bunny' && !/^[0-9a-f-]{36}$/i.test(videoExternalId)) {
-    if (!videoExternalId.startsWith('http://') && !videoExternalId.startsWith('https://')) {
-      return NextResponse.json({ error: 'Bunny source requires a valid video ID (GUID) or full video/embed URL' }, { status: 400 })
+    if (
+      !videoExternalId.startsWith('http://') &&
+      !videoExternalId.startsWith('https://') &&
+      !/^\d+[\/:][0-9a-f-]{36}$/i.test(videoExternalId)
+    ) {
+      return NextResponse.json({ error: 'Bunny source requires a valid video ID, LIBRARY_ID/VIDEO_ID, or full URL' }, { status: 400 })
     }
   }
 
@@ -180,7 +187,7 @@ export async function POST(request: Request) {
 
   const payload: Record<string, any> = {
     lesson_id: typeof body.lesson_id === 'string' && body.lesson_id ? body.lesson_id : undefined,
-    course_id: courseId,
+    course_id: courseUuid,
     module_id: typeof body.module_id === 'string' && body.module_id ? body.module_id : null,
     title,
     video_source_type: sourceType,
@@ -211,7 +218,7 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('Admin lesson update failed:', error)
-      return NextResponse.json({ error: 'Failed to update lesson' }, { status: 500 })
+      return NextResponse.json({ error: error.message || 'Failed to update lesson' }, { status: 500 })
     }
     return NextResponse.json({ success: true })
   }
