@@ -107,9 +107,24 @@ export function SecureVideoPlayer({
 
         if (!data.fatal) return
 
-        if (data.type === Hls.ErrorTypes.NETWORK_ERROR && networkRetries < 3) {
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR && data.response?.code !== 404 && networkRetries < 3) {
           networkRetries += 1
           hls.startLoad()
+          return
+        }
+
+        // If HLS playlist returned 404, try loading direct MP4 file fallback before giving up
+        if (data.response?.code === 404 && videoUrl.includes('/playlist.m3u8')) {
+          const mp4Url = videoUrl.replace('/playlist.m3u8', '/play_720p.mp4')
+          hls.destroy()
+          if (instance === hls) instance = null
+          video.src = mp4Url
+          video.play().catch(() => {
+            setStreamError({
+              details: "Video GUID not found on Bunny CDN (HTTP 404). Please check Bunny Stream upload status or edit video URL in Admin Panel.",
+              responseCode: 404
+            })
+          })
           return
         }
 
