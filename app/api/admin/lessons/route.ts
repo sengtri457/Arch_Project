@@ -185,8 +185,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Thumbnail URL is too long' }, { status: 400 })
   }
 
+  const isUpdating = typeof body.lesson_id === 'string' && Boolean(body.lesson_id.trim()) && !body.lesson_id.startsWith('temp-')
+  const newLessonId = isUpdating ? body.lesson_id.trim() : crypto.randomUUID()
+
   const payload: Record<string, any> = {
-    lesson_id: typeof body.lesson_id === 'string' && body.lesson_id ? body.lesson_id : undefined,
+    lesson_id: newLessonId,
     course_id: courseUuid,
     module_id: typeof body.module_id === 'string' && body.module_id ? body.module_id : null,
     title,
@@ -201,7 +204,7 @@ export async function POST(request: Request) {
 
   const supabase = serviceClient()
 
-  if (payload.lesson_id) {
+  if (isUpdating) {
     const lessonId = payload.lesson_id
     delete payload.lesson_id
     let { error } = await supabase
