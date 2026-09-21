@@ -14,6 +14,12 @@ function getEmbedUrl(rawUrl: string | undefined | null): string | null {
   const url = rawUrl.trim()
   if (!url) return null
 
+  // Auto-detect LIBRARY_ID/VIDEO_ID or LIBRARY_ID:VIDEO_ID (e.g. "377317/2530823a-af0d-4431-9ca3-0a9156894f76")
+  if (/^\d+[\/:][0-9a-f-]{36}$/i.test(url)) {
+    const formatted = url.replace(':', '/')
+    return `https://iframe.mediadelivery.net/embed/${formatted}?autoplay=1`
+  }
+
   if (url.includes("mediadelivery.net") || url.includes("iframe.mediadelivery.net")) {
     return url.includes("?") ? `${url}&autoplay=1` : `${url}?autoplay=1`
   }

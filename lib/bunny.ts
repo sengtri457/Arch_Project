@@ -172,10 +172,27 @@ export function signBunnyEmbedUrl(
   tokenSecurityKey: string,
   ttlSeconds = DEFAULT_TTL_SECONDS
 ): string {
+  let targetLibraryId = libraryId
+  let targetVideoId = videoId.trim()
+
+  if (targetVideoId.includes('/')) {
+    const parts = targetVideoId.split('/')
+    if (parts.length >= 2 && /^\d+$/.test(parts[0])) {
+      targetLibraryId = parts[0]
+      targetVideoId = parts[parts.length - 1]
+    }
+  } else if (targetVideoId.includes(':')) {
+    const parts = targetVideoId.split(':')
+    if (parts.length === 2 && /^\d+$/.test(parts[0])) {
+      targetLibraryId = parts[0]
+      targetVideoId = parts[1]
+    }
+  }
+
   const expires = Math.floor(Date.now() / 1000) + ttlSeconds
   const hash = createHash('sha256')
-    .update(`${tokenSecurityKey}${videoId}${expires}`)
+    .update(`${tokenSecurityKey}${targetVideoId}${expires}`)
     .digest('hex')
 
-  return `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?token=${hash}&expires=${expires}&autoplay=true`
+  return `https://iframe.mediadelivery.net/embed/${targetLibraryId}/${targetVideoId}?token=${hash}&expires=${expires}&autoplay=true`
 }

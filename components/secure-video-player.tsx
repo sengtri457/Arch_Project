@@ -53,6 +53,24 @@ export function SecureVideoPlayer({
     return () => clearInterval(interval)
   }, [])
 
+  // Anti-Inspection Keyboard Shortcut Guard
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === "F12" ||
+        (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "i" || e.key === "J" || e.key === "j")) ||
+        (e.ctrlKey && (e.key === "U" || e.key === "u" || e.key === "S" || e.key === "s")) ||
+        (e.metaKey && e.altKey && (e.key === "I" || e.key === "i" || e.key === "J" || e.key === "j" || e.key === "C" || e.key === "c"))
+      ) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [])
+
   // HLS streams are attached imperatively via hls.js; direct files use the declarative src attribute
   const isHlsStream = format === 'hls' && videoUrl.includes('.m3u8')
 
