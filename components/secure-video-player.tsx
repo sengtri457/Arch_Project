@@ -203,6 +203,20 @@ export function SecureVideoPlayer({
     return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`
   }
 
+  if (!videoUrl) {
+    return (
+      <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden flex flex-col items-center justify-center p-6 text-center border border-zinc-800">
+        {poster && (
+          <img src={poster} alt="" className="absolute inset-0 w-full h-full object-cover opacity-20" />
+        )}
+        <div className="relative z-10 space-y-2">
+          <p className="text-sm font-semibold text-zinc-300">Video Stream Unavailable</p>
+          <p className="text-xs text-zinc-500">The requested video stream could not be loaded or processed.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden group border border-zinc-800">
       
@@ -238,6 +252,13 @@ export function SecureVideoPlayer({
         onEnded={onEnded}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
+        onError={(e) => {
+          const mediaError = (e.currentTarget as HTMLVideoElement).error
+          if (mediaError) {
+            console.warn("[Video element error]", mediaError.code, mediaError.message)
+            setStreamError({ details: mediaError.message || `Media error code ${mediaError.code}` })
+          }
+        }}
         onContextMenu={(e) => e.preventDefault()}
         controlsList="nodownload noplaybackrate noremoteplayback"
         disablePictureInPicture

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { db } from "@/lib/supabase/db"
 import { queryKeys } from "@/lib/react-query/query-keys"
+import { resolveCourseUuid } from "@/lib/courses-data"
 
 export function useClassroomCourse(slug: string) {
   const supabase = createClient()
@@ -31,40 +32,41 @@ export function useClassroomModules(courseIdOrSlug: string) {
     staleTime: 10 * 60 * 1000,
   })
 }
-
 export function useClassroomProgress(userId: string | undefined, courseId: string) {
   const supabase = createClient()
+  const targetCourseId = resolveCourseUuid(courseId)
   return useQuery({
-    queryKey: queryKeys.classroom.progress(userId ?? "none", courseId),
+    queryKey: queryKeys.classroom.progress(userId ?? "none", targetCourseId || courseId),
     queryFn: async () => {
-      if (!userId) return []
+      if (!userId || !targetCourseId || !/^[0-9a-f-]{36}$/i.test(targetCourseId)) return []
       const { data } = await supabase
         .from("lesson_progress")
         .select("lesson_id, is_completed, watched_seconds")
         .eq("student_id", userId)
-        .eq("course_id", courseId)
+        .eq("course_id", targetCourseId)
       return data || []
     },
-    enabled: !!userId && !!courseId,
+    enabled: !!userId && !!targetCourseId && /^[0-9a-f-]{36}$/i.test(targetCourseId),
     staleTime: 30 * 1000,
   })
 }
 
 export function useClassroomCertificate(userId: string | undefined, courseId: string) {
   const supabase = createClient()
+  const targetCourseId = resolveCourseUuid(courseId)
   return useQuery({
-    queryKey: queryKeys.classroom.certificate(userId ?? "none", courseId),
+    queryKey: queryKeys.classroom.certificate(userId ?? "none", targetCourseId || courseId),
     queryFn: async () => {
-      if (!userId) return null
+      if (!userId || !targetCourseId || !/^[0-9a-f-]{36}$/i.test(targetCourseId)) return null
       const { data } = await supabase
         .from("certificates")
         .select("certificate_id")
         .eq("student_id", userId)
-        .eq("course_id", courseId)
+        .eq("course_id", targetCourseId)
         .maybeSingle()
       return data
     },
-    enabled: !!userId && !!courseId,
+    enabled: !!userId && !!targetCourseId && /^[0-9a-f-]{36}$/i.test(targetCourseId),
     staleTime: 30 * 1000,
   })
 }

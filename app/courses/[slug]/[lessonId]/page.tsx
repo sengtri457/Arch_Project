@@ -29,7 +29,7 @@ import {
 
 import { useClassroomCourse, useClassroomLessons, useClassroomModules, useClassroomProgress, useClassroomCertificate, useVideoUrl, useClassroomAccess, useLessonExercise, useUpdateProgress } from "@/lib/react-query/hooks/use-classroom"
 import { LessonComments } from "@/components/lesson-comments"
-import { d5Modules, getLessonCoverImage, resolveLessonId } from "@/lib/courses-data"
+import { d5Modules, getLessonCoverImage, resolveLessonId, resolveCourseUuid } from "@/lib/courses-data"
 import { getMediaUrl } from "@/lib/utils"
 
 function getEmbedUrl(url: string | undefined | null): string | null {
@@ -68,7 +68,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const router = useRouter()
 
   const { data: course } = useClassroomCourse(slug)
-  const courseId = course ? (course.course_id || course.id) : ""
+  const courseId = course?.course_id || resolveCourseUuid(slug)
   const courseIdentifier = courseId || slug
   const { data: rawLessons = [], isLoading: loadingLessons } = useClassroomLessons(courseIdentifier)
   const { data: modulesList = [] } = useClassroomModules(courseIdentifier)
@@ -116,9 +116,10 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const courseFallbackCover = course?.thumbnail_url || (course as any)?.image || null
   const currentCoverUrl = getLessonCoverImage(course?.slug || course?.title || slug, currentLesson, currentLessonIdx, courseFallbackCover)
 
-  const activeLessonId = currentLesson 
+  const rawActiveLessonId = currentLesson 
     ? (currentLesson.lesson_id || currentLesson.id) 
-    : (resolvedParamLessonId !== "start" && /^[0-9a-f-]{36}$/i.test(resolvedParamLessonId) ? resolvedParamLessonId : undefined)
+    : (resolvedParamLessonId !== "start" ? resolvedParamLessonId : undefined)
+  const activeLessonId = rawActiveLessonId && /^[0-9a-f-]{36}$/i.test(rawActiveLessonId) ? rawActiveLessonId : undefined
 
   // Secure video delivery state
   const canAccessVideo = Boolean(currentLesson?.is_preview || profile?.role === 'admin' || profile?.role === 'instructor' || hasAccess)

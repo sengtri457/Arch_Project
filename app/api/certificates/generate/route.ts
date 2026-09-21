@@ -3,14 +3,16 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail, certificateIssuedEmail } from '@/lib/email'
+import { resolveCourseUuid } from '@/lib/courses-data'
 
 export async function POST(request: Request) {
   try {
     const cookieStore = await cookies()
-    const { courseId } = await request.json()
+    const { courseId: rawCourseId } = await request.json()
+    const courseId = resolveCourseUuid(rawCourseId)
 
-    if (!courseId) {
-      return NextResponse.json({ error: 'Missing courseId parameter' }, { status: 400 })
+    if (!courseId || !/^[0-9a-f-]{36}$/i.test(courseId)) {
+      return NextResponse.json({ error: 'Missing or invalid courseId parameter' }, { status: 400 })
     }
 
     // 1. Initialize Supabase Server Client (cookie-based to get user auth)

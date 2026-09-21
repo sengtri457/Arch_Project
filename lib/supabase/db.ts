@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Project } from '@/lib/projects-data'
-import { Course, d5Modules, getLessonCoverImage, resolveLessonId } from '@/lib/courses-data'
+import { Course, d5Modules, getLessonCoverImage, resolveLessonId, resolveCourseUuid, COURSE_UUID_MAP } from '@/lib/courses-data'
 import { Testimonial } from '@/lib/testimonials-data'
 import { YoutubeVideo } from '@/types/youtube-video'
 
@@ -321,17 +321,27 @@ export const db = {
    */
   async getCourseBySlug(supabase: SupabaseClient, slug: string): Promise<Course | null> {
     try {
+      const isUuid = /^[0-9a-f-]{36}$/i.test(slug)
       const { data, error } = await supabase
         .from('courses')
         .select('*')
-        .eq('slug', slug)
-        .single()
+        .or(`slug.eq.${slug},course_id.eq.${isUuid ? slug : '00000000-0000-0000-0000-000000000000'}`)
+        .maybeSingle()
 
       if (error) throw error
-      return mapDbCourseToFrontend(data)
+      if (data) return mapDbCourseToFrontend(data)
+
+      const targetSlug = isUuid
+        ? Object.keys(COURSE_UUID_MAP).find(k => COURSE_UUID_MAP[k] === slug) || slug
+        : slug
+      return mockCourses.find(c => c.id === targetSlug || c.slug === targetSlug || c.course_id === slug) || null
     } catch (err) {
       console.warn(`Failed to fetch course by slug ${slug}:`, err)
-      return mockCourses.find(c => c.id === slug) || null
+      const isUuid = /^[0-9a-f-]{36}$/i.test(slug)
+      const targetSlug = isUuid
+        ? Object.keys(COURSE_UUID_MAP).find(k => COURSE_UUID_MAP[k] === slug) || slug
+        : slug
+      return mockCourses.find(c => c.id === targetSlug || c.slug === targetSlug || c.course_id === slug) || null
     }
   },
 
@@ -339,6 +349,7 @@ export const db = {
     if (!courseId) return []
 
     const isD5 = courseId === 'd4a1b756-12d4-4047-93bd-8b58b94cb146' || courseId === 'd5c66d93-3d02-466d-a77b-6c6a46cd4cf7' || courseId === 'd5-masterclass' || courseId.toLowerCase().includes('d5')
+    const courseUuid = resolveCourseUuid(courseId)
 
     // Tier 1: Try get_course_curriculum RPC (fast, SECURITY DEFINER, works with anon & authenticated)
     try {
@@ -348,7 +359,7 @@ export const db = {
       if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
         return rpcData.map((l: any, idx: number) => ({
           lesson_id: l.lesson_id,
-          course_id: courseId,
+          course_id: courseUuid || courseId,
           title: l.title,
           video_url: null as string | null,
           duration: (l.duration_minutes || 0) * 60,
@@ -364,31 +375,33 @@ export const db = {
     }
 
     // Tier 2: Try direct SELECT of non-sensitive columns only (never select('*') to prevent permission denied)
-    try {
-      const { data, error } = await supabase
-        .from('lessons')
-        .select('lesson_id, course_id, title, duration_minutes, order_index, is_preview, thumbnail_url, downloadable_asset_url, video_external_id, video_source_type')
-        .eq('course_id', courseId)
-        .order('order_index', { ascending: true })
+    if (courseUuid && /^[0-9a-f-]{36}$/i.test(courseUuid)) {
+      try {
+        const { data, error } = await supabase
+          .from('lessons')
+          .select('lesson_id, course_id, title, duration_minutes, order_index, is_preview, thumbnail_url, downloadable_asset_url, video_external_id, video_source_type')
+          .eq('course_id', courseUuid)
+          .order('order_index', { ascending: true })
 
-      if (!error && Array.isArray(data) && data.length > 0) {
-        return data.map((l: any, idx: number) => ({
-          lesson_id: l.lesson_id,
-          course_id: l.course_id,
-          title: l.title,
-          video_url: l.video_external_id || null,
-          video_external_id: l.video_external_id || null,
-          video_source_type: l.video_source_type || 'direct',
-          duration: (l.duration_minutes || 0) * 60,
-          is_preview: Boolean(l.is_preview),
-          order_index: l.order_index ?? idx + 1,
-          downloadable_asset_url: l.downloadable_asset_url || null,
-          thumbnail_url: l.thumbnail_url || null,
-          cover_image: l.thumbnail_url || getLessonCoverImage(courseId, l, idx)
-        }))
+        if (!error && Array.isArray(data) && data.length > 0) {
+          return data.map((l: any, idx: number) => ({
+            lesson_id: l.lesson_id,
+            course_id: l.course_id,
+            title: l.title,
+            video_url: l.video_external_id || null,
+            video_external_id: l.video_external_id || null,
+            video_source_type: l.video_source_type || 'direct',
+            duration: (l.duration_minutes || 0) * 60,
+            is_preview: Boolean(l.is_preview),
+            order_index: l.order_index ?? idx + 1,
+            downloadable_asset_url: l.downloadable_asset_url || null,
+            thumbnail_url: l.thumbnail_url || null,
+            cover_image: l.thumbnail_url || getLessonCoverImage(courseId, l, idx)
+          }))
+        }
+      } catch (selectErr) {
+        console.warn(`Direct lessons select failed for ${courseId}:`, selectErr)
       }
-    } catch (selectErr) {
-      console.warn(`Direct lessons select failed for ${courseId}:`, selectErr)
     }
 
     // Tier 3: Fetch from server-side route handler /api/courses/[courseId]/lessons (uses service role)
@@ -529,12 +542,13 @@ export const db = {
     progress: { userId: string; courseId: string; lessonId: string; watchedSeconds: number; isCompleted: boolean }
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      console.log("db.updateLessonProgress: Triggering upsert with data:", progress)
+      const courseUuid = resolveCourseUuid(progress.courseId)
+      console.log("db.updateLessonProgress: Triggering upsert with data:", { ...progress, courseUuid })
       const { error } = await supabase
         .from('lesson_progress')
         .upsert({
           student_id: progress.userId,
-          course_id: progress.courseId,
+          course_id: courseUuid || progress.courseId,
           lesson_id: progress.lessonId,
           watched_seconds: Math.floor(progress.watchedSeconds),
           is_completed: progress.isCompleted,
@@ -556,6 +570,9 @@ export const db = {
 
   async checkCourseAccess(supabase: SupabaseClient, userId: string, courseId: string): Promise<boolean> {
     try {
+      const courseUuid = resolveCourseUuid(courseId)
+      const isUuid = /^[0-9a-f-]{36}$/i.test(courseUuid)
+
       // 0. Check if user belongs to bypass list (configured via NEXT_PUBLIC_BYPASS_EMAILS, for testing only)
       const { data: { user } } = await supabase.auth.getUser()
       const bypassEmails = (process.env.NEXT_PUBLIC_BYPASS_EMAILS || '')
@@ -564,25 +581,27 @@ export const db = {
         .filter(Boolean)
       if (user && user.email && bypassEmails.includes(user.email.toLowerCase())) {
         // Automatically ensure they are enrolled in the course so database RLS doesn't block queries!
-        try {
-          const { data: existing } = await supabase
-            .from('course_enrollments')
-            .select('status')
-            .eq('student_id', user.id)
-            .eq('course_id', courseId)
-            .single()
-
-          if (!existing) {
-            await supabase
+        if (isUuid) {
+          try {
+            const { data: existing } = await supabase
               .from('course_enrollments')
-              .insert({
-                student_id: user.id,
-                course_id: courseId,
-                status: 'active'
-              })
+              .select('status')
+              .eq('student_id', user.id)
+              .eq('course_id', courseUuid)
+              .single()
+
+            if (!existing) {
+              await supabase
+                .from('course_enrollments')
+                .insert({
+                  student_id: user.id,
+                  course_id: courseUuid,
+                  status: 'active'
+                })
+            }
+          } catch (e) {
+            console.warn("Bypass auto-enrollment failed:", e)
           }
-        } catch (e) {
-          console.warn("Bypass auto-enrollment failed:", e)
         }
         return true
       }
@@ -599,23 +618,25 @@ export const db = {
       }
 
       // 2. Check if student has an active direct enrollment (direct purchase) for the course
-      const { data: enrollment } = await supabase
-        .from('course_enrollments')
-        .select('status')
-        .eq('student_id', userId)
-        .eq('course_id', courseId)
-        .maybeSingle()
+      if (isUuid) {
+        const { data: enrollment } = await supabase
+          .from('course_enrollments')
+          .select('status')
+          .eq('student_id', userId)
+          .eq('course_id', courseUuid)
+          .maybeSingle()
 
-      if (enrollment && enrollment.status === 'active') {
-        return true
+        if (enrollment && enrollment.status === 'active') {
+          return true
+        }
       }
 
       // 3. Check if student has an active subscription satisfying the course plan requirement
       const { data: courseData } = await supabase
         .from('courses')
         .select('required_plan_id, slug')
-        .eq('course_id', courseId)
-        .single()
+        .or(`slug.eq.${courseId},course_id.eq.${isUuid ? courseUuid : '00000000-0000-0000-0000-000000000000'}`)
+        .maybeSingle()
 
       if (!courseData) return false
       

@@ -21,6 +21,8 @@ export interface Course {
 export const courses: Course[] = [
   {
     id: "d5-masterclass",
+    course_id: "d5c66d93-3d02-466d-a77b-6c6a46cd4cf7",
+    slug: "d5-masterclass",
     title: "D5 Masterclass",
     description: "Master the art of real-time rendering with D5 Render. Create stunning photorealistic visualizations with speed and efficiency.",
     image: "/assets/images/D5_class_img/D5_Cover.jpg",
@@ -42,6 +44,8 @@ export const courses: Course[] = [
   },
   {
     id: "enscape-masterclass",
+    course_id: "eb919c63-4712-4fb3-81b4-25e2e8b2cc1c",
+    slug: "enscape-masterclass",
     title: "Enscape Masterclass",
     description: "Learn to create beautiful real-time architectural visualizations directly from your modeling software using Enscape.",
     image: "/14-WHITE BEACH HOTEL BY SB (Residential)/Render images/LIGHTROOM/seaside building-1.jpg",
@@ -63,6 +67,8 @@ export const courses: Course[] = [
   },
   {
     id: "indesign-masterclass",
+    course_id: "e6c66d93-3d02-466d-a77b-6c6a46cd4cf7",
+    slug: "indesign-masterclass",
     title: "InDesign Masterclass",
     description: "Create professional architectural presentations, portfolios, and layout designs using Adobe InDesign.",
     image: "/08-KALMET OFFICE BUIDLING (Institutional)/Render image/Scene 1.jpg",
@@ -84,6 +90,8 @@ export const courses: Course[] = [
   },
   {
     id: "photoshop-masterclass",
+    course_id: "fa919c63-4712-4fb3-81b4-25e2e8b2cc1c",
+    slug: "photoshop-masterclass",
     title: "Photoshop Masterclass",
     description: "Elevate your renders with advanced post-production techniques. Learn compositing, color grading, and matte painting.",
     image: "/13-WESTLINE UNIVERSITY (Institutional)/LIGHTROOM/Scene 1_1_upscale01.jpg",
@@ -131,6 +139,19 @@ export interface CourseModule {
   is_preview: boolean
   description?: string
   lessons: Lesson[]
+}
+
+export const COURSE_UUID_MAP: Record<string, string> = {
+  'd5-masterclass': 'd5c66d93-3d02-466d-a77b-6c6a46cd4cf7',
+  'enscape-masterclass': 'eb919c63-4712-4fb3-81b4-25e2e8b2cc1c',
+  'indesign-masterclass': 'e6c66d93-3d02-466d-a77b-6c6a46cd4cf7',
+  'photoshop-masterclass': 'fa919c63-4712-4fb3-81b4-25e2e8b2cc1c'
+}
+
+export function resolveCourseUuid(idOrSlug: string | null | undefined): string {
+  if (!idOrSlug) return ''
+  if (/^[0-9a-f-]{36}$/i.test(idOrSlug)) return idOrSlug
+  return COURSE_UUID_MAP[idOrSlug] || idOrSlug
 }
 
 export const D5_LESSON_ALIAS_MAP: Record<string, string> = {

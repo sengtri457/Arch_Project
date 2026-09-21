@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { resolveCourseUuid } from '@/lib/courses-data'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,9 +26,9 @@ export async function GET(
 
     const supabase = serviceClient()
 
-    let targetCourseId = identifier
+    let targetCourseId = resolveCourseUuid(identifier)
 
-    // If identifier is not a UUID, resolve it as a course slug
+    // If identifier is not a UUID, resolve it as a course slug from DB
     if (!/^[0-9a-f-]{36}$/i.test(identifier)) {
       const { data: courseRow } = await supabase
         .from('courses')
@@ -38,6 +39,10 @@ export async function GET(
       if (courseRow?.course_id) {
         targetCourseId = courseRow.course_id
       }
+    }
+
+    if (!targetCourseId || !/^[0-9a-f-]{36}$/i.test(targetCourseId)) {
+      return NextResponse.json([])
     }
 
     // Fetch lessons for the resolved course ID (non-sensitive columns only)

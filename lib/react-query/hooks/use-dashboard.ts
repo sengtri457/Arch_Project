@@ -23,17 +23,22 @@ export function useEnrolledCourses(userId: string | undefined) {
   })
 }
 
+import { resolveCourseUuid } from "@/lib/courses-data"
+
 export function useDashboardProgress(userId: string | undefined, courseIds: string[]) {
   const supabase = createClient()
   return useQuery({
     queryKey: queryKeys.dashboard.progress(userId ?? "none", courseIds.join(",")),
     queryFn: async () => {
       if (!userId || courseIds.length === 0) return { courseProgress: {}, labProgress: {} }
+      const resolvedUuids = courseIds.map(id => resolveCourseUuid(id)).filter(id => /^[0-9a-f-]{36}$/i.test(id))
 
       const [allLessons, completedProgress, exRes, subRes] = await Promise.all([
         supabase.from('lessons').select('lesson_id, course_id'),
         supabase.from('lesson_progress').select('lesson_id, course_id').eq('student_id', userId).eq('is_completed', true),
-        supabase.from('exercises').select('exercise_id, lesson_id').in('course_id', courseIds),
+        resolvedUuids.length > 0
+          ? supabase.from('exercises').select('exercise_id, lesson_id').in('course_id', resolvedUuids)
+          : Promise.resolve({ data: [] }),
         supabase.from('exercise_submissions').select('exercise_id').eq('student_id', userId).eq('status', 'graded'),
       ])
 
