@@ -604,7 +604,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     <main className="min-h-screen flex flex-col justify-between" style={{ backgroundColor: '#060010' }}>
       <Navigation />
 
-      <div className="flex-grow container mx-auto px-6 py-24 md:py-32 max-w-7xl relative z-10">
+      <div className="flex-grow w-full mx-auto px-4 sm:px-6 lg:px-10 py-16 md:py-24 max-w-[1700px] relative z-10">
         
         {/* Course Directory Breadcrumb */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">

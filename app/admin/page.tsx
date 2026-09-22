@@ -90,7 +90,9 @@ import {
   CreditCard,
   DollarSign,
   Upload,
-  Send
+  Send,
+  RefreshCw,
+  AlertTriangle
 } from "lucide-react"
 import {
   BarChart,
@@ -5453,36 +5455,114 @@ export default function AdminDashboard() {
 
         {/* 3. SYLLABUS LESSONS MANAGER MODAL */}
         {showSyllabusModal && activeSyllabusCourse && (() => {
-          const courseLessons = lessons.filter(l => l.course_id === activeSyllabusCourse.course_id || l.course_id === activeSyllabusCourse.id)
+          const courseLessons = lessons
+            .filter(l => l.course_id === activeSyllabusCourse.course_id || l.course_id === activeSyllabusCourse.id)
+            .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+
+          const maxIndex = courseLessons.reduce((max, l) => Math.max(max, Number(l.order_index) || 0), 0)
+          const autoNextIndex = maxIndex + 1
+
+          const indices = courseLessons.map(l => Number(l.order_index) || 1)
+          const hasDuplicates = new Set(indices).size !== indices.length
+
+          const handleAutoFixSequence = async () => {
+            if (courseLessons.length === 0) return
+            const res = await MySwal.fire({
+              title: 'Auto-Fix Sequence Indices?',
+              text: `This will re-number all ${courseLessons.length} lessons sequentially (1, 2, 3...) to eliminate duplicate index numbers.`,
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonText: 'Yes, fix sequence',
+              cancelButtonText: 'Cancel'
+            })
+            if (!res.isConfirmed) return
+
+            try {
+              MySwal.fire({ title: 'Re-indexing lessons...', text: 'Updating sequence order numbers...', allowOutsideClick: false, didOpen: () => MySwal.showLoading() })
+              for (let i = 0; i < courseLessons.length; i++) {
+                const les = courseLessons[i]
+                const newIndex = i + 1
+                await fetch('/api/admin/lessons', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    lesson_id: les.lesson_id,
+                    course_id: les.course_id || activeSyllabusCourse.course_id || activeSyllabusCourse.id,
+                    title: les.title,
+                    video_source_type: les.video_source_type || 'direct',
+                    video_external_id: les.video_external_id || '',
+                    duration_minutes: les.duration_minutes || 10,
+                    order_index: newIndex,
+                    downloadable_asset_url: les.downloadable_asset_url || '',
+                    thumbnail_url: les.thumbnail_url || ''
+                  })
+                })
+              }
+              await MySwal.fire({ icon: 'success', title: 'Sequence Fixed!', text: 'All lessons have been re-indexed sequentially (1, 2, 3...).' })
+              invalidateAll()
+            } catch (err: any) {
+              MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to fix sequence: ${err.message}` })
+            }
+          }
 
           return (
             <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-40 p-4">
               <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl max-w-2xl w-full max-h-[85vh] overflow-y-auto space-y-6 animate-in fade-in zoom-in-95 duration-150 custom-scrollbar text-zinc-300">
                 <div className="flex justify-between items-start border-b border-zinc-800 pb-4">
                   <div>
-                    <h3 className="text-xl font-bold text-white">Syllabus Editor: {activeSyllabusCourse.title}</h3>
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                      Syllabus Editor: {activeSyllabusCourse.title}
+                    </h3>
                     <p className="text-xs text-zinc-500 mt-1">Manage, add, and re-order lessons modules in the curriculum.</p>
                   </div>
-                  <Button 
-                    onClick={() => {
-                      setEditingLesson(null)
-                      setLessonForm({
-                        title: "",
-                        video_url: "",
-                        duration: "600",
-                        index: (courseLessons.length + 1).toString(),
-                        source: "direct",
-                        downloadable_asset_url: "",
-                        thumbnail_url: ""
-                      })
-                      setShowLessonModal(true)
-                    }}
-                    className="bg-primary text-black font-semibold flex items-center gap-1 text-xs px-4" 
-                    style={{ backgroundColor: '#9ACD32', color: '#000' }}
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Lesson
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {hasDuplicates && (
+                      <Button
+                        type="button"
+                        onClick={handleAutoFixSequence}
+                        variant="outline"
+                        className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 text-xs px-3 font-semibold flex items-center gap-1.5"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" /> Auto-Fix Duplicates
+                      </Button>
+                    )}
+                    <Button 
+                      onClick={() => {
+                        setEditingLesson(null)
+                        setLessonForm({
+                          title: "",
+                          video_url: "",
+                          duration: "600",
+                          index: autoNextIndex.toString(),
+                          source: "direct",
+                          downloadable_asset_url: "",
+                          thumbnail_url: ""
+                        })
+                        setShowLessonModal(true)
+                      }}
+                      className="bg-primary text-black font-semibold flex items-center gap-1 text-xs px-4" 
+                      style={{ backgroundColor: '#9ACD32', color: '#000' }}
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Lesson
+                    </Button>
+                  </div>
                 </div>
+
+                {hasDuplicates && (
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                      <span>Duplicate sequence index numbers detected in this syllabus.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAutoFixSequence}
+                      className="underline font-bold text-amber-200 hover:text-white"
+                    >
+                      Auto Re-index Now
+                    </button>
+                  </div>
+                )}
 
                 <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
                   {courseLessons.length === 0 ? (
@@ -5675,12 +5755,16 @@ export default function AdminDashboard() {
 
                 <div>
                   <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5 flex items-center justify-between">
-                    <span>Lesson Resource / Telegram Link (Optional)</span>
-                    {(lessonForm.downloadable_asset_url.includes('t.me') || lessonForm.downloadable_asset_url.includes('telegram')) && (
+                    <span>Lesson Resource / Google Drive Link (Optional)</span>
+                    {(lessonForm.downloadable_asset_url.includes('drive.google.com') || lessonForm.downloadable_asset_url.includes('docs.google.com')) ? (
+                      <span className="text-[10px] text-blue-400 flex items-center gap-1 font-semibold lowercase">
+                        Google Drive link detected
+                      </span>
+                    ) : (lessonForm.downloadable_asset_url.includes('t.me') || lessonForm.downloadable_asset_url.includes('telegram')) ? (
                       <span className="text-[10px] text-[#229ED9] flex items-center gap-1 font-semibold lowercase">
                         <Send className="w-3 h-3" /> Telegram link detected
                       </span>
-                    )}
+                    ) : null}
                   </label>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -5689,7 +5773,7 @@ export default function AdminDashboard() {
                         value={lessonForm.downloadable_asset_url} 
                         onChange={(e) => setLessonForm({ ...lessonForm, downloadable_asset_url: e.target.value })} 
                         className="flex-grow bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-700 font-mono text-[10px]" 
-                        placeholder="https://t.me/c/... (Private Telegram) or https://drive.google.com/..."
+                        placeholder="Link: https://drive.google.com/drive/folders/... or direct file link"
                       />
                       <input
                         type="file"
@@ -5706,18 +5790,28 @@ export default function AdminDashboard() {
                       </label>
                     </div>
 
-                    {(lessonForm.downloadable_asset_url.includes('t.me') || lessonForm.downloadable_asset_url.includes('telegram')) ? (
+                    {(lessonForm.downloadable_asset_url.includes('drive.google.com') || lessonForm.downloadable_asset_url.includes('docs.google.com')) ? (
+                      <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-xs text-zinc-300 flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-md bg-blue-600 text-white flex items-center justify-center shrink-0 font-bold text-[10px]">
+                          GD
+                        </div>
+                        <div className="text-[11px] leading-tight">
+                          <span className="font-bold text-blue-400">Google Drive Folder / Asset Link</span>
+                          <p className="text-zinc-400 text-[10px] mt-0.5">Students will see an "Open Google Drive" button to access project files, 3D models & resources directly.</p>
+                        </div>
+                      </div>
+                    ) : (lessonForm.downloadable_asset_url.includes('t.me') || lessonForm.downloadable_asset_url.includes('telegram')) ? (
                       <div className="p-2.5 rounded-lg bg-[#229ED9]/10 border border-[#229ED9]/30 text-xs text-zinc-300 flex items-center gap-2">
                         <div className="w-6 h-6 rounded-md bg-[#229ED9] text-white flex items-center justify-center shrink-0">
                           <Send className="w-3.5 h-3.5" />
                         </div>
                         <div className="text-[11px] leading-tight">
                           <span className="font-bold text-[#229ED9]">Telegram Resource Channel Link</span>
-                          <p className="text-zinc-400 text-[10px] mt-0.5">Students will see an "Open Telegram Channel" button to access .rar, .zip & project assets without using server storage.</p>
+                          <p className="text-zinc-400 text-[10px] mt-0.5">Students will see an "Open Telegram Channel" button to access .rar, .zip & project assets.</p>
                         </div>
                       </div>
                     ) : (
-                      <p className="text-[10px] text-zinc-500">Paste your private Telegram channel link (<code className="text-zinc-400">t.me/...</code>) for large .rar/.zip files to save server storage, or paste a Drive/Dropbox link, or upload directly.</p>
+                      <p className="text-[10px] text-zinc-500">Paste your Google Drive link (<code className="text-zinc-400">https://drive.google.com/...</code>) for project materials, .rar/.zip files & HDRI textures, or upload directly.</p>
                     )}
                   </div>
                 </div>
@@ -5836,21 +5930,23 @@ export default function AdminDashboard() {
         )}
 
         {/* ASSIGN LESSONS TO MODULE MODAL */}
-        {targetAssignModule && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-            <form onSubmit={handleSaveAssignLessons} className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl max-w-lg w-full max-h-[85vh] overflow-y-auto space-y-5 text-zinc-300 custom-scrollbar">
-              <div>
-                <h3 className="text-xl font-bold text-white">Assign Lessons to Module</h3>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Module: <span className="text-[#9ACD32] font-semibold">{targetAssignModule.title}</span>
-                </p>
-              </div>
+        {targetAssignModule && (() => {
+          const sortedLessons = [...modulesTabLessons].sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
+          return (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+              <form onSubmit={handleSaveAssignLessons} className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl max-w-lg w-full max-h-[85vh] overflow-y-auto space-y-5 text-zinc-300 custom-scrollbar">
+                <div>
+                  <h3 className="text-xl font-bold text-white">Assign Lessons to Module</h3>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Module: <span className="text-[#9ACD32] font-semibold">{targetAssignModule.title}</span>
+                  </p>
+                </div>
 
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar border border-zinc-800 p-3 rounded-xl bg-zinc-950">
-                {modulesTabLessons.length === 0 ? (
-                  <p className="text-xs text-zinc-500 italic p-2 text-center">No syllabus lessons found for this course.</p>
-                ) : (
-                  modulesTabLessons.map((les: any) => {
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar border border-zinc-800 p-3 rounded-xl bg-zinc-950">
+                  {sortedLessons.length === 0 ? (
+                    <p className="text-xs text-zinc-500 italic p-2 text-center">No syllabus lessons found for this course.</p>
+                  ) : (
+                    sortedLessons.map((les: any) => {
                     const isChecked = assignLessonIds.includes(les.lesson_id)
                     return (
                       <label
@@ -5889,7 +5985,7 @@ export default function AdminDashboard() {
               </div>
             </form>
           </div>
-        )}
+        )})}
           </div>
 
         </div>

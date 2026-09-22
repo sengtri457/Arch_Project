@@ -27,7 +27,29 @@ export function isTelegramUrl(url?: string | null): boolean {
   return lower.includes('t.me') || lower.includes('telegram.org') || lower.includes('telegram.me')
 }
 
+export function isGoogleDriveUrl(url?: string | null): boolean {
+  if (!url) return false
+  const lower = url.toLowerCase()
+  return lower.includes('drive.google.com') || lower.includes('docs.google.com')
+}
+
+function GoogleDriveIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+      <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+      <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
+      <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 10.15z" fill="#ea4335"/>
+      <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.45-1.2h-18.6c-1.55 0-3.1.4-4.45 1.2z" fill="#00832d"/>
+      <path d="m59.8 50h27.5c0-1.55-.4-3.1-1.2-4.5l-25.4-44c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8z" fill="#ffba00"/>
+      <path d="m27.5 50 13.75 23.8c1.35.8 2.9 1.2 4.45 1.2h36.7c1.55 0 3.1-.4 4.45-1.2l-13.75-23.8z" fill="#2684fc"/>
+    </svg>
+  )
+}
+
 function getResourceIcon(type: ResourceFileType | string, url?: string) {
+  if (isGoogleDriveUrl(url)) {
+    return <GoogleDriveIcon className="w-4 h-4" />
+  }
   if (type === 'telegram' || isTelegramUrl(url)) {
     return <Send className="w-4 h-4 text-[#229ED9]" />
   }
@@ -52,6 +74,9 @@ function getResourceIcon(type: ResourceFileType | string, url?: string) {
 }
 
 function getResourceTypeBadge(type: ResourceFileType | string, url?: string) {
+  if (isGoogleDriveUrl(url)) {
+    return 'bg-blue-500/15 text-blue-400 border-blue-500/30 font-bold'
+  }
   if (type === 'telegram' || isTelegramUrl(url)) {
     return 'bg-[#229ED9]/15 text-[#229ED9] border-[#229ED9]/30 font-bold'
   }
@@ -81,6 +106,7 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
   }
 
   const isFallbackTelegram = isTelegramUrl(fallbackUrl)
+  const isFallbackDrive = isGoogleDriveUrl(fallbackUrl)
 
   // Calculate total size if multiple resources exist
   const totalSizeMB = hasResourcesList 
@@ -93,7 +119,9 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-[#9ACD32]/10 border border-[#9ACD32]/20 flex items-center justify-center">
-            {isFallbackTelegram ? (
+            {isFallbackDrive ? (
+              <GoogleDriveIcon className="w-4 h-4" />
+            ) : isFallbackTelegram ? (
               <Send className="w-4 h-4 text-[#229ED9]" />
             ) : (
               <Download className="w-4 h-4 text-primary" style={{ color: '#9ACD32' }} />
@@ -102,14 +130,20 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-200 flex items-center gap-2">
               Lesson Attachments & Resources
-              {isFallbackTelegram && (
+              {isFallbackDrive ? (
+                <span className="text-[10px] lowercase font-normal bg-blue-500/15 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <GoogleDriveIcon className="w-3 h-3" /> via Google Drive
+                </span>
+              ) : isFallbackTelegram ? (
                 <span className="text-[10px] lowercase font-normal bg-[#229ED9]/15 text-[#229ED9] border border-[#229ED9]/30 px-2 py-0.5 rounded-full">
                   via Telegram
                 </span>
-              )}
+              ) : null}
             </h3>
             <p className="text-[11px] text-zinc-500">
-              {isFallbackTelegram 
+              {isFallbackDrive
+                ? "Access project materials, 3D assets, and practice files directly on Google Drive."
+                : isFallbackTelegram 
                 ? "Access project files, .rar/.zip models, and resources directly on our Telegram channel."
                 : "Download project files, presets, and reference guides for this module."
               }
@@ -128,10 +162,12 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         {/* 1. Primary Admin Link / File (fallbackUrl) */}
         {hasFallback && (
-          <div className={`col-span-full p-4 bg-zinc-900/60 border ${isFallbackTelegram ? 'border-[#229ED9]/40 bg-[#229ED9]/5' : 'border-zinc-850 hover:border-[#9ACD32]/40'} rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group transition-colors`}>
+          <div className={`col-span-full p-4 bg-zinc-900/60 border ${isFallbackDrive ? 'border-blue-500/40 bg-blue-500/5' : isFallbackTelegram ? 'border-[#229ED9]/40 bg-[#229ED9]/5' : 'border-zinc-850 hover:border-[#9ACD32]/40'} rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group transition-colors`}>
             <div className="flex items-center gap-3 truncate pr-3">
-              <div className={`w-11 h-11 rounded-xl ${isFallbackTelegram ? 'bg-[#229ED9]/15 border-[#229ED9]/30' : 'bg-zinc-950 border-zinc-800'} border flex items-center justify-center shrink-0`}>
-                {isFallbackTelegram ? (
+              <div className={`w-11 h-11 rounded-xl ${isFallbackDrive ? 'bg-blue-500/10 border-blue-500/30' : isFallbackTelegram ? 'bg-[#229ED9]/15 border-[#229ED9]/30' : 'bg-zinc-950 border-zinc-800'} border flex items-center justify-center shrink-0`}>
+                {isFallbackDrive ? (
+                  <GoogleDriveIcon className="w-5 h-5" />
+                ) : isFallbackTelegram ? (
                   <Send className="w-5 h-5 text-[#229ED9]" />
                 ) : (
                   <FolderArchive className="w-5 h-5 text-[#9ACD32]" />
@@ -140,19 +176,27 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
               <div className="truncate">
                 <div className="flex items-center gap-2">
                   <h4 className="text-xs font-bold text-white truncate">
-                    {isFallbackTelegram 
+                    {isFallbackDrive
+                      ? "Google Drive Course Materials"
+                      : isFallbackTelegram 
                       ? "Private Telegram Resource Channel"
                       : decodeURIComponent(fallbackUrl!.split('/').pop() || "Lesson Attachment / Resources")
                     }
                   </h4>
-                  {isFallbackTelegram && (
+                  {isFallbackDrive ? (
+                    <span className="text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded border bg-blue-500/15 text-blue-400 border-blue-500/30">
+                      Google Drive
+                    </span>
+                  ) : isFallbackTelegram ? (
                     <span className="text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded border bg-[#229ED9]/15 text-[#229ED9] border-[#229ED9]/30">
                       Telegram
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 <p className="text-[11px] text-zinc-400 mt-0.5">
-                  {isFallbackTelegram 
+                  {isFallbackDrive
+                    ? `Download practice files, assets & project materials for ${lessonTitle || "this lesson"}`
+                    : isFallbackTelegram 
                     ? `Join channel to download .rar, .zip & 3D models for ${lessonTitle || "this lesson"}`
                     : `Attached Resource File for ${lessonTitle || "Module"}`
                   }
@@ -164,14 +208,21 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
               href={fallbackUrl!} 
               target="_blank" 
               rel="noreferrer"
-              {...(!isFallbackTelegram ? { download: true } : {})}
+              {...(!isFallbackTelegram && !isFallbackDrive ? { download: true } : {})}
               className={`px-4 py-2.5 rounded-xl shrink-0 flex items-center justify-center gap-2 text-xs font-bold transition-all w-full sm:w-auto ${
-                isFallbackTelegram
+                isFallbackDrive
+                  ? 'bg-blue-600 text-white hover:bg-blue-500 shadow-md shadow-blue-600/25'
+                  : isFallbackTelegram
                   ? 'bg-[#229ED9] text-white hover:bg-[#1d88bc] shadow-md shadow-[#229ED9]/25'
                   : 'bg-[#9ACD32]/10 text-[#9ACD32] border border-[#9ACD32]/20 hover:bg-[#9ACD32] hover:text-black'
               }`}
             >
-              {isFallbackTelegram ? (
+              {isFallbackDrive ? (
+                <>
+                  <GoogleDriveIcon className="w-4 h-4" />
+                  <span>Open Google Drive</span>
+                </>
+              ) : isFallbackTelegram ? (
                 <>
                   <Send className="w-4 h-4" />
                   <span>Open Telegram Channel</span>
