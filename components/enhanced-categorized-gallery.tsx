@@ -213,30 +213,30 @@ export function EnhancedCategorizedGallery({ gallery, title }: EnhancedCategoriz
 
   return (
     <>
-      {/* View Mode Toggle - More Prominent */}
-      <div className="flex justify-center items-center gap-4 mb-10 py-4 border-b border-border/50">
-        <span className="text-base font-medium text-foreground">View Mode:</span>
-        <div className="flex gap-2 bg-secondary border border-border p-1.5 rounded-lg shadow-lg">
+      {/* View Mode Toggle */}
+      <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-4 mb-8 sm:mb-10 py-3 sm:py-4 border-b border-border/50">
+        <span className="text-xs sm:text-base font-medium text-foreground">View Mode:</span>
+        <div className="flex gap-1.5 sm:gap-2 bg-secondary border border-border p-1 sm:p-1.5 rounded-lg shadow-lg">
           <button
             onClick={() => setViewMode("grid")}
-            className={`px-6 py-2.5 rounded-md transition-all duration-300 flex items-center gap-2 font-medium ${
+            className={`px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-md transition-all duration-300 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium ${
               viewMode === "grid"
                 ? "bg-primary text-primary-foreground shadow-lg scale-105"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/80"
             }`}
           >
-            <Grid3x3 size={20} />
+            <Grid3x3 className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>Grid View</span>
           </button>
           <button
             onClick={() => setViewMode("fullsize")}
-            className={`px-6 py-2.5 rounded-md transition-all duration-300 flex items-center gap-2 font-medium ${
+            className={`px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-md transition-all duration-300 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium ${
               viewMode === "fullsize"
                 ? "bg-primary text-primary-foreground shadow-lg scale-105"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/80"
             }`}
           >
-            <Square size={20} />
+            <Square className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>Full Size</span>
           </button>
         </div>

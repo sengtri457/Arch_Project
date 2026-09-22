@@ -288,9 +288,9 @@ function CheckoutContent() {
   }
 
   return (
-    <div className="flex-grow container mx-auto px-6 py-24 md:py-32 max-w-4xl relative z-10">
+    <div className="flex-grow container mx-auto px-4 sm:px-6 py-20 sm:py-24 md:py-32 max-w-4xl relative z-10">
       {/* Breadcrumb back */}
-      <div className="mb-8 flex justify-between items-center">
+      <div className="mb-6 sm:mb-8 flex justify-between items-center">
         <button
           onClick={() => router.back()}
           className="text-zinc-400 hover:text-white text-sm flex items-center gap-1.5 transition-colors"
@@ -301,11 +301,11 @@ function CheckoutContent() {
       </div>
 
       {!paymentCompleted && (
-        <div className="flex gap-3 mb-6 bg-zinc-900/20 p-1.5 border border-zinc-850 rounded-2xl">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-6 bg-zinc-900/20 p-1.5 border border-zinc-850 rounded-2xl">
           <button
             type="button"
             onClick={() => setPaymentMethod("khqr")}
-            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-xs transition-all ${
+            className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl font-semibold text-xs transition-all ${
               paymentMethod === "khqr"
                 ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
                 : "text-zinc-400 border border-transparent hover:text-white"
@@ -316,7 +316,7 @@ function CheckoutContent() {
           <button
             type="button"
             onClick={() => setPaymentMethod("telegram")}
-            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-xs transition-all ${
+            className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl font-semibold text-xs transition-all ${
               paymentMethod === "telegram"
                 ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
                 : "text-zinc-400 border border-transparent hover:text-white"
@@ -327,7 +327,7 @@ function CheckoutContent() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-zinc-900/30 border border-zinc-850 p-8 rounded-3xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 bg-zinc-900/30 border border-zinc-850 p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl">
         {/* Left panel: Order Details */}
         <div className="space-y-6 flex flex-col justify-between">
           <div className="space-y-4">
@@ -339,18 +339,18 @@ function CheckoutContent() {
               Secure Checkout Gateway
             </div>
 
-            <h1 className="text-2xl font-bold text-white leading-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight">
               {paymentCompleted
                 ? "Payment Received!"
                 : "Complete Your Purchase"}
             </h1>
 
-            <div className="border border-zinc-800 bg-zinc-950/40 p-5 rounded-2xl space-y-3.5">
+            <div className="border border-zinc-800 bg-zinc-950/40 p-4 sm:p-5 rounded-2xl space-y-3.5">
               <div>
                 <p className="text-[10px] uppercase font-bold text-zinc-500">
                   Selected Product
                 </p>
-                <p className="text-sm font-semibold text-white mt-0.5">
+                <p className="text-sm font-semibold text-white mt-0.5 break-words">
                   {courseTitle}
                 </p>
               </div>
@@ -358,7 +358,7 @@ function CheckoutContent() {
                 <p className="text-[10px] uppercase font-bold text-zinc-500">
                   Order Bill Number
                 </p>
-                <p className="text-xs font-mono text-zinc-300 mt-0.5">
+                <p className="text-xs font-mono text-zinc-300 mt-0.5 break-all">
                   {checkoutData?.billNumber}
                 </p>
               </div>
@@ -394,19 +394,19 @@ function CheckoutContent() {
                       </span>
                     </div>
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <input
                         type="text"
                         placeholder="Enter coupon code"
                         value={promoCodeInput}
                         onChange={(e) => setPromoCodeInput(e.target.value)}
-                        className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 flex-grow uppercase font-mono"
+                        className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 flex-grow uppercase font-mono"
                       />
                       <Button
                         type="button"
                         onClick={handleApplyPromo}
                         disabled={isValidatingPromo || !promoCodeInput.trim()}
-                        className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white font-semibold px-4 h-8"
+                        className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white font-semibold px-4 h-9 sm:h-auto"
                       >
                         {isValidatingPromo ? "..." : "Apply"}
                       </Button>

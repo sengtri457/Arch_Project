@@ -158,10 +158,10 @@ export function ImageLightbox({ images, initialIndex = 0, isOpen, onClose, title
       {/* Close Button */}
       <button
         onClick={onClose}
-        className="absolute top-6 right-6 text-white hover:text-primary transition-colors z-50 bg-black/50 backdrop-blur-sm rounded-full p-3 hover:bg-black/70"
+        className="absolute top-4 right-4 sm:top-6 sm:right-6 text-white hover:text-primary transition-colors z-50 bg-black/60 backdrop-blur-sm rounded-full p-2.5 sm:p-3 hover:bg-black/80 shadow-lg"
         aria-label="Close"
       >
-        <X size={24} />
+        <X className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>
 
       {/* Navigation Buttons */}
@@ -169,51 +169,51 @@ export function ImageLightbox({ images, initialIndex = 0, isOpen, onClose, title
         <>
           <button
             onClick={goToPrevious}
-            className="absolute left-6 top-1/2 -translate-y-1/2 text-white hover:text-primary transition-colors z-50 bg-black/50 backdrop-blur-sm rounded-full p-4 hover:bg-black/70"
+            className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 text-white hover:text-primary transition-colors z-50 bg-black/60 backdrop-blur-sm rounded-full p-2.5 sm:p-4 hover:bg-black/80 shadow-lg"
             aria-label="Previous image"
           >
-            <ChevronLeft size={32} />
+            <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
           </button>
           <button
             onClick={goToNext}
-            className="absolute right-6 top-1/2 -translate-y-1/2 text-white hover:text-primary transition-colors z-50 bg-black/50 backdrop-blur-sm rounded-full p-4 hover:bg-black/70"
+            className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 text-white hover:text-primary transition-colors z-50 bg-black/60 backdrop-blur-sm rounded-full p-2.5 sm:p-4 hover:bg-black/80 shadow-lg"
             aria-label="Next image"
           >
-            <ChevronRight size={32} />
+            <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
           </button>
         </>
       )}
 
       {/* Zoom Controls */}
-      <div className="absolute top-6 left-6 flex gap-2 z-50">
+      <div className="absolute top-4 left-4 sm:top-6 sm:left-6 flex gap-1.5 sm:gap-2 z-50">
         <button
           onClick={handleZoomIn}
-          className="text-white hover:text-primary transition-colors bg-black/50 backdrop-blur-sm rounded-full p-3 hover:bg-black/70"
+          className="text-white hover:text-primary transition-colors bg-black/60 backdrop-blur-sm rounded-full p-2.5 sm:p-3 hover:bg-black/80 shadow-lg"
           aria-label="Zoom in"
         >
-          <ZoomIn size={20} />
+          <ZoomIn className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
         <button
           onClick={handleZoomOut}
           disabled={zoom <= 1}
-          className="text-white hover:text-primary transition-colors bg-black/50 backdrop-blur-sm rounded-full p-3 hover:bg-black/70 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="text-white hover:text-primary transition-colors bg-black/60 backdrop-blur-sm rounded-full p-2.5 sm:p-3 hover:bg-black/80 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
           aria-label="Zoom out"
         >
-          <ZoomOut size={20} />
+          <ZoomOut className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
         <button
           onClick={handleResetZoom}
           disabled={zoom === 1}
-          className="text-white hover:text-primary transition-colors bg-black/50 backdrop-blur-sm rounded-full p-3 hover:bg-black/70 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="text-white hover:text-primary transition-colors bg-black/60 backdrop-blur-sm rounded-full p-2.5 sm:p-3 hover:bg-black/80 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg"
           aria-label="Reset zoom"
         >
-          <RotateCw size={20} />
+          <RotateCw className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
       </div>
 
       {/* Image Container */}
       <div
-        className="relative max-w-[95vw] max-h-[95vh] w-full h-full flex items-center justify-center overflow-hidden"
+        className="relative max-w-[98vw] max-h-[88vh] sm:max-w-[95vw] sm:max-h-[95vh] w-full h-full flex items-center justify-center overflow-hidden px-2 sm:px-0"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -240,12 +240,12 @@ export function ImageLightbox({ images, initialIndex = 0, isOpen, onClose, title
       </div>
 
       {/* Image Counter & Info */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white bg-black/50 backdrop-blur-sm rounded-full px-6 py-3 z-50">
-        <div className="text-sm font-medium">
+      <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 text-white bg-black/60 backdrop-blur-sm rounded-full px-4 sm:px-6 py-2 sm:py-3 z-50 text-center shadow-lg">
+        <div className="text-xs sm:text-sm font-medium">
           {currentIndex + 1} / {images.length}
         </div>
         {zoom > 1 && (
-          <div className="text-xs text-gray-300 mt-1">
+          <div className="text-[10px] sm:text-xs text-gray-300 mt-0.5">
             {Math.round(zoom * 100)}% • Drag to pan
           </div>
         )}

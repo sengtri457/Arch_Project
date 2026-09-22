@@ -48,19 +48,19 @@ export function Navigation() {
   ]
 
   const navClassName = `fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-    mounted && isScrolled ? "bg-background/95 backdrop-blur-sm border-b border-border" : "bg-transparent"
+    mounted && (isScrolled || isMobileMenuOpen) ? "bg-background/95 backdrop-blur-md border-b border-border shadow-lg" : "bg-transparent"
   }`
 
   return (
     <nav className={navClassName} suppressHydrationWarning>
-      <div className="container mx-auto px-6 py-2">
+      <div className="container mx-auto px-4 sm:px-6 py-2">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center">
             <img
               src={getMediaUrl("/projects/Tipsbox logo png.png")}
               alt="Tipsbox Logo"
-              className="h-20 w-auto hover:opacity-80 transition-opacity"
+              className="h-12 sm:h-16 md:h-20 w-auto hover:opacity-80 transition-opacity object-contain"
             />
           </Link>
 
@@ -125,7 +125,7 @@ export function Navigation() {
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden text-foreground"
+            className="md:hidden text-foreground p-2 rounded-lg hover:bg-white/10 transition-colors"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-label="Toggle menu"
           >
@@ -135,12 +135,12 @@ export function Navigation() {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 flex flex-col gap-4">
+          <div className="md:hidden mt-3 pb-6 flex flex-col gap-4 max-h-[85vh] overflow-y-auto px-1 border-t border-border/40 pt-4">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-white hover:text-primary transition-colors font-medium"
+                className="text-white hover:text-primary transition-colors font-medium text-base py-1"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 {link.label}
@@ -148,7 +148,7 @@ export function Navigation() {
             ))}
 
             {/* Mobile Social Media Icons */}
-            <div className="flex items-center gap-4 pt-4 border-t border-border">
+            <div className="flex items-center gap-4 pt-3 border-t border-border/50">
               {socialLinks.map((social) => {
                 const IconComponent = social.icon
                 return (
@@ -157,7 +157,7 @@ export function Navigation() {
                     href={social.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-white hover:text-primary transition-all duration-300 hover:scale-110"
+                    className="text-white hover:text-primary transition-all duration-300 hover:scale-110 p-1"
                     aria-label={social.label}
                   >
                     <RenderIcon icon={IconComponent} className="w-5 h-5" />
@@ -170,7 +170,7 @@ export function Navigation() {
               href="https://t.me/bunsambath10"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-8 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium rounded-md w-full"
+              className="inline-flex items-center justify-center px-8 py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium rounded-md w-full mt-2"
             >
               Get in Touch
             </a>
@@ -178,7 +178,7 @@ export function Navigation() {
             {user ? (
               <Link
                 href={profile?.role === 'admin' ? '/admin' : '/dashboard'}
-                className="inline-flex items-center justify-center px-8 py-2 border border-zinc-800 text-white hover:border-primary/80 hover:text-primary transition-all duration-300 font-medium rounded-md w-full"
+                className="inline-flex items-center justify-center px-8 py-2.5 border border-zinc-800 text-white hover:border-primary/80 hover:text-primary transition-all duration-300 font-medium rounded-md w-full"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Portal
@@ -186,7 +186,7 @@ export function Navigation() {
             ) : (
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center px-8 py-2 border border-zinc-800 text-white hover:border-primary/80 hover:text-primary transition-all duration-300 font-medium rounded-md w-full"
+                className="inline-flex items-center justify-center px-8 py-2.5 border border-zinc-800 text-white hover:border-primary/80 hover:text-primary transition-all duration-300 font-medium rounded-md w-full"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Login

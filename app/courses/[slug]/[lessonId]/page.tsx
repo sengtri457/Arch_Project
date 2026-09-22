@@ -681,12 +681,12 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
                       <CheckCircle className="w-5 h-5 text-green-400" />
                       Assignment Reviewed & Graded
                     </div>
-                    <div className="grid grid-cols-3 gap-3 bg-zinc-950 p-3.5 rounded-lg border border-zinc-850/40 text-center">
-                      <div className="col-span-1 border-r border-zinc-850/40">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-zinc-950 p-3.5 rounded-lg border border-zinc-850/40 text-center">
+                      <div className="col-span-1 border-b sm:border-b-0 sm:border-r border-zinc-850/40 pb-2 sm:pb-0">
                         <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Score</p>
                         <p className="text-xl font-bold text-primary mt-1" style={{ color: '#9ACD32' }}>{submissionScore} / 100</p>
                       </div>
-                      <div className="col-span-2 text-left pl-3 flex flex-col justify-center">
+                      <div className="col-span-1 sm:col-span-2 text-left sm:pl-3 flex flex-col justify-center">
                         <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Instructor Feedback</p>
                         <p className="text-xs text-zinc-300 italic mt-1 leading-relaxed">"{submissionFeedback || "Excellent work!"}"</p>
                       </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import { motion, useAnimationFrame, useMotionValue, useSpring, useTransform } from "framer-motion"
 import { getMediaUrl, cn } from "@/lib/utils"
 
@@ -17,15 +17,28 @@ interface Marquee3DProps {
 export function Marquee3D({ items, speed = 0.5 }: Marquee3DProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [centerX, setCenterX] = useState(0)
+  const [itemWidth, setItemWidth] = useState(400)
   
   // We'll use a motion value to drive the scroll
   const scrollX = useMotionValue(0)
   
-  // Duplicate items to create infinite effect (enough to fill screen + buffer)
-  // We need 3 sets to ensure smooth looping in both directions if needed, 
-  // but for uni-directional, 2 sets is usually enough if we reset correctly.
-  // Let's use a large enough multiplier.
   const multipliedItems = [...items, ...items, ...items, ...items]
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth
+      if (width < 640) {
+        setItemWidth(270)
+      } else if (width < 1024) {
+        setItemWidth(340)
+      } else {
+        setItemWidth(400)
+      }
+    }
+    handleResize()
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
   
   useAnimationFrame((time, delta) => {
     if (!containerRef.current) return
@@ -39,10 +52,9 @@ export function Marquee3D({ items, speed = 0.5 }: Marquee3DProps) {
     // Move scrollX
     let currentX = scrollX.get() - (speed * delta * 0.06) // Normalize delta
     
-    // Reset logic for infinite loop
-    // We assume each item is roughly 400px + gap
     // Total width of one set
-    const singleSetWidth = items.length * 450 // 400px width + 50px gap approx
+    const gap = itemWidth < 300 ? 24 : 50
+    const singleSetWidth = items.length * (itemWidth + gap)
     
     if (currentX <= -singleSetWidth) {
       currentX += singleSetWidth
@@ -52,9 +64,9 @@ export function Marquee3D({ items, speed = 0.5 }: Marquee3DProps) {
   })
 
   return (
-    <div ref={containerRef} className="relative w-full h-[600px] overflow-hidden flex items-center perspective-1000">
-        <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-[#060010] to-transparent z-20 pointer-events-none" />
-        <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[#060010] to-transparent z-20 pointer-events-none" />
+    <div ref={containerRef} className="relative w-full h-[380px] sm:h-[480px] md:h-[600px] overflow-hidden flex items-center perspective-1000 max-w-full">
+        <div className="absolute left-0 top-0 bottom-0 w-12 sm:w-32 bg-gradient-to-r from-[#060010] to-transparent z-20 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-12 sm:w-32 bg-gradient-to-l from-[#060010] to-transparent z-20 pointer-events-none" />
       
       <motion.div className="flex absolute left-1/2 h-full items-center" style={{ x: scrollX }}>
         {multipliedItems.map((item, index) => (
@@ -63,8 +75,7 @@ export function Marquee3D({ items, speed = 0.5 }: Marquee3DProps) {
             item={item} 
             index={index} 
             scrollX={scrollX} 
-            containerWidth={centerX * 2}
-            totalItems={multipliedItems.length}
+            itemWidth={itemWidth}
           />
         ))}
       </motion.div>
@@ -72,53 +83,35 @@ export function Marquee3D({ items, speed = 0.5 }: Marquee3DProps) {
   )
 }
 
-function MarqueeItem({ item, index, scrollX, containerWidth, totalItems }: { 
+function MarqueeItem({ item, index, scrollX, itemWidth }: { 
   item: any, 
   index: number, 
   scrollX: any,
-  containerWidth: number,
-  totalItems: number
+  itemWidth: number
 }) {
-  // Item dimensions
-  const itemWidth = 400
-  const gap = 50
+  const gap = itemWidth < 300 ? 24 : 50
   const position = index * (itemWidth + gap)
-  
-  // Calculate distance from center
-  // The item's absolute position is scrollX + position
-  // We want the distance relative to the center of the screen.
-  // Since the container is centered with left-1/2, center is at 0 relative to parent's center.
   
   const distance = useTransform(scrollX, (x: number) => {
     const absPos = x + position
-    // Center of the screen is 0 because we offset the parent by left-1/2
-    // Actually, let's refine. The parent is left-1/2. 
-    // So an item at x=0 is at the center.
     return Math.abs(absPos) 
   })
 
-  // Scale based on distance
-  // Center (0 distance) = 1.1 scale
-  // Edge (500 distance) = 0.8 scale
-  const scale = useTransform(distance, [0, 500], [1.15, 0.85])
+  const scale = useTransform(distance, [0, 500], [1.1, 0.85])
   const opacity = useTransform(distance, [0, 800], [1, 0.5])
   const zIndex = useTransform(distance, [0, 500], [100, 0])
   
-  // 3D Rotation
   const rotateY = useTransform(scrollX, (x: number) => {
     const absPos = x + position
-    // If absPos is negative (left of center), rotate Y positive
-    // If absPos is positive (right of center), rotate Y negative
-    // Range -500 to 500 maps to 45deg to -45deg
-    const val = (absPos / 800) * -25
-    return Math.min(Math.max(val, -25), 25)
+    const val = (absPos / 800) * -20
+    return Math.min(Math.max(val, -20), 20)
   })
 
   return (
     <motion.div
       style={{
         width: itemWidth,
-        x: position, // absolute positioning relative to the moving parent
+        x: position,
         position: "absolute",
         scale,
         opacity,
@@ -134,9 +127,9 @@ function MarqueeItem({ item, index, scrollX, containerWidth, totalItems }: {
         className="w-full h-full object-cover"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-80" />
-      <div className="absolute bottom-0 left-0 p-8">
-        <p className="text-primary text-sm font-medium mb-2">{item.category}</p>
-        <h3 className="text-2xl font-bold text-white leading-tight">{item.title}</h3>
+      <div className="absolute bottom-0 left-0 p-4 sm:p-8">
+        <p className="text-primary text-xs sm:text-sm font-medium mb-1 sm:mb-2">{item.category}</p>
+        <h3 className="text-lg sm:text-2xl font-bold text-white leading-tight line-clamp-2">{item.title}</h3>
       </div>
     </motion.div>
   )
