@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
 import { ArrowLeft, Plus, Trash2, Upload, Loader2 } from "lucide-react"
+import { getMediaUrl } from "@/lib/utils"
 import Swal from "sweetalert2"
 
 const MySwal = Swal.mixin({
@@ -75,6 +76,40 @@ export default function NewCoursePage() {
     const updated = [...features]
     updated[index] = value
     setFeatures(updated)
+  }
+
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false)
+
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingThumbnail(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+      const filePath = `course-thumbnails/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('projects')
+        .upload(filePath, file, {
+          contentType: file.type,
+          cacheControl: '31536000',
+          upsert: true
+        })
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage
+        .from('projects')
+        .getPublicUrl(filePath)
+
+      setCourseForm(prev => ({ ...prev, image: data.publicUrl }))
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Upload Failed', text: `Upload failed: ${err.message}` })
+    } finally {
+      setUploadingThumbnail(false)
+    }
   }
 
   const handleIntroductionUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -350,15 +385,55 @@ export default function NewCoursePage() {
 
             {/* Image Thumbnail */}
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Thumbnail Image URL</label>
-              <input
-                type="text"
-                required
-                value={courseForm.image}
-                onChange={(e) => setCourseForm({ ...courseForm, image: e.target.value })}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
-                placeholder="https://images.unsplash.com/..."
-              />
+              <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">
+                Thumbnail Image (URL or Upload File)
+              </label>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  required
+                  value={courseForm.image}
+                  onChange={(e) => setCourseForm({ ...courseForm, image: e.target.value })}
+                  className="flex-grow bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                  placeholder="https://images.unsplash.com/..."
+                />
+                <div className="relative shrink-0">
+                  <input
+                    type="file"
+                    id="thumbnail-upload"
+                    accept="image/*"
+                    onChange={handleThumbnailUpload}
+                    disabled={uploadingThumbnail}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="thumbnail-upload"
+                    className={`bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-4 py-3 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors border border-zinc-800 h-full ${uploadingThumbnail ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {uploadingThumbnail ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        Choose File
+                      </>
+                    )}
+                  </label>
+                </div>
+              </div>
+              {courseForm.image && (
+                <div className="mt-3 relative w-32 aspect-video rounded-xl overflow-hidden border border-zinc-800 bg-black">
+                  <img
+                    src={getMediaUrl(courseForm.image)}
+                    onError={(e) => { e.currentTarget.src = "/placeholder.svg" }}
+                    alt="Thumbnail preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Video Introduction */}

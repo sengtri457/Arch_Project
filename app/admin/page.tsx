@@ -88,7 +88,8 @@ import {
   Sparkles,
   Play,
   CreditCard,
-  DollarSign
+  DollarSign,
+  Upload
 } from "lucide-react"
 import {
   BarChart,
@@ -221,6 +222,39 @@ export default function AdminDashboard() {
     is_published: true,
     selectedLessonIds: [] as string[]
   })
+  const [uploadingModuleCover, setUploadingModuleCover] = useState(false)
+
+  const handleModuleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingModuleCover(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+      const filePath = `module-covers/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('projects')
+        .upload(filePath, file, {
+          contentType: file.type,
+          cacheControl: '31536000',
+          upsert: true
+        })
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage
+        .from('projects')
+        .getPublicUrl(filePath)
+
+      setModuleForm(prev => ({ ...prev, cover_image_url: data.publicUrl }))
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Upload Failed', text: `Upload failed: ${err.message}` })
+    } finally {
+      setUploadingModuleCover(false)
+    }
+  }
 
   // Assign Lessons Modal State
   const [targetAssignModule, setTargetAssignModule] = useState<any | null>(null)
@@ -5712,14 +5746,48 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Cover Image URL</label>
-                  <input
-                    type="text"
-                    value={moduleForm.cover_image_url}
-                    onChange={(e) => setModuleForm({ ...moduleForm, cover_image_url: e.target.value })}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
-                    placeholder="/assets/images/D5_class_img/M4.jpg"
-                  />
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Cover Image (URL or Upload File)</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={moduleForm.cover_image_url}
+                      onChange={(e) => setModuleForm({ ...moduleForm, cover_image_url: e.target.value })}
+                      className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                      placeholder="https://... or /assets/images/D5_class_img/M4.jpg"
+                    />
+                    <label className={`bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-colors border border-zinc-800 h-full ${uploadingModuleCover ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleModuleCoverUpload}
+                        disabled={uploadingModuleCover}
+                        className="hidden"
+                      />
+                      {uploadingModuleCover ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Uploading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>Choose File</span>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                  {moduleForm.cover_image_url && (
+                    <div className="mt-2 relative w-full h-32 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950">
+                      <img
+                        src={getMediaUrl(moduleForm.cover_image_url)}
+                        alt="Module Cover Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none'
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div>
