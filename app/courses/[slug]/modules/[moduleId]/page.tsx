@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client"
 import { db } from "@/lib/supabase/db"
 import { SecureVideoPlayer } from "@/components/secure-video-player"
 import { LessonComments } from "@/components/lesson-comments"
+import { CourseModulesAccordionSidebar } from "@/components/course-modules-accordion-sidebar"
 import { getMediaUrl } from "@/lib/utils"
 import { 
   CheckCircle, 
@@ -522,88 +523,22 @@ export default function SpecificModuleClassroomPage({ params }: PageProps) {
           </div>
 
           {/* Module Syllabus Playlist Sidebar (Right Column) */}
-          <div className="lg:col-span-1 space-y-4">
-            <div className="bg-zinc-900/40 border border-zinc-850 p-5 rounded-2xl flex flex-col h-[calc(100vh-12rem)] sticky top-24">
-              <div className="flex items-center justify-between border-b border-zinc-850 pb-4 mb-4">
-                <div>
-                  <h2 className="text-base font-bold text-white">Module Syllabus</h2>
-                  <p className="text-[11px] text-zinc-400 mt-0.5">{mod?.title}</p>
-                </div>
-                <span className="text-[10px] font-mono font-semibold px-2.5 py-1 rounded bg-[#9ACD32]/10 text-[#9ACD32] border border-[#9ACD32]/20">
-                  {lessons.length} Lessons
-                </span>
-              </div>
-
-              <div className="flex-grow overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
-                {lessons.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-48 text-center text-zinc-500 gap-2 px-4">
-                    <BookOpen className="w-8 h-8 opacity-40 text-zinc-600 mb-1" />
-                    <p className="text-xs font-semibold text-zinc-400">No lessons published yet</p>
-                    <p className="text-[11px] text-zinc-600">Lessons will appear here once added by the instructor.</p>
-                  </div>
-                ) : (
-                  lessons.map((item: Lesson, idx: number) => {
-                    const progress = progressList.find((p: any) => p.lesson_id === item.lesson_id)
-                    const isItemCompleted = progress?.is_completed || false
-                    const isSelected = item.lesson_id === activeLessonId || (currentLesson && currentLesson.title === item.title)
-                    const itemCoverUrl = getLessonCoverImage(slug, item, idx, coverUrl)
-
-                    return (
-                      <button
-                        key={item.lesson_id || idx}
-                        type="button"
-                        onClick={() => setSelectedLesson(item)}
-                        className={`w-full text-left p-3 rounded-xl border transition-all duration-300 flex items-center gap-3 group ${
-                          isSelected
-                            ? "bg-[#9ACD32]/10 border-[#9ACD32] text-white shadow-sm"
-                            : "bg-zinc-900/30 border-zinc-850/70 text-zinc-400 hover:border-zinc-700 hover:text-white"
-                        }`}
-                      >
-                        {/* 16:9 Lesson Cover Thumbnail */}
-                        <div className="w-16 h-10 rounded-lg overflow-hidden bg-black/60 border border-zinc-800 shrink-0 relative">
-                          <img
-                            src={getMediaUrl(itemCoverUrl)}
-                            alt={item.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                          {isSelected && (
-                            <div className="absolute inset-0 bg-[#9ACD32]/20 border border-[#9ACD32]/40 rounded-lg flex items-center justify-center">
-                              <Play className="w-3.5 h-3.5 text-[#9ACD32] fill-current" />
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex-grow min-w-0">
-                          <h4 className={`text-xs font-semibold truncate ${isSelected ? "text-white" : "text-zinc-300"}`}>
-                            {item.title}
-                          </h4>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[10px] text-zinc-500 font-mono">
-                              {item.duration_minutes || 0}m
-                            </span>
-                            {item.is_preview && (
-                              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                                Preview
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex-shrink-0">
-                          {isItemCompleted ? (
-                            <CheckCircle className="w-4 h-4 text-[#9ACD32] fill-[#9ACD32]/10" />
-                          ) : isSelected ? (
-                            <Play className="w-3.5 h-3.5 text-[#9ACD32] fill-current" />
-                          ) : (
-                            <Circle className="w-3.5 h-3.5 text-zinc-700 group-hover:text-zinc-500 transition-colors" />
-                          )}
-                        </div>
-                      </button>
-                    )
-                  })
-                )}
-              </div>
-            </div>
+          <div className="lg:col-span-1 space-y-4 sticky top-24">
+            <CourseModulesAccordionSidebar
+              modules={candidateModules}
+              currentLessonId={activeLessonId}
+              currentModuleId={moduleId}
+              onSelectLesson={(lesson, parentModule) => {
+                setSelectedLesson(lesson)
+                const targetModId = parentModule.module_id || String(parentModule.order_index)
+                if (targetModId) {
+                  window.history.replaceState(null, '', `/courses/${slug}/modules/${targetModId}?lesson=${lesson.lesson_id}`)
+                }
+              }}
+              progressList={progressList}
+              slug={slug}
+              courseTitle={course?.title}
+            />
           </div>
 
         </div>

@@ -30,6 +30,7 @@ import {
 import { useClassroomCourse, useClassroomLessons, useClassroomModules, useClassroomProgress, useClassroomCertificate, useVideoUrl, useClassroomAccess, useLessonExercise, useUpdateProgress, useLessonResources } from "@/lib/react-query/hooks/use-classroom"
 import { LessonComments } from "@/components/lesson-comments"
 import { LessonResourceDrawer } from "@/components/lesson-resource-drawer"
+import { CourseModulesAccordionSidebar } from "@/components/course-modules-accordion-sidebar"
 import { d5Modules, getLessonCoverImage, resolveLessonId, resolveCourseUuid } from "@/lib/courses-data"
 import { getMediaUrl } from "@/lib/utils"
 
@@ -797,83 +798,18 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
           </div>
 
           {/* Dynamic Sidebar Curriculum (Right) */}
-          <div className="lg:col-span-1 bg-zinc-950 border border-zinc-850 rounded-2xl p-5 flex flex-col h-[600px]">
-            <div className="flex items-center gap-2 border-b border-zinc-850 pb-4 mb-4">
-              <BookOpen className="w-5 h-5 text-primary" style={{ color: '#9ACD32' }} />
-              <h2 className="text-lg font-bold text-white">Course Modules</h2>
-            </div>
-
-            <div className="flex-grow overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-              {loadingLessons && lessons.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-48 text-center text-zinc-500 gap-2">
-                  <Loader2 className="w-5 h-5 animate-spin text-[#9ACD32]" />
-                  <span className="text-xs text-zinc-400">Loading modules...</span>
-                </div>
-              ) : lessons.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-48 text-center text-zinc-500 gap-2 px-4">
-                  <BookOpen className="w-8 h-8 opacity-40 text-zinc-600 mb-1" />
-                  <p className="text-xs font-semibold text-zinc-400">No lessons published yet</p>
-                  <p className="text-[11px] text-zinc-600">Modules will appear here once added by the instructor.</p>
-                </div>
-              ) : (
-                lessons.map((item: any, idx: number) => {
-                  const progress = progressList.find((p: any) => p.lesson_id === item.lesson_id)
-                  const isItemCompleted = progress?.is_completed || false
-                  const isSelected = item.lesson_id === currentLesson?.lesson_id
-                  const coverUrl = getLessonCoverImage(course?.slug || course?.title || slug, item, idx, courseFallbackCover)
-
-                  return (
-                    <button
-                      key={item.lesson_id || item.id}
-                      onClick={() => handleSelectLesson(item)}
-                      className={`w-full text-left p-2.5 rounded-xl border transition-all duration-300 flex items-center gap-3 group ${
-                        isSelected 
-                          ? "bg-[#9ACD32]/10 border-[#9ACD32] text-white shadow-sm" 
-                          : "bg-zinc-900/20 border-zinc-850/60 text-zinc-400 hover:border-zinc-750 hover:text-white"
-                      }`}
-                    >
-                      {/* Module Cover Thumbnail */}
-                      <div className="w-14 h-9 rounded-lg overflow-hidden bg-black/60 border border-zinc-800 shrink-0 relative">
-                        <img
-                          src={getMediaUrl(coverUrl)}
-                          alt={item.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        {isSelected && (
-                          <div className="absolute inset-0 bg-[#9ACD32]/20 border border-[#9ACD32]/40 rounded-lg" />
-                        )}
-                      </div>
-
-                      <div className="flex-grow min-w-0">
-                        <h4 className={`text-xs font-semibold truncate ${isSelected ? "text-white" : "text-zinc-300"}`}>
-                          {item.title}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-zinc-500 font-mono">
-                            {formatSidebarDuration(item.duration)}
-                          </span>
-                          {item.is_preview && (
-                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                              Preview
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex-shrink-0">
-                        {isItemCompleted ? (
-                          <CheckCircle className="w-4 h-4 text-primary fill-primary/10" style={{ color: '#9ACD32' }} />
-                        ) : isSelected ? (
-                          <Play className="w-3.5 h-3.5 text-primary fill-primary" style={{ color: '#9ACD32' }} />
-                        ) : (
-                          <Circle className="w-3.5 h-3.5 text-zinc-700 group-hover:text-zinc-500 transition-colors" />
-                        )}
-                      </div>
-                    </button>
-                  )
-                })
-              )}
-            </div>
+          <div className="lg:col-span-1 space-y-4 sticky top-24">
+            <CourseModulesAccordionSidebar
+              modules={modulesList.length > 0 ? modulesList : d5Modules}
+              currentLessonId={activeLessonId}
+              onSelectLesson={(targetLesson, parentModule) => {
+                const targetLessonId = targetLesson.lesson_id || (targetLesson as any).id
+                handleSelectLesson({ ...targetLesson, lesson_id: targetLessonId })
+              }}
+              progressList={progressList}
+              slug={slug}
+              courseTitle={course?.title}
+            />
           </div>
 
         </div>

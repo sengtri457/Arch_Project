@@ -185,8 +185,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Thumbnail URL is too long' }, { status: 400 })
   }
 
-  const isUpdating = typeof body.lesson_id === 'string' && Boolean(body.lesson_id.trim()) && !body.lesson_id.startsWith('temp-')
-  const newLessonId = isUpdating ? body.lesson_id.trim() : crypto.randomUUID()
+  const rawLessonId = typeof body.lesson_id === 'string' ? body.lesson_id.trim() : ''
+  const isUpdating = Boolean(rawLessonId) && !rawLessonId.startsWith('temp-')
+  const newLessonId = isUpdating ? rawLessonId : crypto.randomUUID()
 
   const payload: Record<string, any> = {
     lesson_id: newLessonId,
