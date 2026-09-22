@@ -166,10 +166,22 @@ export function signBunnyMp4Url(
   })
 }
 
+export function getBunnyTokenKeyForLibrary(libraryId?: string | null): string {
+  if (libraryId && process.env.BUNNY_STREAM_LIBRARY_KEYS) {
+    try {
+      const keysMap = JSON.parse(process.env.BUNNY_STREAM_LIBRARY_KEYS)
+      if (keysMap && typeof keysMap === 'object' && keysMap[libraryId]) {
+        return String(keysMap[libraryId]).trim()
+      }
+    } catch {}
+  }
+  return process.env.BUNNY_STREAM_TOKEN_SECURITY_KEY?.trim() || ''
+}
+
 export function signBunnyEmbedUrl(
   libraryId: string,
   videoId: string,
-  tokenSecurityKey: string,
+  tokenSecurityKey?: string,
   ttlSeconds = DEFAULT_TTL_SECONDS
 ): string {
   let targetLibraryId = libraryId
@@ -189,9 +201,14 @@ export function signBunnyEmbedUrl(
     }
   }
 
+  const effectiveKey = tokenSecurityKey || getBunnyTokenKeyForLibrary(targetLibraryId)
+  if (!effectiveKey) {
+    return `https://iframe.mediadelivery.net/embed/${targetLibraryId}/${targetVideoId}`
+  }
+
   const expires = Math.floor(Date.now() / 1000) + ttlSeconds
   const hash = createHash('sha256')
-    .update(`${tokenSecurityKey}${targetVideoId}${expires}`)
+    .update(`${effectiveKey}${targetVideoId}${expires}`)
     .digest('hex')
 
   return `https://iframe.mediadelivery.net/embed/${targetLibraryId}/${targetVideoId}?token=${hash}&expires=${expires}&autoplay=true`

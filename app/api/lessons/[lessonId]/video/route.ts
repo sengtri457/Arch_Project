@@ -139,10 +139,7 @@ export async function GET(
   if (/^\d+[\/:][0-9a-f-]{36}$/i.test(rawVideoUrl)) {
     const formatted = rawVideoUrl.replace(':', '/')
     const [libId, vidId] = formatted.split('/')
-    const tokenSecurityKey = process.env.BUNNY_STREAM_TOKEN_SECURITY_KEY?.trim()
-    const finalUrl = tokenSecurityKey 
-      ? signBunnyEmbedUrl(libId, vidId, tokenSecurityKey)
-      : `https://iframe.mediadelivery.net/embed/${formatted}`
+    const finalUrl = signBunnyEmbedUrl(libId, vidId)
 
     return NextResponse.json({
       success: true,

@@ -37,6 +37,7 @@ import {
   useVideoUrl, 
   useClassroomAccess, 
   useLessonExercise, 
+  useLessonResources,
   useUpdateProgress 
 } from "@/lib/react-query/hooks/use-classroom"
 import { courses as mockCourses, d5Modules, getLessonCoverImage, CourseModule, Lesson } from "@/lib/courses-data"
@@ -139,6 +140,12 @@ export default function SpecificModuleClassroomPage({ params }: PageProps) {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null)
   const currentLesson = selectedLesson || lessons[0] || null
   const activeLessonId = currentLesson?.lesson_id
+
+  // Lesson Multi-Resource attachments state
+  const { data: dbResources = [] } = useLessonResources(activeLessonId)
+  const lessonResources = (dbResources && dbResources.length > 0)
+    ? dbResources
+    : (currentLesson?.resources || null)
 
   // Video URL query hook
   const { data: videoData, isLoading: loadingVideo } = useVideoUrl(activeLessonId, hasAccess)
@@ -415,8 +422,9 @@ export default function SpecificModuleClassroomPage({ params }: PageProps) {
 
               {/* Resource Downloads / Telegram Drawer */}
               <LessonResourceDrawer 
-                fallbackUrl={currentLesson?.downloadable_asset_url} 
-                lessonTitle={currentLesson?.title} 
+                resources={lessonResources}
+                fallbackUrl={currentLesson?.downloadable_asset_url || (mod as any)?.downloadable_asset_url} 
+                lessonTitle={currentLesson?.title || mod?.title} 
               />
 
               {/* Homework / Exercise Submission Box */}
