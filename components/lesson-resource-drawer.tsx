@@ -80,12 +80,12 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
     return null
   }
 
+  const isFallbackTelegram = isTelegramUrl(fallbackUrl)
+
   // Calculate total size if multiple resources exist
   const totalSizeMB = hasResourcesList 
     ? resources.reduce((acc, item) => acc + (Number(item.file_size_mb) || 0), 0)
     : 0
-
-  const isFallbackTelegram = isTelegramUrl(fallbackUrl)
 
   return (
     <div className="border-t border-zinc-850 pt-5 space-y-4">
@@ -126,59 +126,9 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
 
       {/* Grid of Resource Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-        {hasResourcesList ? (
-          resources.map((item, idx) => {
-            const isItemTelegram = item.file_type === 'telegram' || isTelegramUrl(item.download_url)
-            return (
-              <div 
-                key={item.resource_id || idx}
-                className={`p-3.5 bg-zinc-900/50 border ${isItemTelegram ? 'border-[#229ED9]/30 hover:border-[#229ED9]' : 'border-zinc-850 hover:border-[#9ACD32]/40'} rounded-xl flex items-center justify-between group transition-all backdrop-blur-sm shadow-sm`}
-              >
-                <div className="flex items-center gap-3 truncate pr-3">
-                  {/* File Type Icon Container */}
-                  <div className={`w-10 h-10 rounded-lg ${isItemTelegram ? 'bg-[#229ED9]/10 border-[#229ED9]/30' : 'bg-zinc-950 border-zinc-800'} border flex items-center justify-center shrink-0 transition-colors`}>
-                    {getResourceIcon(item.file_type, item.download_url)}
-                  </div>
-
-                  <div className="truncate space-y-0.5">
-                    <h4 className="text-xs font-semibold text-white truncate group-hover:text-[#9ACD32] transition-colors">
-                      {item.title}
-                    </h4>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[9px] uppercase font-mono px-1.5 py-0.2 rounded border ${getResourceTypeBadge(item.file_type, item.download_url)}`}>
-                        {isItemTelegram ? 'TELEGRAM' : item.file_type}
-                      </span>
-                      {item.file_size_mb > 0 && (
-                        <span className="text-[10px] text-zinc-500 font-mono">
-                          {item.file_size_mb} MB
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Button */}
-                <a 
-                  href={item.download_url} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  {...(!isItemTelegram ? { download: true } : {})}
-                  className={`p-2.5 rounded-lg shrink-0 flex items-center gap-1.5 text-xs font-semibold transition-all ${
-                    isItemTelegram
-                      ? 'bg-[#229ED9] text-white hover:bg-[#1d88bc] shadow-sm shadow-[#229ED9]/20'
-                      : 'bg-[#9ACD32]/10 text-[#9ACD32] border border-[#9ACD32]/20 hover:bg-[#9ACD32] hover:text-black'
-                  }`}
-                  title={isItemTelegram ? `Open ${item.title} on Telegram` : `Download ${item.title}`}
-                >
-                  {isItemTelegram ? <Send className="w-4 h-4" /> : <Download className="w-4 h-4" />}
-                  <span className="hidden xl:inline">{isItemTelegram ? 'Telegram' : 'Download'}</span>
-                </a>
-              </div>
-            )
-          })
-        ) : fallbackUrl ? (
-          /* Fallback Single Download Card */
-          <div className={`col-span-full p-4 bg-zinc-900/60 border ${isFallbackTelegram ? 'border-[#229ED9]/40 bg-[#229ED9]/5' : 'border-zinc-850'} rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group transition-colors`}>
+        {/* 1. Primary Admin Link / File (fallbackUrl) */}
+        {hasFallback && (
+          <div className={`col-span-full p-4 bg-zinc-900/60 border ${isFallbackTelegram ? 'border-[#229ED9]/40 bg-[#229ED9]/5' : 'border-zinc-850 hover:border-[#9ACD32]/40'} rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group transition-colors`}>
             <div className="flex items-center gap-3 truncate pr-3">
               <div className={`w-11 h-11 rounded-xl ${isFallbackTelegram ? 'bg-[#229ED9]/15 border-[#229ED9]/30' : 'bg-zinc-950 border-zinc-800'} border flex items-center justify-center shrink-0`}>
                 {isFallbackTelegram ? (
@@ -192,7 +142,7 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
                   <h4 className="text-xs font-bold text-white truncate">
                     {isFallbackTelegram 
                       ? "Private Telegram Resource Channel"
-                      : decodeURIComponent(fallbackUrl.split('/').pop() || "Lesson Attachment / Resources")
+                      : decodeURIComponent(fallbackUrl!.split('/').pop() || "Lesson Attachment / Resources")
                     }
                   </h4>
                   {isFallbackTelegram && (
@@ -211,7 +161,7 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
             </div>
 
             <a 
-              href={fallbackUrl} 
+              href={fallbackUrl!} 
               target="_blank" 
               rel="noreferrer"
               {...(!isFallbackTelegram ? { download: true } : {})}
@@ -234,7 +184,58 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
               )}
             </a>
           </div>
-        ) : null}
+        )}
+
+        {/* 2. Additional Resource Items (if any) */}
+        {hasResourcesList && resources.map((item, idx) => {
+          const isItemTelegram = item.file_type === 'telegram' || isTelegramUrl(item.download_url)
+          return (
+            <div 
+              key={item.resource_id || idx}
+              className={`p-3.5 bg-zinc-900/50 border ${isItemTelegram ? 'border-[#229ED9]/30 hover:border-[#229ED9]' : 'border-zinc-850 hover:border-[#9ACD32]/40'} rounded-xl flex items-center justify-between group transition-all backdrop-blur-sm shadow-sm`}
+            >
+              <div className="flex items-center gap-3 truncate pr-3">
+                {/* File Type Icon Container */}
+                <div className={`w-10 h-10 rounded-lg ${isItemTelegram ? 'bg-[#229ED9]/10 border-[#229ED9]/30' : 'bg-zinc-950 border-zinc-800'} border flex items-center justify-center shrink-0 transition-colors`}>
+                  {getResourceIcon(item.file_type, item.download_url)}
+                </div>
+
+                <div className="truncate space-y-0.5">
+                  <h4 className="text-xs font-semibold text-white truncate group-hover:text-[#9ACD32] transition-colors">
+                    {item.title}
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[9px] uppercase font-mono px-1.5 py-0.2 rounded border ${getResourceTypeBadge(item.file_type, item.download_url)}`}>
+                      {isItemTelegram ? 'TELEGRAM' : item.file_type}
+                    </span>
+                    {item.file_size_mb > 0 && (
+                      <span className="text-[10px] text-zinc-500 font-mono">
+                        {item.file_size_mb} MB
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <a 
+                href={item.download_url} 
+                target="_blank" 
+                rel="noreferrer"
+                {...(!isItemTelegram ? { download: true } : {})}
+                className={`p-2.5 rounded-lg shrink-0 flex items-center gap-1.5 text-xs font-semibold transition-all ${
+                  isItemTelegram
+                    ? 'bg-[#229ED9] text-white hover:bg-[#1d88bc] shadow-sm shadow-[#229ED9]/20'
+                    : 'bg-[#9ACD32]/10 text-[#9ACD32] border border-[#9ACD32]/20 hover:bg-[#9ACD32] hover:text-black'
+                }`}
+                title={isItemTelegram ? `Open ${item.title} on Telegram` : `Download ${item.title}`}
+              >
+                {isItemTelegram ? <Send className="w-4 h-4" /> : <Download className="w-4 h-4" />}
+                <span className="hidden xl:inline">{isItemTelegram ? 'Telegram' : 'Download'}</span>
+              </a>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

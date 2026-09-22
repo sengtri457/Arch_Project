@@ -145,7 +145,7 @@ export default function SpecificModuleClassroomPage({ params }: PageProps) {
   const { data: dbResources = [] } = useLessonResources(activeLessonId)
   const lessonResources = (dbResources && dbResources.length > 0)
     ? dbResources
-    : (currentLesson?.resources || null)
+    : (currentLesson?.downloadable_asset_url ? null : (currentLesson?.resources || null))
 
   // Video URL query hook
   const { data: videoData, isLoading: loadingVideo } = useVideoUrl(activeLessonId, hasAccess)

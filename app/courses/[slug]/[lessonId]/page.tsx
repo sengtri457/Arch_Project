@@ -145,7 +145,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const { data: dbResources = [] } = useLessonResources(activeLessonId)
   const lessonResources = (dbResources && dbResources.length > 0)
     ? dbResources
-    : (currentLesson?.resources || null)
+    : (currentLesson?.downloadable_asset_url ? null : (currentLesson?.resources || null))
 
   // Certificate modal state
   const [showCertModal, setShowCertModal] = useState(false)
