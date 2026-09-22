@@ -1721,13 +1721,13 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative items-start">
           
           {/* Sidebar Menu */}
-          <div className={`${sidebarCollapsed ? 'lg:col-span-1' : 'lg:col-span-3'} lg:sticky lg:top-28 bg-zinc-900/10 border border-zinc-850 p-4 rounded-2xl space-y-4 backdrop-blur-sm self-start transition-all duration-300`}>
+          <div className={`${sidebarCollapsed ? 'lg:col-span-1' : 'lg:col-span-3'} lg:sticky lg:top-24 max-h-[calc(100vh-7rem)] overflow-y-auto custom-scrollbar z-20 bg-zinc-900/90 border border-zinc-800 p-4 rounded-2xl space-y-4 backdrop-blur-md self-start transition-all duration-300 shadow-xl`}>
             
             {/* Collapse/Expand Toggle Button */}
-            <div className={`flex ${sidebarCollapsed ? 'justify-center' : 'justify-end'} border-b border-zinc-850/60 pb-2`}>
+            <div className={`flex ${sidebarCollapsed ? 'justify-center' : 'justify-end'} border-b border-zinc-800 pb-2`}>
               <button
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="text-zinc-400 hover:text-white p-1 hover:bg-zinc-800/40 rounded-lg transition-colors"
+                className="text-zinc-300 hover:text-white p-1 hover:bg-zinc-800/60 rounded-lg transition-colors"
                 title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
               >
                 {sidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
@@ -1737,7 +1737,7 @@ export default function AdminDashboard() {
             {/* Group 1: Monitoring */}
             <div>
               {!sidebarCollapsed && (
-                <span className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase px-3 block mb-2 transition-opacity duration-300">
+                <span className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase px-3 block mb-2 transition-opacity duration-300">
                   Monitoring
                 </span>
               )}
@@ -1748,7 +1748,7 @@ export default function AdminDashboard() {
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
                     activeTab === "overview" 
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <TrendingUp className="w-4 h-4" />
@@ -1761,7 +1761,7 @@ export default function AdminDashboard() {
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
                     activeTab === "analytics" 
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <BarChart3 className="w-4 h-4" />
@@ -1773,7 +1773,7 @@ export default function AdminDashboard() {
             {/* Group 2: LMS Administration */}
             <div>
               {!sidebarCollapsed && (
-                <span className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase px-3 block mb-2 transition-opacity duration-300">
+                <span className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase px-3 block mb-2 transition-opacity duration-300">
                   LMS Management
                 </span>
               )}
@@ -1784,7 +1784,7 @@ export default function AdminDashboard() {
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
                     activeTab === "courses" 
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <BookOpen className="w-4 h-4" />
@@ -1797,7 +1797,7 @@ export default function AdminDashboard() {
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
                     activeTab === "modules" 
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <Layers className="w-4 h-4" />
@@ -1810,7 +1810,7 @@ export default function AdminDashboard() {
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center justify-between transition-all duration-300 ${
                     activeTab === "submissions" 
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <span className="flex items-center gap-3">
@@ -1819,7 +1819,7 @@ export default function AdminDashboard() {
                   </span>
                   {!sidebarCollapsed && (
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      activeTab === "submissions" ? "bg-black/20 text-black" : "bg-zinc-800 text-zinc-400"
+                      activeTab === "submissions" ? "bg-black/20 text-black" : "bg-zinc-800 text-zinc-300"
                     }`}>
                       {submissions.length}
                     </span>
@@ -1832,7 +1832,7 @@ export default function AdminDashboard() {
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
                     activeTab === "crm" 
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <Users className="w-4 h-4" />
@@ -1845,7 +1845,7 @@ export default function AdminDashboard() {
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
                     activeTab === "projects" 
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <FolderGit className="w-4 h-4" />
@@ -1858,7 +1858,7 @@ export default function AdminDashboard() {
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
                     activeTab === "student-showcase" 
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <Sparkles className="w-4 h-4" />
@@ -1871,7 +1871,7 @@ export default function AdminDashboard() {
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
                     activeTab === "media" 
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <Play className="w-4 h-4 animate-pulse" />
@@ -1883,47 +1883,18 @@ export default function AdminDashboard() {
             {/* Group 3: Sales & Communications */}
             <div>
               {!sidebarCollapsed && (
-                <span className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase px-3 block mb-2 transition-opacity duration-300">
+                <span className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase px-3 block mb-2 transition-opacity duration-300">
                   Business
                 </span>
               )}
               <div className="space-y-1">
-                {/* Pricing Plans and Promo Codes have been removed as all courses are now free */}
-                {/*
-                <button
-                  onClick={() => setActiveTab("plans")}
-                  title="Pricing Plans"
-                  className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
-                    activeTab === "plans" 
-                      ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
-                  }`}
-                >
-                  <Settings className="w-4 h-4" />
-                  {!sidebarCollapsed && <span>Pricing Plans</span>}
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("promos")}
-                  title="Promo Codes"
-                  className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
-                    activeTab === "promos" 
-                      ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
-                  }`}
-                >
-                  <Tag className="w-4 h-4" />
-                  {!sidebarCollapsed && <span>Promo Codes</span>}
-                </button>
-                */}
-
                 <button
                   onClick={() => setActiveTab("testimonials")}
                   title="Homepage Testimonials"
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
                     activeTab === "testimonials"
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10"
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <Quote className="w-4 h-4" />
@@ -1936,7 +1907,7 @@ export default function AdminDashboard() {
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center justify-between transition-all duration-300 ${
                     activeTab === "inquiries" 
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <span className="flex items-center gap-3">
@@ -1945,7 +1916,7 @@ export default function AdminDashboard() {
                   </span>
                   {!sidebarCollapsed && (
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      activeTab === "inquiries" ? "bg-black/20 text-black" : "bg-zinc-800 text-zinc-400"
+                      activeTab === "inquiries" ? "bg-black/20 text-black" : "bg-zinc-800 text-zinc-300"
                     }`}>
                       {messages.length}
                     </span>
@@ -1958,7 +1929,7 @@ export default function AdminDashboard() {
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
                     activeTab === "users"
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10"
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <Users className="w-4 h-4" />
@@ -1971,7 +1942,7 @@ export default function AdminDashboard() {
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
                     activeTab === "manual_access"
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10"
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <Lock className="w-4 h-4" />
@@ -1984,7 +1955,7 @@ export default function AdminDashboard() {
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center justify-between transition-all duration-300 ${
                     activeTab === "payments"
                       ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10"
-                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                      : "text-zinc-300 hover:text-white hover:bg-zinc-800/60"
                   }`}
                 >
                   <span className="flex items-center gap-3">
@@ -1993,7 +1964,7 @@ export default function AdminDashboard() {
                   </span>
                   {!sidebarCollapsed && (
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      activeTab === "payments" ? "bg-black/20 text-black" : "bg-zinc-800 text-zinc-400"
+                      activeTab === "payments" ? "bg-black/20 text-black" : "bg-zinc-800 text-zinc-300"
                     }`}>
                       {payments.length}
                     </span>
@@ -2504,17 +2475,16 @@ export default function AdminDashboard() {
                       <h2 className="text-2xl font-bold text-white">Course Curriculum Builder</h2>
                       <Button 
                         onClick={() => router.push("/admin/courses/new")}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-1.5" 
-                        style={{ backgroundColor: '#9ACD32', color: '#000' }}
+                        className="bg-[#9ACD32] hover:bg-[#8fbc2f] text-black font-bold flex items-center gap-1.5 shadow-md transition-colors" 
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-4 h-4 text-black" />
                         Create Course
                       </Button>
                     </div>
 
                     <div className="grid grid-cols-1 gap-4">
                       {courses.map((course) => (
-                        <div key={course.course_id || course.id} className="p-4 bg-zinc-900/40 border border-zinc-850 rounded-xl flex items-center justify-between hover:border-zinc-800 transition-colors">
+                        <div key={course.course_id || course.id} className="p-4 bg-zinc-900/80 border border-zinc-800 rounded-xl flex items-center justify-between hover:border-zinc-700 transition-all shadow-sm">
                           <div className="flex items-center gap-4">
                              <img 
                               src={getMediaUrl(course.thumbnail_url || course.image || "/placeholder.svg")} 
@@ -2522,11 +2492,11 @@ export default function AdminDashboard() {
                                 e.currentTarget.src = "/placeholder.svg"
                               }}
                               alt="" 
-                              className="w-16 h-10 object-cover rounded" 
+                              className="w-16 h-10 object-cover rounded border border-zinc-800" 
                             />
                             <div>
-                              <h4 className="font-bold text-white">{course.title}</h4>
-                              <p className="text-xs text-zinc-400 mt-0.5">
+                              <h4 className="font-bold text-white text-base">{course.title}</h4>
+                              <p className="text-xs text-zinc-300 mt-0.5 font-medium">
                                 {course.lessons || 0} lessons • {course.duration || "Self-Paced"} • {course.level || course.difficulty || "Intermediate"}
                               </p>
                             </div>
@@ -2538,26 +2508,25 @@ export default function AdminDashboard() {
                                 setShowSyllabusModal(true)
                               }}
                               size="sm" 
-                              variant="outline" 
-                              className="border-zinc-850 text-xs text-zinc-350 hover:text-white"
+                              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-100 hover:text-white font-semibold text-xs border border-zinc-700 px-3.5 py-2 rounded-xl transition-all shadow-sm"
                             >
                               Manage Syllabus
                             </Button>
                             <Button 
                               onClick={() => router.push(`/admin/courses/${course.course_id || course.id}/edit`)}
                               size="sm" 
-                              variant="ghost" 
-                              className="hover:bg-zinc-800 text-zinc-350"
+                              className="bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 hover:text-white border border-zinc-700 p-2.5 rounded-xl transition-all shadow-sm"
+                              title="Edit Course"
                             >
-                              <Edit3 className="w-4 h-4" />
+                              <Edit3 className="w-4 h-4 text-zinc-200" />
                             </Button>
                             <Button 
                               onClick={() => handleDeleteCourse(course.course_id || course.id)}
                               size="sm" 
-                              variant="ghost" 
-                              className="hover:bg-red-950/20 text-red-400 hover:text-red-400"
+                              className="bg-red-950/40 hover:bg-red-900/60 text-red-400 hover:text-red-200 border border-red-900/50 p-2.5 rounded-xl transition-all shadow-sm"
+                              title="Delete Course"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4 text-red-400" />
                             </Button>
                           </div>
                         </div>

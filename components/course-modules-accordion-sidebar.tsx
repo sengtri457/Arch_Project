@@ -96,7 +96,7 @@ export function CourseModulesAccordionSidebar({
   }).filter(Boolean) as CourseModule[]
 
   return (
-    <div className="bg-zinc-950 border border-zinc-850 rounded-2xl p-4 flex flex-col h-full max-h-[calc(100vh-8rem)]">
+    <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-4 flex flex-col sticky top-24 max-h-[calc(100vh-7rem)] backdrop-blur-md shadow-xl">
       {/* Search Content Input Header */}
       <div className="relative mb-4">
         <input
