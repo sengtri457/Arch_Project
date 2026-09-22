@@ -113,7 +113,7 @@ export const courses: Course[] = [
   }
 ]
 
-export type ResourceFileType = 'archive' | 'pdf' | 'preset' | 'image' | 'generic'
+export type ResourceFileType = 'archive' | 'pdf' | 'preset' | 'image' | 'generic' | 'telegram'
 
 export interface LessonResource {
   resource_id: string

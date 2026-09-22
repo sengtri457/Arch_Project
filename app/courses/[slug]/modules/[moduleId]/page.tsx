@@ -12,6 +12,7 @@ import { db } from "@/lib/supabase/db"
 import { SecureVideoPlayer } from "@/components/secure-video-player"
 import { LessonComments } from "@/components/lesson-comments"
 import { CourseModulesAccordionSidebar } from "@/components/course-modules-accordion-sidebar"
+import { LessonResourceDrawer } from "@/components/lesson-resource-drawer"
 import { getMediaUrl } from "@/lib/utils"
 import { 
   CheckCircle, 
@@ -412,33 +413,11 @@ export default function SpecificModuleClassroomPage({ params }: PageProps) {
                 </p>
               </div>
 
-              {/* Resource Downloads */}
-              {currentLesson?.downloadable_asset_url && (
-                <div className="border-t border-zinc-850 pt-5">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300 mb-3 flex items-center gap-2">
-                    <Download className="w-4 h-4 text-[#9ACD32]" />
-                    Lesson Attachments & Resources
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="p-3 bg-zinc-900/50 border border-zinc-850 rounded-xl flex items-center justify-between group hover:border-zinc-700 transition-colors">
-                      <div className="truncate max-w-[80%]">
-                        <h4 className="text-xs font-semibold text-white truncate">
-                          {decodeURIComponent(currentLesson.downloadable_asset_url.split('/').pop() || "Lesson Attachment / Resources")}
-                        </h4>
-                        <p className="text-[10px] text-zinc-500 mt-0.5">Downloadable Asset Zip</p>
-                      </div>
-                      <a
-                        href={currentLesson.downloadable_asset_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center justify-center rounded-lg hover:bg-[#9ACD32]/10 text-[#9ACD32] p-2 transition-colors border border-transparent hover:border-[#9ACD32]/20"
-                      >
-                        <Download className="w-4 h-4" />
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Resource Downloads / Telegram Drawer */}
+              <LessonResourceDrawer 
+                fallbackUrl={currentLesson?.downloadable_asset_url} 
+                lessonTitle={currentLesson?.title} 
+              />
 
               {/* Homework / Exercise Submission Box */}
               <div className="border-t border-zinc-850 pt-5 space-y-4">

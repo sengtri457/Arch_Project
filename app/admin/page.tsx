@@ -89,7 +89,8 @@ import {
   Play,
   CreditCard,
   DollarSign,
-  Upload
+  Upload,
+  Send
 } from "lucide-react"
 import {
   BarChart,
@@ -5673,7 +5674,14 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Downloadable Resource / Attachment (Optional)</label>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5 flex items-center justify-between">
+                    <span>Lesson Resource / Telegram Link (Optional)</span>
+                    {(lessonForm.downloadable_asset_url.includes('t.me') || lessonForm.downloadable_asset_url.includes('telegram')) && (
+                      <span className="text-[10px] text-[#229ED9] flex items-center gap-1 font-semibold lowercase">
+                        <Send className="w-3 h-3" /> Telegram link detected
+                      </span>
+                    )}
+                  </label>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <input 
@@ -5681,7 +5689,7 @@ export default function AdminDashboard() {
                         value={lessonForm.downloadable_asset_url} 
                         onChange={(e) => setLessonForm({ ...lessonForm, downloadable_asset_url: e.target.value })} 
                         className="flex-grow bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-700 font-mono text-[10px]" 
-                        placeholder="e.g. https://drive.google.com/... or leave blank"
+                        placeholder="https://t.me/c/... (Private Telegram) or https://drive.google.com/..."
                       />
                       <input
                         type="file"
@@ -5697,7 +5705,20 @@ export default function AdminDashboard() {
                         {uploadingLessonAsset ? 'Uploading...' : 'Choose File'}
                       </label>
                     </div>
-                    <p className="text-[10px] text-zinc-500">Provide a link (Google Drive, Dropbox) or upload a file directly. Students will see this attachment on the lesson player view.</p>
+
+                    {(lessonForm.downloadable_asset_url.includes('t.me') || lessonForm.downloadable_asset_url.includes('telegram')) ? (
+                      <div className="p-2.5 rounded-lg bg-[#229ED9]/10 border border-[#229ED9]/30 text-xs text-zinc-300 flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-md bg-[#229ED9] text-white flex items-center justify-center shrink-0">
+                          <Send className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="text-[11px] leading-tight">
+                          <span className="font-bold text-[#229ED9]">Telegram Resource Channel Link</span>
+                          <p className="text-zinc-400 text-[10px] mt-0.5">Students will see an "Open Telegram Channel" button to access .rar, .zip & project assets without using server storage.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-zinc-500">Paste your private Telegram channel link (<code className="text-zinc-400">t.me/...</code>) for large .rar/.zip files to save server storage, or paste a Drive/Dropbox link, or upload directly.</p>
+                    )}
                   </div>
                 </div>
               </div>
