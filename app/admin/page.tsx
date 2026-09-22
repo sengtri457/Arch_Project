@@ -63,6 +63,7 @@ import Link from "next/link"
 import { 
   Users, 
   BookOpen, 
+  Layers,
   FolderGit, 
   ShieldAlert, 
   Settings, 
@@ -105,7 +106,7 @@ import {
   Cell
 } from "recharts"
 
-type AdminTab = "overview" | "crm" | "courses" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "testimonials" | "users" | "manual_access" | "student-showcase" | "media" | "payments"
+type AdminTab = "overview" | "crm" | "courses" | "modules" | "projects" | "submissions" | "inquiries" | "analytics" | "plans" | "promos" | "testimonials" | "users" | "manual_access" | "student-showcase" | "media" | "payments"
 
 function generateLessonAssetFileName(originalName: string): string {
   const sanitizedName = originalName.replace(/[^a-zA-Z0-9.-]/g, '_')
@@ -143,7 +144,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const tabParam = new URLSearchParams(window.location.search).get("tab")
-    const validTabs: AdminTab[] = ["overview", "analytics", "courses", "projects", "submissions", "crm", "plans", "promos", "testimonials", "inquiries", "users", "manual_access", "student-showcase", "media", "payments"]
+    const validTabs: AdminTab[] = ["overview", "analytics", "courses", "modules", "projects", "submissions", "crm", "plans", "promos", "testimonials", "inquiries", "users", "manual_access", "student-showcase", "media", "payments"]
     if (tabParam && validTabs.includes(tabParam as AdminTab)) {
       setActiveTab(tabParam as AdminTab)
     }
@@ -207,6 +208,170 @@ export default function AdminDashboard() {
     downloadable_asset_url: "",
     thumbnail_url: ""
   })
+
+  // Module CRUD States
+  const [showModuleModal, setShowModuleModal] = useState(false)
+  const [editingModuleId, setEditingModuleId] = useState<string | null>(null)
+  const [savingModule, setSavingModule] = useState(false)
+  const [moduleForm, setModuleForm] = useState({
+    title: "",
+    description: "",
+    cover_image_url: "",
+    order_index: 1,
+    is_published: true,
+    selectedLessonIds: [] as string[]
+  })
+
+  // Assign Lessons Modal State
+  const [targetAssignModule, setTargetAssignModule] = useState<any | null>(null)
+  const [assignLessonIds, setAssignLessonIds] = useState<string[]>([])
+  const [savingAssign, setSavingAssign] = useState(false)
+
+  const handleOpenCreateModule = () => {
+    setEditingModuleId(null)
+    setModuleForm({
+      title: "",
+      description: "",
+      cover_image_url: "",
+      order_index: modulesTabModules.length + 1,
+      is_published: true,
+      selectedLessonIds: []
+    })
+    setShowModuleModal(true)
+  }
+
+  const handleOpenEditModule = (mod: any) => {
+    setEditingModuleId(mod.module_id)
+    const currentLessonIds = (mod.lessons || []).map((l: any) => l.lesson_id)
+    setModuleForm({
+      title: mod.title || "",
+      description: mod.description || "",
+      cover_image_url: mod.cover_image_url || mod.cover_image || "",
+      order_index: mod.order_index || 1,
+      is_published: mod.is_published !== false,
+      selectedLessonIds: currentLessonIds
+    })
+    setShowModuleModal(true)
+  }
+
+  const handleSaveModule = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!moduleForm.title || !selectedModuleCourseId) return
+    setSavingModule(true)
+    try {
+      const url = "/api/admin/modules"
+      const method = editingModuleId ? "PUT" : "POST"
+      const payload = {
+        ...moduleForm,
+        course_id: selectedModuleCourseId,
+        selected_lesson_ids: moduleForm.selectedLessonIds,
+        ...(editingModuleId ? { module_id: editingModuleId } : {})
+      }
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+
+      if (res.ok) {
+        setShowModuleModal(false)
+        loadModulesForSelectedCourse(selectedModuleCourseId)
+        MySwal.fire({
+          icon: "success",
+          title: editingModuleId ? "Module Updated" : "Module Created",
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 2000
+        })
+      } else {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error || "Failed to save module")
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to save module")
+    } finally {
+      setSavingModule(false)
+    }
+  }
+
+  const handleDeleteModule = async (mId: string) => {
+    const confirm = await MySwal.fire({
+      icon: "warning",
+      title: "Delete Module?",
+      text: "This will remove the module group. Lessons in this module will be preserved.",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel"
+    })
+
+    if (!confirm.isConfirmed) return
+
+    try {
+      const res = await fetch(`/api/admin/modules?moduleId=${mId}`, { method: "DELETE" })
+      if (res.ok) {
+        loadModulesForSelectedCourse(selectedModuleCourseId)
+        MySwal.fire({
+          icon: "success",
+          title: "Module Deleted",
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 2000
+        })
+      } else {
+        const data = await res.json()
+        alert(data.error || "Failed to delete module")
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to delete module")
+    }
+  }
+
+  const handleOpenAssignLessons = (mod: any) => {
+    setTargetAssignModule(mod)
+    const currentlyAssigned = modulesTabLessons
+      .filter((l) => l.module_id === mod.module_id)
+      .map((l) => l.lesson_id)
+    setAssignLessonIds(currentlyAssigned)
+  }
+
+  const handleSaveAssignLessons = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!targetAssignModule || !selectedModuleCourseId) return
+    setSavingAssign(true)
+    try {
+      const res = await fetch("/api/admin/modules", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          module_id: targetAssignModule.module_id,
+          selected_lesson_ids: assignLessonIds
+        })
+      })
+
+      if (res.ok) {
+        setTargetAssignModule(null)
+        loadModulesForSelectedCourse(selectedModuleCourseId)
+        MySwal.fire({
+          icon: "success",
+          title: "Lessons Assigned to Module!",
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 2000
+        })
+      } else {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error || "Failed to assign lessons")
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to assign lessons")
+    } finally {
+      setSavingAssign(false)
+    }
+  }
 
   // Projects CRUD States
   const [showProjectModal, setShowProjectModal] = useState(false)
@@ -287,6 +452,50 @@ export default function AdminDashboard() {
   const [paymentAnalyticsSort, setPaymentAnalyticsSort] = useState<"students" | "revenue">("students")
   const [paymentAnalyticsSearch, setPaymentAnalyticsSearch] = useState("")
   const [paymentsDetailSearch, setPaymentsDetailSearch] = useState("")
+
+  // Modules Tab State
+  const [selectedModuleCourseId, setSelectedModuleCourseId] = useState<string>("")
+  const [modulesTabModules, setModulesTabModules] = useState<any[]>([])
+  const [loadingModulesTab, setLoadingModulesTab] = useState<boolean>(false)
+  const [modulesTabLessons, setModulesTabLessons] = useState<any[]>([])
+
+  const loadModulesForSelectedCourse = async (cId: string) => {
+    if (!cId) return
+    setLoadingModulesTab(true)
+    try {
+      const res = await fetch(`/api/admin/modules?courseId=${encodeURIComponent(cId)}`)
+      if (res.ok) {
+        const json = await res.json()
+        if (json.success && Array.isArray(json.modules)) {
+          setModulesTabModules(json.modules)
+        }
+      }
+      const lesRes = await fetch(`/api/admin/lessons?courseId=${encodeURIComponent(cId)}`)
+      if (lesRes.ok) {
+        const lesJson = await lesRes.json()
+        if (lesJson.success && Array.isArray(lesJson.lessons)) {
+          setModulesTabLessons(lesJson.lessons)
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load modules tab data:", err)
+    } finally {
+      setLoadingModulesTab(false)
+    }
+  }
+
+  useEffect(() => {
+    if (courses.length > 0 && !selectedModuleCourseId) {
+      const firstId = courses[0].course_id || courses[0].id
+      setSelectedModuleCourseId(firstId)
+    }
+  }, [courses, selectedModuleCourseId])
+
+  useEffect(() => {
+    if (activeTab === "modules" && selectedModuleCourseId) {
+      loadModulesForSelectedCourse(selectedModuleCourseId)
+    }
+  }, [activeTab, selectedModuleCourseId])
 
   const router = useRouter()
   const supabase = createClient()
@@ -1546,6 +1755,19 @@ export default function AdminDashboard() {
                 </button>
 
                 <button
+                  onClick={() => setActiveTab("modules")}
+                  title="Modules Manager"
+                  className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center transition-all duration-300 ${
+                    activeTab === "modules" 
+                      ? "bg-[#9ACD32] text-black font-bold shadow-lg shadow-[#9ACD32]/10" 
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-900/40"
+                  }`}
+                >
+                  <Layers className="w-4 h-4" />
+                  {!sidebarCollapsed && <span>Modules Manager</span>}
+                </button>
+
+                <button
                   onClick={() => setActiveTab("submissions")}
                   title="Homework Submissions"
                   className={`w-full ${sidebarCollapsed ? 'justify-center py-3' : 'px-4 py-2.5 gap-3'} rounded-xl text-sm font-medium flex items-center justify-between transition-all duration-300 ${
@@ -2304,6 +2526,266 @@ export default function AdminDashboard() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* 3.5 MODULES MANAGER TAB */}
+                {activeTab === "modules" && (
+                  <div className="space-y-6">
+                    {/* Header & Course Selector Bar */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-850 pb-5">
+                      <div>
+                        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                          <Layers className="w-6 h-6 text-[#9ACD32]" />
+                          Course Modules Manager
+                        </h2>
+                        <p className="text-xs text-zinc-400 mt-1">
+                          Manage course modules, order indexes, cover thumbnails, and lesson assignments.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5">
+                          <span className="text-xs font-semibold text-zinc-400">Course:</span>
+                          <select
+                            value={selectedModuleCourseId}
+                            onChange={(e) => {
+                              setSelectedModuleCourseId(e.target.value)
+                              loadModulesForSelectedCourse(e.target.value)
+                            }}
+                            className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
+                          >
+                            {courses.map((c) => (
+                              <option key={c.course_id || c.id} value={c.course_id || c.id} className="bg-zinc-900 text-white">
+                                {c.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <Button
+                          onClick={() => {
+                            const activeC = courses.find((c) => (c.course_id || c.id) === selectedModuleCourseId) || courses[0]
+                            if (activeC) {
+                              setActiveSyllabusCourse(activeC)
+                              handleOpenCreateModule()
+                            }
+                          }}
+                          className="bg-[#9ACD32] hover:bg-[#8ab82b] text-black font-semibold text-xs py-2.5 rounded-xl flex items-center gap-1.5"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Create New Module
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Stats & Info banner */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      <div className="bg-zinc-900/40 border border-zinc-850 p-4 rounded-xl">
+                        <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Total Modules</p>
+                        <p className="text-2xl font-bold text-white mt-1">{modulesTabModules.length}</p>
+                      </div>
+                      <div className="bg-zinc-900/40 border border-zinc-850 p-4 rounded-xl">
+                        <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Syllabus Lessons</p>
+                        <p className="text-2xl font-bold text-white mt-1">{modulesTabLessons.length}</p>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1 bg-zinc-900/40 border border-zinc-850 p-4 rounded-xl flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Selected Course</p>
+                          <p className="text-sm font-bold text-[#9ACD32] truncate mt-1">
+                            {courses.find((c) => (c.course_id || c.id) === selectedModuleCourseId)?.title || "Select Course"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Modules List Grid */}
+                    {loadingModulesTab ? (
+                      <div className="flex items-center justify-center py-16 gap-3 text-zinc-400 text-xs">
+                        <Loader2 className="w-6 h-6 animate-spin text-[#9ACD32]" />
+                        <span>Loading modules data...</span>
+                      </div>
+                    ) : modulesTabModules.length === 0 ? (
+                      <div className="text-center py-16 bg-zinc-900/20 border border-zinc-850 rounded-2xl space-y-3">
+                        <Layers className="w-10 h-10 text-zinc-600 mx-auto opacity-50" />
+                        <h3 className="text-sm font-bold text-white">No Modules Created Yet</h3>
+                        <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                          Click "Create New Module" above to organize lessons for this masterclass into structured module sections.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {modulesTabModules.map((mod, idx) => {
+                          const assignedLessons = (mod.lessons && mod.lessons.length > 0)
+                            ? mod.lessons
+                            : modulesTabLessons.filter((l) => l.module_id === mod.module_id)
+
+                          return (
+                            <div
+                              key={mod.module_id || idx}
+                              className="bg-zinc-900/30 border border-zinc-850/90 rounded-2xl p-5 space-y-4 hover:border-zinc-750 transition-colors"
+                            >
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                <div className="flex items-start sm:items-center gap-4 min-w-0">
+                                  {/* Module Cover Image */}
+                                  <div className="w-20 h-14 rounded-xl overflow-hidden bg-black border border-zinc-800 shrink-0 relative">
+                                    <img
+                                      src={getMediaUrl(mod.cover_image_url || mod.cover_image || "/placeholder.svg")}
+                                      onError={(e) => { e.currentTarget.src = "/placeholder.svg" }}
+                                      alt=""
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <span className="absolute bottom-1 right-1 text-[9px] font-mono font-bold px-1 bg-black/80 rounded text-zinc-300">
+                                      #{mod.order_index || idx + 1}
+                                    </span>
+                                  </div>
+
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-[#9ACD32]/10 text-[#9ACD32] border border-[#9ACD32]/20">
+                                        Module {String(mod.order_index || idx + 1).padStart(2, '0')}
+                                      </span>
+                                      <span className="text-[10px] text-zinc-500 font-mono">
+                                        {assignedLessons.length} Lessons Assigned
+                                      </span>
+                                    </div>
+                                    <h3 className="text-base font-bold text-white truncate">{mod.title}</h3>
+                                    {mod.description && (
+                                      <p className="text-xs text-zinc-400 line-clamp-1 mt-0.5">{mod.description}</p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                  <Button
+                                    onClick={() => handleOpenAssignLessons(mod)}
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-zinc-800 text-xs text-zinc-300 hover:text-white"
+                                  >
+                                    Assign Lessons ({assignedLessons.length})
+                                  </Button>
+
+                                  <Button
+                                    onClick={() => handleOpenEditModule(mod)}
+                                    size="sm"
+                                    variant="ghost"
+                                    className="hover:bg-zinc-800 text-zinc-300"
+                                  >
+                                    <Edit3 className="w-4 h-4" />
+                                  </Button>
+
+                                  <Button
+                                    onClick={async () => {
+                                      await handleDeleteModule(mod.module_id)
+                                      loadModulesForSelectedCourse(selectedModuleCourseId)
+                                    }}
+                                    size="sm"
+                                    variant="ghost"
+                                    className="hover:bg-red-950/20 text-red-400 hover:text-red-300"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {/* Lessons inside module */}
+                              <div className="pt-3 border-t border-zinc-850/60 space-y-2">
+                                <div className="flex items-center justify-between text-xs font-semibold text-zinc-400 mb-1">
+                                  <span>Assigned Lessons List</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const activeC = courses.find((c) => (c.course_id || c.id) === selectedModuleCourseId) || courses[0]
+                                      if (activeC) {
+                                        setActiveSyllabusCourse(activeC)
+                                        setEditingLesson(null)
+                                        setLessonForm({
+                                          title: "",
+                                          video_url: "",
+                                          duration: "600",
+                                          index: String(assignedLessons.length + 1),
+                                          source: "direct",
+                                          downloadable_asset_url: "",
+                                          thumbnail_url: ""
+                                        })
+                                        setShowLessonModal(true)
+                                      }
+                                    }}
+                                    className="text-[11px] text-[#9ACD32] hover:underline flex items-center gap-1"
+                                  >
+                                    <Plus className="w-3 h-3" /> Add Lesson
+                                  </button>
+                                </div>
+
+                                {assignedLessons.length === 0 ? (
+                                  <p className="text-[11px] text-zinc-500 italic py-1">
+                                    No lessons assigned to this module yet. Click "Assign Lessons" to select lessons.
+                                  </p>
+                                ) : (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {assignedLessons.map((les: any, lIdx: number) => (
+                                      <div
+                                        key={les.lesson_id || lIdx}
+                                        className="p-2.5 bg-zinc-950/70 border border-zinc-850 rounded-xl flex items-center justify-between text-xs group hover:border-zinc-700 transition-colors"
+                                      >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                          <span className="w-5 h-5 rounded-full bg-zinc-850 text-zinc-400 flex items-center justify-center text-[10px] font-mono shrink-0 font-bold">
+                                            {les.order_index || lIdx + 1}
+                                          </span>
+                                          <span className="text-zinc-200 font-medium truncate">{les.title}</span>
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                          {les.is_preview && (
+                                            <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                              Preview
+                                            </span>
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const activeC = courses.find((c) => (c.course_id || c.id) === selectedModuleCourseId) || courses[0]
+                                              if (activeC) {
+                                                setActiveSyllabusCourse(activeC)
+                                                setEditingLesson(les)
+                                                setLessonForm({
+                                                  title: les.title || "",
+                                                  video_url: les.video_external_id || les.video_url || "",
+                                                  duration: String((les.duration_minutes || 10) * 60),
+                                                  index: String(les.order_index || lIdx + 1),
+                                                  source: les.video_source_type || "direct",
+                                                  downloadable_asset_url: les.downloadable_asset_url || "",
+                                                  thumbnail_url: les.thumbnail_url || les.cover_image || ""
+                                                })
+                                                setShowLessonModal(true)
+                                              }
+                                            }}
+                                            className="text-zinc-400 hover:text-white p-1 rounded"
+                                          >
+                                            <Edit3 className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={async () => {
+                                              await handleDeleteLesson(les.lesson_id)
+                                              loadModulesForSelectedCourse(selectedModuleCourseId)
+                                            }}
+                                            className="text-zinc-400 hover:text-red-400 p-1 rounded"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -5192,6 +5674,128 @@ export default function AdminDashboard() {
                 </Button>
                 <Button type="submit" className="bg-primary text-black font-bold text-xs px-5" style={{ backgroundColor: '#9ACD32', color: '#000' }}>
                   {editingLesson ? "Save Lesson" : "Add Lesson"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
+        {/* CREATE / EDIT MODULE MODAL */}
+        {showModuleModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <form onSubmit={handleSaveModule} className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl max-w-lg w-full space-y-5 text-zinc-300">
+              <h3 className="text-xl font-bold text-white">
+                {editingModuleId ? "Edit Module" : "Create New Module"}
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Module Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={moduleForm.title}
+                    onChange={(e) => setModuleForm({ ...moduleForm, title: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                    placeholder="e.g. 04. Material Fundamentals"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Order Index</label>
+                  <input
+                    type="number"
+                    required
+                    value={moduleForm.order_index}
+                    onChange={(e) => setModuleForm({ ...moduleForm, order_index: parseInt(e.target.value) || 1 })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Cover Image URL</label>
+                  <input
+                    type="text"
+                    value={moduleForm.cover_image_url}
+                    onChange={(e) => setModuleForm({ ...moduleForm, cover_image_url: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700"
+                    placeholder="/assets/images/D5_class_img/M4.jpg"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Description (Optional)</label>
+                  <textarea
+                    rows={3}
+                    value={moduleForm.description}
+                    onChange={(e) => setModuleForm({ ...moduleForm, description: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-zinc-700 resize-none"
+                    placeholder="Brief summary of what this module covers..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-2">
+                <Button type="button" variant="ghost" onClick={() => setShowModuleModal(false)} className="text-zinc-400 hover:text-white">
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={savingModule} className="bg-[#9ACD32] text-black font-bold px-6">
+                  {savingModule ? "Saving..." : (editingModuleId ? "Update Module" : "Create Module")}
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* ASSIGN LESSONS TO MODULE MODAL */}
+        {targetAssignModule && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <form onSubmit={handleSaveAssignLessons} className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl max-w-lg w-full max-h-[85vh] overflow-y-auto space-y-5 text-zinc-300 custom-scrollbar">
+              <div>
+                <h3 className="text-xl font-bold text-white">Assign Lessons to Module</h3>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Module: <span className="text-[#9ACD32] font-semibold">{targetAssignModule.title}</span>
+                </p>
+              </div>
+
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar border border-zinc-800 p-3 rounded-xl bg-zinc-950">
+                {modulesTabLessons.length === 0 ? (
+                  <p className="text-xs text-zinc-500 italic p-2 text-center">No syllabus lessons found for this course.</p>
+                ) : (
+                  modulesTabLessons.map((les: any) => {
+                    const isChecked = assignLessonIds.includes(les.lesson_id)
+                    return (
+                      <label
+                        key={les.lesson_id}
+                        className="flex items-center gap-3 p-2.5 rounded-lg border border-zinc-850 hover:bg-zinc-900/50 cursor-pointer select-none transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAssignLessonIds((prev) => [...prev, les.lesson_id])
+                            } else {
+                              setAssignLessonIds((prev) => prev.filter((id) => id !== les.lesson_id))
+                            }
+                          }}
+                          className="w-4 h-4 accent-[#9ACD32] rounded bg-zinc-900 border-zinc-800"
+                        />
+                        <div className="min-w-0 flex-grow">
+                          <p className="text-xs font-semibold text-white truncate">{les.title}</p>
+                          <p className="text-[10px] text-zinc-500 font-mono">Index: #{les.order_index || 1} • {les.duration_minutes || 10}m</p>
+                        </div>
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+
+              <div className="flex gap-3 justify-end pt-2">
+                <Button type="button" variant="ghost" onClick={() => setTargetAssignModule(null)} className="text-zinc-400 hover:text-white">
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={savingAssign} className="bg-[#9ACD32] text-black font-bold px-6">
+                  {savingAssign ? "Saving..." : "Save Lesson Assignments"}
                 </Button>
               </div>
             </form>
