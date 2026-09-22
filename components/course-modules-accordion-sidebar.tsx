@@ -96,7 +96,7 @@ export function CourseModulesAccordionSidebar({
   }).filter(Boolean) as CourseModule[]
 
   return (
-    <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-4 flex flex-col sticky top-24 max-h-[calc(100vh-7rem)] backdrop-blur-md shadow-xl">
+    <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-4 flex flex-col sticky top-24 backdrop-blur-md shadow-xl">
       {/* Search Content Input Header */}
       <div className="relative mb-4">
         <input
@@ -110,7 +110,7 @@ export function CourseModulesAccordionSidebar({
       </div>
 
       {/* Accordions Container */}
-      <div className="flex-grow overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+      <div className="space-y-3">
         {filteredModules.length === 0 ? (
           <div className="text-center py-10 text-xs text-zinc-500">
             No matching content found.

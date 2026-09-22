@@ -210,6 +210,7 @@ export default function AdminDashboard() {
     index: "1",
     source: "direct",
     downloadable_asset_url: "",
+    download_description: "",
     thumbnail_url: ""
   })
 
@@ -962,6 +963,10 @@ export default function AdminDashboard() {
     if (!activeSyllabusCourse) return
     const courseId = activeSyllabusCourse.course_id || activeSyllabusCourse.id
     try {
+      const linkStr = lessonForm.downloadable_asset_url.trim()
+      const descStr = lessonForm.download_description.trim()
+      const finalAssetPayload = (linkStr && descStr) ? `${linkStr}|${descStr}` : linkStr
+
       const response = await fetch('/api/admin/lessons', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -973,7 +978,7 @@ export default function AdminDashboard() {
           video_external_id: lessonForm.video_url,
           duration_minutes: Math.round(parseInt(lessonForm.duration) / 60),
           order_index: parseInt(lessonForm.index),
-          downloadable_asset_url: lessonForm.downloadable_asset_url,
+          downloadable_asset_url: finalAssetPayload,
           thumbnail_url: lessonForm.thumbnail_url
         })
       })
@@ -1721,7 +1726,7 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative items-start">
           
           {/* Sidebar Menu */}
-          <div className={`${sidebarCollapsed ? 'lg:col-span-1' : 'lg:col-span-3'} lg:sticky lg:top-24 max-h-[calc(100vh-7rem)] overflow-y-auto custom-scrollbar z-20 bg-zinc-900/90 border border-zinc-800 p-4 rounded-2xl space-y-4 backdrop-blur-md self-start transition-all duration-300 shadow-xl`}>
+          <div className={`${sidebarCollapsed ? 'lg:col-span-1' : 'lg:col-span-3'} lg:sticky lg:top-24 z-20 bg-zinc-900/90 border border-zinc-800 p-4 rounded-2xl space-y-4 backdrop-blur-md self-start transition-all duration-300 shadow-xl`}>
             
             {/* Collapse/Expand Toggle Button */}
             <div className={`flex ${sidebarCollapsed ? 'justify-center' : 'justify-end'} border-b border-zinc-800 pb-2`}>
@@ -2713,6 +2718,7 @@ export default function AdminDashboard() {
                                           index: String(assignedLessons.length + 1),
                                           source: "direct",
                                           downloadable_asset_url: "",
+                                          download_description: "",
                                           thumbnail_url: ""
                                         })
                                         setShowLessonModal(true)
@@ -2755,13 +2761,18 @@ export default function AdminDashboard() {
                                               if (activeC) {
                                                 setActiveSyllabusCourse(activeC)
                                                 setEditingLesson(les)
+                                                const rawAsset = les.downloadable_asset_url || ""
+                                                const [aUrl, aDesc] = rawAsset.includes("|") 
+                                                  ? [rawAsset.split("|")[0].trim(), rawAsset.split("|").slice(1).join("|").trim()]
+                                                  : [rawAsset, ""]
                                                 setLessonForm({
                                                   title: les.title || "",
                                                   video_url: les.video_external_id || les.video_url || "",
                                                   duration: String((les.duration_minutes || 10) * 60),
                                                   index: String(les.order_index || lIdx + 1),
                                                   source: les.video_source_type || "direct",
-                                                  downloadable_asset_url: les.downloadable_asset_url || "",
+                                                  downloadable_asset_url: aUrl,
+                                                  download_description: aDesc,
                                                   thumbnail_url: les.thumbnail_url || les.cover_image || ""
                                                 })
                                                 setShowLessonModal(true)
@@ -5505,6 +5516,7 @@ export default function AdminDashboard() {
                           index: autoNextIndex.toString(),
                           source: "direct",
                           downloadable_asset_url: "",
+                          download_description: "",
                           thumbnail_url: ""
                         })
                         setShowLessonModal(true)
@@ -5556,13 +5568,18 @@ export default function AdminDashboard() {
                             <Button 
                               onClick={() => {
                                 setEditingLesson(les)
+                                const rawAsset = les.downloadable_asset_url || ""
+                                const [aUrl, aDesc] = rawAsset.includes("|") 
+                                  ? [rawAsset.split("|")[0].trim(), rawAsset.split("|").slice(1).join("|").trim()]
+                                  : [rawAsset, ""]
                                 setLessonForm({
                                   title: les.title,
                                   video_url: les.video_external_id || "",
                                   duration: ((les.duration_minutes || 10) * 60).toString(),
                                   index: (les.order_index || 1).toString(),
                                   source: les.video_source_type || "direct",
-                                  downloadable_asset_url: les.downloadable_asset_url || "",
+                                  downloadable_asset_url: aUrl,
+                                  download_description: aDesc,
                                   thumbnail_url: les.thumbnail_url || ""
                                 })
                                 setShowLessonModal(true)
@@ -5757,6 +5774,19 @@ export default function AdminDashboard() {
                       >
                         {uploadingLessonAsset ? 'Uploading...' : 'Choose File'}
                       </label>
+                    </div>
+
+                    <div className="pt-1">
+                      <label className="block text-[11px] font-semibold text-zinc-400 mb-1">
+                        Material Name / Resource Description (Shown to Students)
+                      </label>
+                      <input
+                        type="text"
+                        value={lessonForm.download_description}
+                        onChange={(e) => setLessonForm({ ...lessonForm, download_description: e.target.value })}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-700"
+                        placeholder="e.g. InDesign Practice Files, 3D Assets & HDRI Maps (.rar)"
+                      />
                     </div>
 
                     {(lessonForm.downloadable_asset_url.includes('drive.google.com') || lessonForm.downloadable_asset_url.includes('docs.google.com')) ? (

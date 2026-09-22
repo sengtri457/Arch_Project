@@ -105,8 +105,13 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
     return null
   }
 
-  const isFallbackTelegram = isTelegramUrl(fallbackUrl)
-  const isFallbackDrive = isGoogleDriveUrl(fallbackUrl)
+  const rawFallbackUrl = fallbackUrl || ""
+  const hasPipe = rawFallbackUrl.includes("|")
+  const cleanFallbackUrl = hasPipe ? rawFallbackUrl.split("|")[0].trim() : rawFallbackUrl
+  const customMaterialDescription = hasPipe ? rawFallbackUrl.split("|").slice(1).join("|").trim() : ""
+
+  const isFallbackTelegram = isTelegramUrl(cleanFallbackUrl)
+  const isFallbackDrive = isGoogleDriveUrl(cleanFallbackUrl)
 
   // Calculate total size if multiple resources exist
   const totalSizeMB = hasResourcesList 
@@ -176,11 +181,11 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
               <div className="truncate">
                 <div className="flex items-center gap-2">
                   <h4 className="text-xs font-bold text-white truncate">
-                    {isFallbackDrive
+                    {customMaterialDescription || (isFallbackDrive
                       ? "Google Drive Course Materials"
                       : isFallbackTelegram 
                       ? "Private Telegram Resource Channel"
-                      : decodeURIComponent(fallbackUrl!.split('/').pop() || "Lesson Attachment / Resources")
+                      : decodeURIComponent(cleanFallbackUrl.split('/').pop() || "Lesson Attachment / Resources"))
                     }
                   </h4>
                   {isFallbackDrive ? (
@@ -194,7 +199,9 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
                   ) : null}
                 </div>
                 <p className="text-[11px] text-zinc-400 mt-0.5">
-                  {isFallbackDrive
+                  {customMaterialDescription
+                    ? `Access & download materials for ${lessonTitle || "this lesson"}`
+                    : isFallbackDrive
                     ? `Download practice files, assets & project materials for ${lessonTitle || "this lesson"}`
                     : isFallbackTelegram 
                     ? `Join channel to download .rar, .zip & 3D models for ${lessonTitle || "this lesson"}`
@@ -205,7 +212,7 @@ export function LessonResourceDrawer({ resources, fallbackUrl, lessonTitle }: Le
             </div>
 
             <a 
-              href={fallbackUrl!} 
+              href={cleanFallbackUrl} 
               target="_blank" 
               rel="noreferrer"
               {...(!isFallbackTelegram && !isFallbackDrive ? { download: true } : {})}
