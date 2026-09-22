@@ -213,6 +213,26 @@ export default function AdminDashboard() {
     download_description: "",
     thumbnail_url: ""
   })
+  const [resourceItems, setResourceItems] = useState<Array<{ url: string; desc: string }>>([
+    { url: "", desc: "" }
+  ])
+
+  const parseMultipleResources = (raw?: string | null): Array<{ url: string; desc: string }> => {
+    if (!raw || !raw.trim()) return [{ url: "", desc: "" }]
+    const lines = raw.split(/\n|;;/).map(l => l.trim()).filter(Boolean)
+    const items = lines.map(line => {
+      const parts = line.split('|')
+      return { url: parts[0].trim(), desc: parts.slice(1).join('|').trim() }
+    })
+    return items.length > 0 ? items : [{ url: "", desc: "" }]
+  }
+
+  const serializeResourceItems = (items: Array<{ url: string; desc: string }>): string => {
+    return items
+      .filter(item => item.url.trim().length > 0)
+      .map(item => item.desc.trim() ? `${item.url.trim()}|${item.desc.trim()}` : item.url.trim())
+      .join('\n')
+  }
 
   // Module CRUD States
   const [showModuleModal, setShowModuleModal] = useState(false)
@@ -963,9 +983,7 @@ export default function AdminDashboard() {
     if (!activeSyllabusCourse) return
     const courseId = activeSyllabusCourse.course_id || activeSyllabusCourse.id
     try {
-      const linkStr = lessonForm.downloadable_asset_url.trim()
-      const descStr = lessonForm.download_description.trim()
-      const finalAssetPayload = (linkStr && descStr) ? `${linkStr}|${descStr}` : linkStr
+      const finalAssetPayload = serializeResourceItems(resourceItems)
 
       const response = await fetch('/api/admin/lessons', {
         method: 'POST',
@@ -2711,6 +2729,7 @@ export default function AdminDashboard() {
                                       if (activeC) {
                                         setActiveSyllabusCourse(activeC)
                                         setEditingLesson(null)
+                                        setResourceItems([{ url: "", desc: "" }])
                                         setLessonForm({
                                           title: "",
                                           video_url: "",
@@ -2761,18 +2780,15 @@ export default function AdminDashboard() {
                                               if (activeC) {
                                                 setActiveSyllabusCourse(activeC)
                                                 setEditingLesson(les)
-                                                const rawAsset = les.downloadable_asset_url || ""
-                                                const [aUrl, aDesc] = rawAsset.includes("|") 
-                                                  ? [rawAsset.split("|")[0].trim(), rawAsset.split("|").slice(1).join("|").trim()]
-                                                  : [rawAsset, ""]
+                                                setResourceItems(parseMultipleResources(les.downloadable_asset_url))
                                                 setLessonForm({
                                                   title: les.title || "",
                                                   video_url: les.video_external_id || les.video_url || "",
                                                   duration: String((les.duration_minutes || 10) * 60),
                                                   index: String(les.order_index || lIdx + 1),
                                                   source: les.video_source_type || "direct",
-                                                  downloadable_asset_url: aUrl,
-                                                  download_description: aDesc,
+                                                  downloadable_asset_url: les.downloadable_asset_url || "",
+                                                  download_description: "",
                                                   thumbnail_url: les.thumbnail_url || les.cover_image || ""
                                                 })
                                                 setShowLessonModal(true)
@@ -5509,6 +5525,7 @@ export default function AdminDashboard() {
                     <Button 
                       onClick={() => {
                         setEditingLesson(null)
+                        setResourceItems([{ url: "", desc: "" }])
                         setLessonForm({
                           title: "",
                           video_url: "",
@@ -5568,18 +5585,15 @@ export default function AdminDashboard() {
                             <Button 
                               onClick={() => {
                                 setEditingLesson(les)
-                                const rawAsset = les.downloadable_asset_url || ""
-                                const [aUrl, aDesc] = rawAsset.includes("|") 
-                                  ? [rawAsset.split("|")[0].trim(), rawAsset.split("|").slice(1).join("|").trim()]
-                                  : [rawAsset, ""]
+                                setResourceItems(parseMultipleResources(les.downloadable_asset_url))
                                 setLessonForm({
                                   title: les.title,
                                   video_url: les.video_external_id || "",
                                   duration: ((les.duration_minutes || 10) * 60).toString(),
                                   index: (les.order_index || 1).toString(),
                                   source: les.video_source_type || "direct",
-                                  downloadable_asset_url: aUrl,
-                                  download_description: aDesc,
+                                  downloadable_asset_url: les.downloadable_asset_url || "",
+                                  download_description: "",
                                   thumbnail_url: les.thumbnail_url || ""
                                 })
                                 setShowLessonModal(true)
@@ -5740,79 +5754,93 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5 flex items-center justify-between">
-                    <span>Lesson Resource / Google Drive Link (Optional)</span>
-                    {(lessonForm.downloadable_asset_url.includes('drive.google.com') || lessonForm.downloadable_asset_url.includes('docs.google.com')) ? (
-                      <span className="text-[10px] text-blue-400 flex items-center gap-1 font-semibold lowercase">
-                        Google Drive link detected
-                      </span>
-                    ) : (lessonForm.downloadable_asset_url.includes('t.me') || lessonForm.downloadable_asset_url.includes('telegram')) ? (
-                      <span className="text-[10px] text-[#229ED9] flex items-center gap-1 font-semibold lowercase">
-                        <Send className="w-3 h-3" /> Telegram link detected
-                      </span>
-                    ) : null}
-                  </label>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="text" 
-                        value={lessonForm.downloadable_asset_url} 
-                        onChange={(e) => setLessonForm({ ...lessonForm, downloadable_asset_url: e.target.value })} 
-                        className="flex-grow bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-700 font-mono text-[10px]" 
-                        placeholder="Link: https://drive.google.com/drive/folders/... or direct file link"
-                      />
-                      <input
-                        type="file"
-                        onChange={handleLessonAssetUpload}
-                        className="hidden"
-                        id="lesson-asset-file"
-                        disabled={uploadingLessonAsset}
-                      />
-                      <label
-                        htmlFor="lesson-asset-file"
-                        className={`bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center justify-center cursor-pointer transition-colors border border-zinc-800 shrink-0 ${uploadingLessonAsset ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        {uploadingLessonAsset ? 'Uploading...' : 'Choose File'}
-                      </label>
-                    </div>
-
-                    <div className="pt-1">
-                      <label className="block text-[11px] font-semibold text-zinc-400 mb-1">
-                        Material Name / Resource Description (Shown to Students)
-                      </label>
-                      <input
-                        type="text"
-                        value={lessonForm.download_description}
-                        onChange={(e) => setLessonForm({ ...lessonForm, download_description: e.target.value })}
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-700"
-                        placeholder="e.g. InDesign Practice Files, 3D Assets & HDRI Maps (.rar)"
-                      />
-                    </div>
-
-                    {(lessonForm.downloadable_asset_url.includes('drive.google.com') || lessonForm.downloadable_asset_url.includes('docs.google.com')) ? (
-                      <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-xs text-zinc-300 flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-md bg-blue-600 text-white flex items-center justify-center shrink-0 font-bold text-[10px]">
-                          GD
-                        </div>
-                        <div className="text-[11px] leading-tight">
-                          <span className="font-bold text-blue-400">Google Drive Folder / Asset Link</span>
-                          <p className="text-zinc-400 text-[10px] mt-0.5">Students will see an "Open Google Drive" button to access project files, 3D models & resources directly.</p>
-                        </div>
-                      </div>
-                    ) : (lessonForm.downloadable_asset_url.includes('t.me') || lessonForm.downloadable_asset_url.includes('telegram')) ? (
-                      <div className="p-2.5 rounded-lg bg-[#229ED9]/10 border border-[#229ED9]/30 text-xs text-zinc-300 flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-md bg-[#229ED9] text-white flex items-center justify-center shrink-0">
-                          <Send className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="text-[11px] leading-tight">
-                          <span className="font-bold text-[#229ED9]">Telegram Resource Channel Link</span>
-                          <p className="text-zinc-400 text-[10px] mt-0.5">Students will see an "Open Telegram Channel" button to access .rar, .zip & project assets.</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-[10px] text-zinc-500">Paste your Google Drive link (<code className="text-zinc-400">https://drive.google.com/...</code>) for project materials, .rar/.zip files & HDRI textures, or upload directly.</p>
-                    )}
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-bold text-zinc-400 uppercase">
+                      Lesson Attachments & Google Drive Links
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setResourceItems(prev => [...prev, { url: "", desc: "" }])}
+                      className="text-[11px] text-[#9ACD32] hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Another Link
+                    </button>
                   </div>
+
+                  <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                    {resourceItems.map((resItem, rIdx) => {
+                      const isDrive = resItem.url.includes('drive.google.com') || resItem.url.includes('docs.google.com')
+                      const isTelegram = resItem.url.includes('t.me') || resItem.url.includes('telegram')
+
+                      return (
+                        <div key={rIdx} className="p-3 bg-zinc-950 rounded-xl border border-zinc-850 space-y-2 relative">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-zinc-400 uppercase font-mono flex items-center gap-1.5">
+                              Attachment #{rIdx + 1}
+                              {isDrive && <span className="text-blue-400 font-normal">&bull; Google Drive</span>}
+                              {isTelegram && <span className="text-[#229ED9] font-normal">&bull; Telegram</span>}
+                            </span>
+                            {resourceItems.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setResourceItems(prev => prev.filter((_, i) => i !== rIdx))}
+                                className="text-red-400 hover:text-red-300 text-xs p-1"
+                                title="Remove link"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="text" 
+                              value={resItem.url} 
+                              onChange={(e) => {
+                                const newItems = [...resourceItems]
+                                newItems[rIdx].url = e.target.value
+                                setResourceItems(newItems)
+                              }} 
+                              className="flex-grow bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-700 font-mono text-[10px]" 
+                              placeholder="Link: https://drive.google.com/drive/folders/... or file URL"
+                            />
+                            {rIdx === 0 && (
+                              <>
+                                <input
+                                  type="file"
+                                  onChange={handleLessonAssetUpload}
+                                  className="hidden"
+                                  id="lesson-asset-file"
+                                  disabled={uploadingLessonAsset}
+                                />
+                                <label
+                                  htmlFor="lesson-asset-file"
+                                  className={`bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center justify-center cursor-pointer transition-colors border border-zinc-800 shrink-0 ${uploadingLessonAsset ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                  {uploadingLessonAsset ? 'Uploading...' : 'Upload'}
+                                </label>
+                              </>
+                            )}
+                          </div>
+
+                          <div>
+                            <input
+                              type="text"
+                              value={resItem.desc}
+                              onChange={(e) => {
+                                const newItems = [...resourceItems]
+                                newItems[rIdx].desc = e.target.value
+                                setResourceItems(newItems)
+                              }}
+                              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-700"
+                              placeholder="Material Name / Description (e.g. 3D Models, PDF Guide, etc.)"
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <p className="text-[10px] text-zinc-500 mt-1.5">Add multiple links (e.g., 1 Google Drive for 3D Models, 1 link for PDF documentation, 1 link for HDRI textures).</p>
                 </div>
               </div>
 
