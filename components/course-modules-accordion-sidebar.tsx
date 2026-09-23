@@ -153,7 +153,7 @@ export function CourseModulesAccordionSidebar({
 
                     <div className="min-w-0 flex-grow space-y-1.5">
                       {/* Title */}
-                      <h3 className="text-xs font-bold text-white group-hover:text-[#9ACD32] transition-colors leading-snug truncate">
+                      <h3 className="text-xs font-bold text-white group-hover:text-[#9ACD32] transition-colors leading-snug break-words">
                         {mod.title}
                       </h3>
 
@@ -222,14 +222,14 @@ export function CourseModulesAccordionSidebar({
                             key={lesson.lesson_id || lIdx}
                             type="button"
                             onClick={() => onSelectLesson(lesson, mod)}
-                            className={`w-full text-left p-2.5 rounded-xl border transition-all duration-200 flex items-center gap-3 group relative ${
+                            className={`w-full text-left p-2.5 rounded-xl border transition-all duration-200 flex items-start gap-3 group relative ${
                               isSelected
                                 ? "bg-zinc-900 border-[#9ACD32]/80 text-white shadow-md"
                                 : "bg-zinc-950/60 border-zinc-850/60 text-zinc-400 hover:border-zinc-700 hover:text-white hover:bg-zinc-900/50"
                             }`}
                           >
-                            {/* Lesson Thumbnail & Playing Now Overlay */}
-                            <div className="w-16 h-10 rounded-lg overflow-hidden bg-black border border-zinc-800 shrink-0 relative">
+                            {/* Lesson Thumbnail & Playing Overlay */}
+                            <div className="w-16 h-10 rounded-lg overflow-hidden bg-black border border-zinc-800 shrink-0 relative mt-0.5">
                               <img
                                 src={getMediaUrl(coverUrl)}
                                 alt={lesson.title}
@@ -251,23 +251,21 @@ export function CourseModulesAccordionSidebar({
                             </div>
 
                             {/* Lesson Details */}
-                            <div className="flex-grow min-w-0">
-                              <div className="flex items-center gap-1.5">
+                            <div className="flex-grow min-w-0 space-y-1">
+                              <h4
+                                className={`text-xs font-semibold leading-snug break-words ${
+                                  isSelected ? "text-[#9ACD32]" : "text-zinc-200 group-hover:text-white"
+                                }`}
+                              >
+                                {lesson.title}
+                              </h4>
+
+                              <div className="flex items-center gap-2 flex-wrap pt-0.5">
                                 {isSelected && (
                                   <span className="text-[9px] uppercase font-black px-1.5 py-0.2 rounded bg-[#9ACD32]/20 text-[#9ACD32] border border-[#9ACD32]/40 shrink-0">
                                     Playing now
                                   </span>
                                 )}
-                                <h4
-                                  className={`text-xs font-semibold truncate ${
-                                    isSelected ? "text-[#9ACD32]" : "text-zinc-200"
-                                  }`}
-                                >
-                                  {lesson.title}
-                                </h4>
-                              </div>
-
-                              <div className="flex items-center gap-2 mt-1">
                                 <span className="text-[10px] text-zinc-500 font-mono">
                                   {durationStr}
                                 </span>
@@ -280,7 +278,7 @@ export function CourseModulesAccordionSidebar({
                             </div>
 
                             {/* Completion Status Icon */}
-                            <div className="shrink-0">
+                            <div className="shrink-0 mt-0.5">
                               {isCompleted ? (
                                 <CheckCircle className="w-4 h-4 text-[#9ACD32] fill-[#9ACD32]/10" />
                               ) : isSelected ? (
