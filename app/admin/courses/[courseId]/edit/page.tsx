@@ -1058,6 +1058,8 @@ export default function EditCoursePage() {
                   ))}
                 </div>
               )}
+            </div>
+
             {/* Course Syllabus Lessons Section */}
             <div className="md:col-span-2 border-t border-zinc-800 pt-8 space-y-4">
               <div className="flex justify-between items-center">
