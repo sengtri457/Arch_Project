@@ -2725,22 +2725,8 @@ export default function AdminDashboard() {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const activeC = courses.find((c) => (c.course_id || c.id) === selectedModuleCourseId) || courses[0]
-                                      if (activeC) {
-                                        setActiveSyllabusCourse(activeC)
-                                        setEditingLesson(null)
-                                        setResourceItems([{ url: "", desc: "" }])
-                                        setLessonForm({
-                                          title: "",
-                                          video_url: "",
-                                          duration: "600",
-                                          index: String(assignedLessons.length + 1),
-                                          source: "direct",
-                                          downloadable_asset_url: "",
-                                          download_description: "",
-                                          thumbnail_url: ""
-                                        })
-                                        setShowLessonModal(true)
+                                      if (selectedModuleCourseId) {
+                                        router.push(`/admin/courses/${encodeURIComponent(selectedModuleCourseId)}/lessons/new`)
                                       }
                                     }}
                                     className="text-[11px] text-[#9ACD32] hover:underline flex items-center gap-1"
@@ -2776,22 +2762,8 @@ export default function AdminDashboard() {
                                           <button
                                             type="button"
                                             onClick={() => {
-                                              const activeC = courses.find((c) => (c.course_id || c.id) === selectedModuleCourseId) || courses[0]
-                                              if (activeC) {
-                                                setActiveSyllabusCourse(activeC)
-                                                setEditingLesson(les)
-                                                setResourceItems(parseMultipleResources(les.downloadable_asset_url))
-                                                setLessonForm({
-                                                  title: les.title || "",
-                                                  video_url: les.video_external_id || les.video_url || "",
-                                                  duration: String((les.duration_minutes || 10) * 60),
-                                                  index: String(les.order_index || lIdx + 1),
-                                                  source: les.video_source_type || "direct",
-                                                  downloadable_asset_url: les.downloadable_asset_url || "",
-                                                  download_description: "",
-                                                  thumbnail_url: les.thumbnail_url || les.cover_image || ""
-                                                })
-                                                setShowLessonModal(true)
+                                              if (selectedModuleCourseId && les.lesson_id) {
+                                                router.push(`/admin/courses/${encodeURIComponent(selectedModuleCourseId)}/lessons/${encodeURIComponent(les.lesson_id)}/edit`)
                                               }
                                             }}
                                             className="text-zinc-400 hover:text-white p-1 rounded"
@@ -5524,19 +5496,10 @@ export default function AdminDashboard() {
                     )}
                     <Button 
                       onClick={() => {
-                        setEditingLesson(null)
-                        setResourceItems([{ url: "", desc: "" }])
-                        setLessonForm({
-                          title: "",
-                          video_url: "",
-                          duration: "600",
-                          index: autoNextIndex.toString(),
-                          source: "direct",
-                          downloadable_asset_url: "",
-                          download_description: "",
-                          thumbnail_url: ""
-                        })
-                        setShowLessonModal(true)
+                        const targetId = activeSyllabusCourse.course_id || activeSyllabusCourse.id
+                        if (targetId) {
+                          router.push(`/admin/courses/${encodeURIComponent(targetId)}/lessons/new`)
+                        }
                       }}
                       className="bg-primary text-black font-semibold flex items-center gap-1 text-xs px-4" 
                       style={{ backgroundColor: '#9ACD32', color: '#000' }}
@@ -5584,19 +5547,10 @@ export default function AdminDashboard() {
                           <div className="flex gap-1.5 shrink-0">
                             <Button 
                               onClick={() => {
-                                setEditingLesson(les)
-                                setResourceItems(parseMultipleResources(les.downloadable_asset_url))
-                                setLessonForm({
-                                  title: les.title,
-                                  video_url: les.video_external_id || "",
-                                  duration: ((les.duration_minutes || 10) * 60).toString(),
-                                  index: (les.order_index || 1).toString(),
-                                  source: les.video_source_type || "direct",
-                                  downloadable_asset_url: les.downloadable_asset_url || "",
-                                  download_description: "",
-                                  thumbnail_url: les.thumbnail_url || ""
-                                })
-                                setShowLessonModal(true)
+                                const targetId = activeSyllabusCourse.course_id || activeSyllabusCourse.id
+                                if (targetId && les.lesson_id) {
+                                  router.push(`/admin/courses/${encodeURIComponent(targetId)}/lessons/${encodeURIComponent(les.lesson_id)}/edit`)
+                                }
                               }}
                               size="sm" 
                               variant="ghost" 

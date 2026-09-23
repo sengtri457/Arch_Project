@@ -8,7 +8,7 @@ import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
-import { ArrowLeft, Plus, Trash2, Upload, Loader2 } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Upload, Loader2, Edit3, Video, FileText } from "lucide-react"
 import { getMediaUrl } from "@/lib/utils"
 import Swal from "sweetalert2"
 import { d5Modules } from "@/lib/courses-data"
@@ -1056,6 +1056,76 @@ export default function EditCoursePage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            {/* Course Syllabus Lessons Section */}
+            <div className="md:col-span-2 border-t border-zinc-800 pt-8 space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-base font-bold text-white uppercase tracking-wide flex items-center gap-2">
+                    <Video className="w-4 h-4 text-[#9ACD32]" />
+                    <span>Syllabus Lessons & Resources</span>
+                    <span className="text-xs font-normal text-zinc-400 font-mono">({courseLessons.length} lessons)</span>
+                  </h3>
+                  <p className="text-xs text-zinc-500 mt-0.5">Manage individual lessons, video providers, durations, and attachments.</p>
+                </div>
+                <Link href={`/admin/courses/${encodeURIComponent(courseId || "")}/lessons/new`}>
+                  <Button
+                    type="button"
+                    className="bg-[#9ACD32] hover:bg-[#8ab82d] text-black font-semibold flex items-center gap-1.5 px-4 py-2 text-xs rounded-xl shadow"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Lesson
+                  </Button>
+                </Link>
+              </div>
+
+              {courseLessons.length === 0 ? (
+                <div className="text-center py-8 border border-dashed border-zinc-800 rounded-2xl text-xs text-zinc-500">
+                  No lessons found in this course. Click "Add Lesson" above to add your first lesson.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2.5 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                  {courseLessons.map((les: any, lIdx: number) => {
+                    const lessonKey = les.lesson_id || les.id
+                    return (
+                      <div
+                        key={lessonKey || lIdx}
+                        className="p-3 bg-zinc-950 border border-zinc-850 rounded-xl flex items-center justify-between gap-4 hover:border-zinc-750 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-6 h-6 rounded-full bg-zinc-900 border border-zinc-800 text-[#9ACD32] flex items-center justify-center text-xs font-mono font-bold shrink-0">
+                            {les.order_index || lIdx + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h5 className="text-xs font-semibold text-white truncate">{les.title}</h5>
+                              {les.is_preview && (
+                                <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                  Preview
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-zinc-500 mt-0.5 font-mono truncate">
+                              Provider: {les.video_source_type || 'direct'} • {les.duration_minutes || 10} mins • ID: {les.video_external_id || "N/A"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Link href={`/admin/courses/${encodeURIComponent(courseId || "")}/lessons/${encodeURIComponent(lessonKey)}/edit`}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="text-xs text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg flex items-center gap-1"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" /> Edit
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
