@@ -8,8 +8,7 @@ import { useState, useRef, useEffect } from "react"
 import { getMediaUrl } from "@/lib/utils"
 
 // Background video configuration
-// Direct MP4 provides 100% clean playback with zero pause icons, zero black frames, and zero adblocker interference
-const USE_DIRECT_MP4 = true
+const USE_DIRECT_MP4 = false
 const MP4_VIDEO_URL = "/00-Homepage Animation/Homepage Animation 2K.mp4"
 
 const YOUTUBE_VIDEO_ID = "ldnzPk0me7c"
@@ -19,23 +18,30 @@ const THUMBNAIL_URL = `https://img.youtube.com/vi/${YOUTUBE_VIDEO_ID}/maxresdefa
 export function HeroSection() {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false)
   const [hasFallbackImageError, setHasFallbackImageError] = useState(false)
+
+  // Smoothly transition from poster thumbnail to video once iframe buffers
+  const handleIframeLoad = () => {
+    setTimeout(() => {
+      setIsVideoLoaded(true)
+    }, 1200)
+  }
   
   return (
     <section className="relative h-screen w-full overflow-hidden" suppressHydrationWarning>
       {/* Background Video / Image Container */}
       <div className="absolute inset-0 bg-black overflow-hidden pointer-events-none select-none" suppressHydrationWarning>
-        {/* Poster Thumbnail / Fallback Image (shows instantly until video starts) */}
+        {/* Instant High-Res YouTube Poster Thumbnail (prevents black frame while buffering) */}
         <img
-          src={hasFallbackImageError ? getMediaUrl("/16-SB TOWER (Commercial)/Render Image/LIGHTROOM/Exterior-1.jpg") : (USE_DIRECT_MP4 ? getMediaUrl("/16-SB TOWER (Commercial)/Render Image/LIGHTROOM/Exterior-1.jpg") : THUMBNAIL_URL)}
+          src={hasFallbackImageError ? getMediaUrl("/16-SB TOWER (Commercial)/Render Image/LIGHTROOM/Exterior-1.jpg") : THUMBNAIL_URL}
           onError={() => setHasFallbackImageError(true)}
           alt="Architectural visualization hero background"
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 z-0 ${
-            isVideoLoaded ? "opacity-0" : "opacity-100"
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 z-10 ${
+            isVideoLoaded ? "opacity-0 pointer-events-none" : "opacity-100"
           }`}
         />
 
         {USE_DIRECT_MP4 ? (
-          /* Native HTML5 Video - Instant load, 0s black screen, NO pause icons, Brave Shields immune */
+          /* Native HTML5 Video */
           <video
             autoPlay
             muted
@@ -60,13 +66,13 @@ export function HeroSection() {
             src={YOUTUBE_EMBED_URL}
             title="Hero Background Video"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            onLoad={() => setIsVideoLoaded(true)}
+            onLoad={handleIframeLoad}
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[177.78vh] min-w-full h-[56.25vw] min-h-full scale-135 object-cover pointer-events-none border-0"
           />
         )}
 
-        {/* Dark Vignette Overlay for Text Legibility */}
-        <div className="absolute inset-0 bg-black/40 z-10 pointer-events-none" />
+        {/* Dark Overlay for Text Legibility */}
+        <div className="absolute inset-0 bg-black/40 z-20 pointer-events-none" />
       </div>
 
       {/* Content */}
