@@ -255,7 +255,7 @@ export function exportCourseToPDF(course: any, students: any[], totalRevenue: nu
       4: { cellWidth: 25 }, // Date
       5: { cellWidth: 30 }  // Progress
     },
-    didDrawPage: (data: any) => {
+    didDrawPage: (_data: any) => {
       // Footer page numbering
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);

@@ -122,6 +122,18 @@ function generateProjectImageFileName(originalName: string): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
 }
 
+function generateModuleCoverFileName(originalName: string): string {
+  const fileExt = originalName.split('.').pop() || 'jpg'
+  const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`
+  return `${id}.${fileExt}`
+}
+
+function generateLessonThumbnailFileName(originalName: string): string {
+  const fileExt = originalName.split('.').pop() || 'jpg'
+  const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`
+  return `lesson-thumb-${id}.${fileExt}`
+}
+
 export default function AdminDashboard() {
   const { user, profile, loading, signOut } = useAuth()
   const [activeTab, setActiveTab] = useState<AdminTab>("overview")
@@ -254,8 +266,7 @@ export default function AdminDashboard() {
 
     setUploadingModuleCover(true)
     try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+      const fileName = generateModuleCoverFileName(file.name)
       const filePath = `module-covers/${fileName}`
 
       const { error: uploadError } = await supabase.storage
@@ -1082,8 +1093,7 @@ export default function AdminDashboard() {
 
     setUploadingLessonThumbnail(true)
     try {
-      const fileExt = file.name.split('.').pop() || 'jpg'
-      const fileName = `lesson-thumb-${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+      const fileName = generateLessonThumbnailFileName(file.name)
       const filePath = `lesson-thumbnails/${fileName}`
 
       const { error: uploadError } = await supabase.storage

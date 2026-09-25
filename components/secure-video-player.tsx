@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Play, Pause, Volume2, VolumeX, Maximize, RotateCcw } from "lucide-react"
+import { Play, Pause, Volume2, VolumeX, Maximize } from "lucide-react"
 
 interface SecureVideoPlayerProps {
   videoUrl: string

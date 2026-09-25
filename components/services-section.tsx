@@ -38,7 +38,7 @@ export function ServicesSection() {
           <div className="border-l-4 border-primary pl-6">
             <h4 className="text-xl font-semibold text-foreground mb-2">Aerial & Drone Views</h4>
             <p className="text-muted-foreground">
-              Bird's eye perspectives and aerial shots perfect for master planning and large-scale developments.
+              Bird&apos;s eye perspectives and aerial shots perfect for master planning and large-scale developments.
             </p>
           </div>
           <div className="border-l-4 border-primary pl-6">

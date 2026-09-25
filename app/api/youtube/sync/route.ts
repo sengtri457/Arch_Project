@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
     // 4. Paginate and retrieve all playlist items from YouTube API v3
     let pageToken = ''
-    let fetchedVideos = []
+    const fetchedVideos = []
     let hasMore = true
     let limitCounter = 0 // Safety break to prevent infinite loops
 

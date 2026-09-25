@@ -21,12 +21,13 @@ export function ProjectHeroMedia({ project }: ProjectHeroMediaProps) {
   const [videoLoaded, setVideoLoaded] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
-  // Reset errors when project changes
-  useEffect(() => {
+  const [prevProjectId, setPrevProjectId] = useState(project.id)
+  if (prevProjectId !== project.id) {
+    setPrevProjectId(project.id)
     setImageError(false)
     setVideoError(false)
     setVideoLoaded(false)
-  }, [project.id])
+  }
 
   // Determine which media to display
   // Priority: 1. videos array, 2. image field (check if it's a video), 3. image field (as image)

@@ -8,10 +8,6 @@ export function ScrollProgress() {
 
   useEffect(() => {
     setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!mounted) return
 
     const updateScrollProgress = () => {
       const windowHeight = window.innerHeight
@@ -35,7 +31,7 @@ export function ScrollProgress() {
     return () => {
       window.removeEventListener("scroll", updateScrollProgress)
     }
-  }, [mounted])
+  }, [])
 
   if (!mounted) return null
 

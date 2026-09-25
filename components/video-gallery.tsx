@@ -9,7 +9,7 @@ interface VideoGalleryProps {
   title: string
 }
 
-export function VideoGallery({ videos, title }: VideoGalleryProps) {
+export function VideoGallery({ videos, title: _title }: VideoGalleryProps) {
   const [selectedVideo, setSelectedVideo] = useState<number | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)

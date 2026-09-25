@@ -119,7 +119,7 @@ export function TestimonialCarousel({ initialTestimonials }: TestimonialCarousel
                   transition={{ duration: 0.4, delay: 0.2 }}
                   className="text-6xl text-primary mb-4 leading-none"
                 >
-                  "
+                  &quot;
                 </motion.div>
 
                 {/* Testimonial text */}

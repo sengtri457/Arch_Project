@@ -29,7 +29,7 @@ export async function sendTelegramInvoiceNotification(details: {
         day: "numeric"
       })
     }
-  } catch (e) {
+  } catch (_e) {
     // Fallback to raw completedAt value
   }
 

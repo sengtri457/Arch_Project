@@ -9,10 +9,6 @@ export function ScrollToTopButton() {
 
   useEffect(() => {
     setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!mounted) return
 
     const toggleVisibility = () => {
       if (window.scrollY > 300) {
@@ -22,11 +18,12 @@ export function ScrollToTopButton() {
       }
     }
 
+    toggleVisibility()
     window.addEventListener("scroll", toggleVisibility)
     return () => {
       window.removeEventListener("scroll", toggleVisibility)
     }
-  }, [mounted])
+  }, [])
 
   const scrollToTop = () => {
     window.scrollTo({
