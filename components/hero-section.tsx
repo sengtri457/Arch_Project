@@ -8,68 +8,47 @@ import { useState, useRef, useEffect } from "react"
 import { getMediaUrl } from "@/lib/utils"
 
 // Background video configuration
-const USE_DIRECT_MP4 = false
-const MP4_VIDEO_URL = "/00-Homepage Animation/Homepage Animation 2K.mp4"
-
-const YOUTUBE_VIDEO_ID = "ldnzPk0me7c"
-const YOUTUBE_EMBED_URL = `https://www.youtube-nocookie.com/embed/${YOUTUBE_VIDEO_ID}?autoplay=1&mute=1&loop=1&playlist=${YOUTUBE_VIDEO_ID}&controls=0&showinfo=0&rel=0&iv_load_policy=3&enablejsapi=1&disablekb=1&modestbranding=1&playsinline=1`
-const THUMBNAIL_URL = `https://img.youtube.com/vi/${YOUTUBE_VIDEO_ID}/maxresdefault.jpg`
+// Fast native video streaming using new-banner.mp4 with instant poster placeholder
+const USE_DIRECT_MP4 = true
+const MP4_VIDEO_URL = "/assets/new-banner.mp4"
+const HERO_POSTER_IMAGE = "/16-SB TOWER (Commercial)/Render Image/LIGHTROOM/Exterior-1.jpg"
 
 export function HeroSection() {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false)
-  const [hasFallbackImageError, setHasFallbackImageError] = useState(false)
-
-  // Smoothly transition from poster thumbnail to video once iframe buffers
-  const handleIframeLoad = () => {
-    setTimeout(() => {
-      setIsVideoLoaded(true)
-    }, 1200)
-  }
   
   return (
     <section className="relative h-screen w-full overflow-hidden" suppressHydrationWarning>
       {/* Background Video / Image Container */}
       <div className="absolute inset-0 bg-black overflow-hidden pointer-events-none select-none" suppressHydrationWarning>
-        {/* Instant High-Res YouTube Poster Thumbnail (prevents black frame while buffering) */}
+        {/* Instant Poster Image (displays immediately, 0s delay while video chunks buffer) */}
         <img
-          src={hasFallbackImageError ? getMediaUrl("/16-SB TOWER (Commercial)/Render Image/LIGHTROOM/Exterior-1.jpg") : THUMBNAIL_URL}
-          onError={() => setHasFallbackImageError(true)}
+          src={getMediaUrl(HERO_POSTER_IMAGE)}
           alt="Architectural visualization hero background"
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 z-10 ${
             isVideoLoaded ? "opacity-0 pointer-events-none" : "opacity-100"
           }`}
         />
 
-        {USE_DIRECT_MP4 ? (
-          /* Native HTML5 Video */
-          <video
-            autoPlay
-            muted
-            playsInline
-            loop
-            preload="auto"
-            onLoadedData={() => setIsVideoLoaded(true)}
-            onCanPlay={() => setIsVideoLoaded(true)}
-            className="w-full h-full object-cover pointer-events-none scale-105"
-            style={{
-              minWidth: '100%',
-              minHeight: '100%',
-              width: 'auto',
-              height: 'auto',
-            }}
-          >
-            <source src={getMediaUrl(MP4_VIDEO_URL)} type="video/mp4" />
-          </video>
-        ) : (
-          /* YouTube Background Iframe */
-          <iframe
-            src={YOUTUBE_EMBED_URL}
-            title="Hero Background Video"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            onLoad={handleIframeLoad}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[177.78vh] min-w-full h-[56.25vw] min-h-full scale-135 object-cover pointer-events-none border-0"
-          />
-        )}
+        {/* Native HTML5 Fast Streaming Video (Chunked HTTP Range requests) */}
+        <video
+          autoPlay
+          muted
+          playsInline
+          loop
+          preload="metadata"
+          onLoadedData={() => setIsVideoLoaded(true)}
+          onCanPlay={() => setIsVideoLoaded(true)}
+          onPlaying={() => setIsVideoLoaded(true)}
+          className="w-full h-full object-cover pointer-events-none scale-105 z-0"
+          style={{
+            minWidth: '100%',
+            minHeight: '100%',
+            width: 'auto',
+            height: 'auto',
+          }}
+        >
+          <source src={getMediaUrl(MP4_VIDEO_URL)} type="video/mp4" />
+        </video>
 
         {/* Dark Overlay for Text Legibility */}
         <div className="absolute inset-0 bg-black/40 z-20 pointer-events-none" />
