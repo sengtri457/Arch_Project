@@ -33,6 +33,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://www.youtube-nocookie.com" />
+        <link rel="preconnect" href="https://img.youtube.com" />
+      </head>
       <body className={`${poppins.variable} font-sans antialiased`} suppressHydrationWarning>
         <AuthProvider>
           <ReactQueryProvider>
