@@ -59,17 +59,17 @@ export function HeroSection() {
       <div className="relative z-30 h-full flex items-center justify-center pointer-events-auto">
         <div className="container mx-auto px-4 sm:px-6 text-center">
           <motion.h1
-            className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white mb-6 tracking-tight break-words drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]"
+            className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-white mb-6 tracking-tight break-words"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           >
-             ARCH<span className="text-primary drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">TIPSBOX</span>
+             ARCH<span className="text-primary">TIPSBOX</span>
 
           </motion.h1>
 
           <motion.p
-            className="text-base sm:text-xl md:text-2xl text-white mb-8 sm:mb-12 max-w-3xl mx-auto font-semibold px-2 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]"
+            className="text-base sm:text-xl md:text-2xl text-white mb-8 sm:mb-12 max-w-3xl mx-auto font-semibold px-2"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
@@ -83,10 +83,10 @@ export function HeroSection() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
           >
-            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 bg-black/30 backdrop-blur-md border-white/80 text-white hover:bg-white/20 shadow-lg">
+            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 bg-transparent border-white text-white hover:bg-white/10">
               <Link href="#work">View Our Work</Link>
             </Button>
-            <Button asChild size="lg" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg">
+            <Button asChild size="lg" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 bg-primary text-primary-foreground hover:bg-primary/90">
               <a href="https://t.me/bunsambath10" target="_blank" rel="noopener noreferrer">Get in Touch</a>
             </Button>
           </motion.div>
