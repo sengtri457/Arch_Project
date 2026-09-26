@@ -76,6 +76,18 @@ function CheckoutContent() {
         );
       }
 
+      if (resData.completed) {
+        setPaymentCompleted(true);
+        setTimeout(() => {
+          if (resData.courseSlug) {
+            router.push(`/courses/${resData.courseSlug}`);
+          } else {
+            router.push("/dashboard");
+          }
+        }, 1500);
+        return;
+      }
+
       setCheckoutData({
         billNumber: resData.billNumber,
         amount: resData.amount,
@@ -225,7 +237,7 @@ function CheckoutContent() {
           // Auto-redirect to classroom or dashboard in 4 seconds
           setTimeout(() => {
             if (checkoutData.courseSlug) {
-              router.push(`/courses/${checkoutData.courseSlug}/start`);
+              router.push(`/courses/${checkoutData.courseSlug}`);
             } else {
               router.push("/dashboard");
             }
@@ -435,7 +447,7 @@ function CheckoutContent() {
               <Link
                 href={
                   checkoutData?.courseSlug
-                    ? `/courses/${checkoutData.courseSlug}/start`
+                    ? `/courses/${checkoutData.courseSlug}`
                     : "/dashboard"
                 }
               >

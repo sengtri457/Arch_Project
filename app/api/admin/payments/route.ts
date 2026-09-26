@@ -129,11 +129,19 @@ export async function POST(request: Request) {
       if (subError) throw subError
     }
 
-    // 5. Upgrade profile role to student
-    await supabaseAdmin
+    // 5. Upgrade profile role to student (preserve admin and instructor roles)
+    const { data: currentProfile } = await supabaseAdmin
       .from('profiles')
-      .update({ role: 'student' })
+      .select('role')
       .eq('id', transaction.user_id)
+      .maybeSingle()
+
+    if (currentProfile && currentProfile.role !== 'admin' && currentProfile.role !== 'instructor') {
+      await supabaseAdmin
+        .from('profiles')
+        .update({ role: 'student' })
+        .eq('id', transaction.user_id)
+    }
 
     // 6. Increment promo code count
     if (transaction.promo_code) {

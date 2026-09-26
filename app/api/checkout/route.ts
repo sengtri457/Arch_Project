@@ -126,6 +126,112 @@ export async function POST(request: Request) {
     // 5. Generate unique bill number
     const billNumber = `BILL-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 
+    // If promo code covers 100% of price (or free checkout), bypass QR generation and fulfill immediately
+    if (checkoutAmount <= 0) {
+      const supabaseAdmin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false
+          }
+        }
+      )
+
+      const { data: transaction, error: txError } = await supabaseAdmin
+        .from('payment_transactions')
+        .insert({
+          user_id: user.id,
+          plan_id: targetPlanId,
+          course_id: targetCourseId,
+          payment_method: 'promo_free',
+          bill_number: billNumber,
+          amount: 0,
+          currency: 'USD',
+          khqr_payload: null,
+          payment_status: 'completed',
+          completed_at: new Date().toISOString(),
+          promo_code: appliedPromoCode
+        })
+        .select()
+        .single()
+
+      if (txError || !transaction) {
+        console.error("Database free transaction insertion failed:", txError)
+        return NextResponse.json({ error: 'Database transaction insertion failed' }, { status: 500 })
+      }
+
+      // Activate Course Enrollment
+      if (targetCourseId) {
+        await supabaseAdmin
+          .from('course_enrollments')
+          .upsert({
+            student_id: user.id,
+            course_id: targetCourseId,
+            status: 'active',
+            enrolled_at: new Date().toISOString()
+          }, { onConflict: 'student_id,course_id' })
+      }
+
+      // Activate Subscription Plan
+      if (targetPlanId) {
+        const startDate = new Date()
+        const endDate = new Date()
+        endDate.setMonth(startDate.getMonth() + 1)
+
+        await supabaseAdmin
+          .from('user_subscriptions')
+          .upsert({
+            user_id: user.id,
+            plan_id: targetPlanId,
+            status: 'active',
+            current_period_start: startDate.toISOString(),
+            current_period_end: endDate.toISOString(),
+            last_transaction_id: transaction.transaction_id
+          }, { onConflict: 'user_id' })
+      }
+
+      // Upgrade profile role to student (preserve admin and instructor roles)
+      const { data: currentProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (currentProfile && currentProfile.role !== 'admin' && currentProfile.role !== 'instructor') {
+        await supabaseAdmin
+          .from('profiles')
+          .update({ role: 'student' })
+          .eq('id', user.id)
+      }
+
+      // Increment promo code count
+      if (appliedPromoCode) {
+        const { data: promoData } = await supabaseAdmin
+          .from('promo_codes')
+          .select('redemptions_count')
+          .eq('code', appliedPromoCode)
+          .single()
+
+        if (promoData) {
+          await supabaseAdmin
+            .from('promo_codes')
+            .update({ redemptions_count: (promoData.redemptions_count || 0) + 1 })
+            .eq('code', appliedPromoCode)
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        completed: true,
+        transactionId: transaction.transaction_id,
+        billNumber: transaction.bill_number,
+        amount: 0,
+        courseSlug: courseSlug
+      })
+    }
+
     // 6. Generate Bakong KHQR Payload
     const accountID = process.env.BAKONG_ACCOUNT_ID?.trim()
     const merchantName = process.env.BAKONG_MERCHANT_NAME?.replace(/"/g, '').trim()

@@ -15,14 +15,14 @@ export function exportCourseToExcel(course: any, students: any[]) {
   ];
 
   const rows = students.map((s) => [
-    s.name,
-    s.email,
-    s.admissionType,
-    s.amountPaid,
+    s.name || "Unknown Student",
+    s.email || "No Email",
+    s.admissionType || "Manual Access",
+    Number(s.amountPaid || 0),
     s.enrollDate ? new Date(s.enrollDate).toLocaleDateString() : "N/A",
-    s.completedLessons,
-    s.totalLessons,
-    s.progressPercent / 100 // Excel formatting handles percentages
+    Number(s.completedLessons || 0),
+    Number(s.totalLessons || 0),
+    Number(s.progressPercent || 0) / 100 // Excel formatting handles percentages
   ]);
 
   // Create sheet
@@ -108,8 +108,8 @@ export function exportCourseToExcel(course: any, students: any[]) {
   }
 
   // Pre-calculate values for formula totals to ensure they evaluate on load
-  const totalRevenueVal = students.reduce((sum, s) => sum + s.amountPaid, 0);
-  const avgProgressSum = students.reduce((sum, s) => sum + s.progressPercent, 0);
+  const totalRevenueVal = students.reduce((sum, s) => sum + Number(s.amountPaid || 0), 0);
+  const avgProgressSum = students.reduce((sum, s) => sum + Number(s.progressPercent || 0), 0);
   const avgProgressVal = students.length > 0 ? (avgProgressSum / students.length) / 100 : 0;
 
   // Insert vertical summary rows with both formulas and values
@@ -209,21 +209,22 @@ export function exportCourseToPDF(course: any, students: any[], totalRevenue: nu
   ];
 
   const tableRows = students.map((s) => [
-    s.name,
-    s.email,
+    s.name || "Unknown Student",
+    s.email || "No Email",
     s.admissionType === "Paid (KHQR/Stripe)" ? "Paid" : "Manual",
-    `$${s.amountPaid.toFixed(2)}`,
+    `$${Number(s.amountPaid || 0).toFixed(2)}`,
     s.enrollDate ? new Date(s.enrollDate).toLocaleDateString() : "N/A",
-    `${s.completedLessons}/${s.totalLessons} (${s.progressPercent.toFixed(0)}%)`
+    `${Number(s.completedLessons || 0)}/${Number(s.totalLessons || 0)} (${Number(s.progressPercent || 0).toFixed(0)}%)`
   ]);
 
   // Calculate averages for footer
-  const avgProgressSum = students.reduce((sum, s) => sum + s.progressPercent, 0);
+  const avgProgressSum = students.reduce((sum, s) => sum + Number(s.progressPercent || 0), 0);
   const avgProgress = students.length > 0 ? avgProgressSum / students.length : 0;
 
   // Zebra table footer showing totals inline
+  const safeTotalRevenue = Number(totalRevenue || 0);
   const tableFooter = [
-    ["Total Summary", "", `${students.length} students`, `$${totalRevenue.toFixed(2)}`, "", `Avg: ${avgProgress.toFixed(0)}%`]
+    ["Total Summary", "", `${students.length} students`, `$${safeTotalRevenue.toFixed(2)}`, "", `Avg: ${avgProgress.toFixed(0)}%`]
   ];
 
   // Render Table via autoTable directly

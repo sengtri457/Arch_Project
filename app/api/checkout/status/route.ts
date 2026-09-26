@@ -137,11 +137,19 @@ export async function GET(request: Request) {
         console.log(`Webhook-less: Successfully subscribed user ${transaction.user_id} to plan ${transaction.plan_id}`)
       }
 
-      // D. Upgrade profile role to student
-      await supabaseAdmin
+      // D. Upgrade profile role to student (preserve admin and instructor roles)
+      const { data: currentProfile } = await supabaseAdmin
         .from('profiles')
-        .update({ role: 'student' })
+        .select('role')
         .eq('id', transaction.user_id)
+        .maybeSingle()
+
+      if (currentProfile && currentProfile.role !== 'admin' && currentProfile.role !== 'instructor') {
+        await supabaseAdmin
+          .from('profiles')
+          .update({ role: 'student' })
+          .eq('id', transaction.user_id)
+      }
 
       // E. Increment promo code redemptions count if used
       if (transaction.promo_code) {

@@ -1,33 +1,61 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
+# Dependencies
 /node_modules
+/.pnpm-store
 
-# next.js
+# Next.js build output
 /.next/
 /out/
-
-# production
 /build
 
-# Ignore large raw render files in public root (served via CDN)
+# AI & Agent Skills
+.agents/
+.agent/
+
+# Local Scratch, Test Scripts & Temp
+scratch/
+supabase/.temp/
+
+# Large media files (served via Bunny CDN/Cloud storage)
 /public/Scene *.jpg
 /public/Exterior-*.jpg
+public/resources&Video/
 assets-excluded/
 
-# debug
+# Environment files
+.env
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE & Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Debug & logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
+*.log*
 
-# env files
-.env
-
-# vercel
+# Vercel & Deployment
 .vercel
 
-# typescript
+# TypeScript build info
 *.tsbuildinfo
 next-env.d.ts
-public/resources&Video
+
+# Operating System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini

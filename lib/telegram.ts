@@ -1,3 +1,10 @@
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
 export async function sendTelegramInvoiceNotification(details: {
   itemName: string
   amount: number
@@ -33,20 +40,27 @@ export async function sendTelegramInvoiceNotification(details: {
     // Fallback to raw completedAt value
   }
 
+  const cleanBill = escapeHtml(details.billNumber)
+  const cleanMethod = escapeHtml(details.paymentMethod)
+  const cleanCustomer = escapeHtml(details.customerName || "Student")
+  const cleanEmail = escapeHtml(details.userEmail || "N/A")
+  const cleanItem = escapeHtml(details.itemName)
+  const cleanPromo = details.promoCode ? escapeHtml(details.promoCode) : null
+
   const invoiceText = `
-<b>🧾 INVOICE #${details.billNumber}</b>
+<b>🧾 INVOICE #${cleanBill}</b>
 -----------------------------------
 <b>Status:</b> ✅ Paid
 <b>Date:</b> ${formattedDate}
-<b>Payment Method:</b> ${details.paymentMethod}
+<b>Payment Method:</b> ${cleanMethod}
 
 <b>Billed To:</b>
-${details.customerName || "Student"}
-${details.userEmail || "N/A"}
+${cleanCustomer}
+${cleanEmail}
 
 <b>Items:</b>
-• 1x ${details.itemName} — $${Number(details.amount).toFixed(2)} USD
-${details.promoCode ? `• Promo Code: <code>${details.promoCode}</code>` : ""}
+• 1x ${cleanItem} — $${Number(details.amount).toFixed(2)} USD
+${cleanPromo ? `• Promo Code: <code>${cleanPromo}</code>` : ""}
 -----------------------------------
 <b>Total Paid: $${Number(details.amount).toFixed(2)} USD</b>
 `.trim()
