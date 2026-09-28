@@ -129,7 +129,7 @@ function signBunnyUrl(config: BunnyPlaybackConfig, options: SignOptions): string
   const hmac = createHmac('sha256', config.tokenSecurityKey)
   hmac.update(signaturePath)
   hmac.update(expires)
-  hmac.update(ipBytes)
+  hmac.update(new Uint8Array(ipBytes))
   hmac.update(signingData)
 
   const token = `HS256-${flagsPrefix}${base64Url(hmac.digest())}`
