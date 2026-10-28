@@ -1,8 +1,9 @@
 # ArchTipsBox — Next Phase Technical Implementation Plan
+
 ### Engineering Specification & Architecture
 
-**Audience:** Senior Developers & DevOps  
-**Scope:** PayPal QR Webhooks, Device Session RPCs, Token DRM Gating, Batch Reordering  
+**Audience:** Senior Developers & DevOps\
+**Scope:** PayPal QR Webhooks, Device Session RPCs, Token DRM Gating, Batch Reordering
 
 ---
 
@@ -10,7 +11,7 @@
 
 Run this DDL script in Supabase SQL editor:
 
-```sql
+```SQL
 -- 1. Active Devices Table
 CREATE TABLE IF NOT EXISTS public.user_active_devices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -98,12 +99,12 @@ BEGIN
     FOR item IN SELECT * FROM jsonb_array_elements(p_updates)
     LOOP
         UPDATE public.lessons
-        SET 
+        SET
             order_index = (item->>'order_index')::INT,
-            module_id = CASE 
-                WHEN item ? 'module_id' AND (item->>'module_id') IS NOT NULL AND (item->>'module_id') <> '' 
-                THEN (item->>'module_id')::UUID 
-                ELSE module_id 
+            module_id = CASE
+                WHEN item ? 'module_id' AND (item->>'module_id') IS NOT NULL AND (item->>'module_id') <> ''
+                THEN (item->>'module_id')::UUID
+                ELSE module_id
             END
         WHERE lesson_id = (item->>'lesson_id')::UUID;
     END LOOP;
@@ -118,11 +119,12 @@ NOTIFY pgrst, 'reload schema';
 ## 2. Anti-Piracy Device Limiting Integration
 
 ### Interceptor: `app/api/lessons/[lessonId]/video/route.ts`
+
 1. Extract client device identifiers from headers:
-   * `x-device-id`: Generated and stored in client `localStorage`.
-   * `x-device-name`: Formatted from user agent (e.g. "Chrome 122 on Windows").
+   - `x-device-id`: Generated and stored in client `localStorage`.
+   - `x-device-name`: Formatted from user agent (e.g. "Chrome 122 on Windows").
 2. Call `enforce_device_session` RPC using Supabase Service Client:
-   ```ts
+   ```TypeScript
    const { data: sessionResult } = await supabase.rpc('enforce_device_session', {
      p_user_id: user.id,
      p_device_id: deviceId,
@@ -137,15 +139,17 @@ NOTIFY pgrst, 'reload schema';
 ## 3. Drag-and-Drop Reordering Engine
 
 ### Library: `@hello-pangea/dnd`
-* Implemented in `components/admin/syllabus-drag-list.tsx`.
-* Uses `DragDropContext`, `Droppable`, and `Draggable`.
-* On `onDragEnd`:
+
+- Implemented in `components/admin/syllabus-drag-list.tsx`.
+- Uses `DragDropContext`, `Droppable`, and `Draggable`.
+- On `onDragEnd`:
   1. Reorders client array immediately (optimistic UI).
   2. Re-indexes each item: `items.map((item, index) => ({ ...item, order_index: index + 1 }))`.
   3. Sends `PATCH /api/admin/lessons/reorder` with array of `{ lesson_id, order_index, module_id }`.
 
 ### Endpoint: `app/api/admin/lessons/reorder/route.ts`
-```ts
+
+```TypeScript
 export async function PATCH(request: Request) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
@@ -168,19 +172,21 @@ export async function PATCH(request: Request) {
 ## 4. PayPal QR & International Checkout Flow
 
 ### 1. UI Integration: `app/checkout/page.tsx`
-* Add `"paypal"` to payment method state:
-  ```ts
+
+- Add `"paypal"` to payment method state:
+  ```TypeScript
   const [paymentMethod, setPaymentMethod] = useState<"khqr" | "telegram" | "paypal">("khqr")
   ```
-* Render PayPal Tab:
-  * Static QR image asset pointing to instructor's verified PayPal QR.
-  * Direct deep-link: `https://paypal.me/YOUR_HANDLE/${price}USD`.
-  * Unique Order Reference: `ATB-${courseSlug.toUpperCase().slice(0, 4)}-${userId.slice(0, 6)}`.
-  * File upload field for receipt screenshot / transaction ID.
+- Render PayPal Tab:
+  - Static QR image asset pointing to instructor's verified PayPal QR.
+  - Direct deep-link: `https://paypal.me/YOUR_HANDLE/${price}USD`.
+  - Unique Order Reference: `ATB-${courseSlug.toUpperCase().slice(0, 4)}-${userId.slice(0, 6)}`.
+  - File upload field for receipt screenshot / transaction ID.
 
 ### 2. Submission Handler:
-* Inserts into `pending_enrollments`:
-  ```ts
+
+- Inserts into `pending_enrollments`:
+  ```TypeScript
   await supabase.from('pending_enrollments').insert({
     student_id: user.id,
     course_id: course.id,
@@ -190,4 +196,4 @@ export async function PATCH(request: Request) {
     status: 'pending'
   })
   ```
-* Admin views and approves in `/admin` with one click, upgrading the role and issuing welcome notifications.
+- Admin views and approves in `/admin` with one click, upgrading the role and issuing welcome notifications
