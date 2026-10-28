@@ -1,17 +1,20 @@
 # ArchTipsBox — Platform Enhancement & Bug Fixes
+
 ### Technical Specification & Implementation Guide
 
-**Audience:** Senior Developers & Engineering Team  
-**Scope:** Admin Data Hooks, Postgres Retention, Inline DOM Editing, Video Metadata Probing  
+**Audience:** Senior Developers & Engineering Team\
+**Scope:** Admin Data Hooks, Postgres Retention, Inline DOM Editing, Video Metadata Probing
 
 ---
 
 ## 1. Bug Fix: Syllabus Analytics Query Hook
 
 ### File: `lib/react-query/hooks/use-admin.ts`
-* **Issue:** `lessons` query hook was scoped strictly to `activeTab === "courses"`. On the `"analytics"` tab, `lessons.data` returned `undefined`/`[]`, starving `AreaChart` components.
-* **Code Modification:**
-```ts
+
+- **Issue:** `lessons` query hook was scoped strictly to `activeTab === "courses"`. On the `"analytics"` tab, `lessons.data` returned `undefined`/`[]`, starving `AreaChart` components.
+- **Code Modification:**
+
+```TypeScript
 // lib/react-query/hooks/use-admin.ts
 const lessons = useQuery({
   queryKey: queryKeys.admin.adminLessons,
@@ -31,9 +34,11 @@ const lessons = useQuery({
 ## 2. Bug Fix: Lesson Module Assignment Wipe
 
 ### File 1: `app/api/admin/lessons/route.ts`
-* **Issue:** When updating a lesson (`isUpdating = true`), `body.module_id` was defaulted to `null` if omitted, wiping the existing relational link in PostgreSQL.
-* **Code Modification:**
-```ts
+
+- **Issue:** When updating a lesson (`isUpdating = true`), `body.module_id` was defaulted to `null` if omitted, wiping the existing relational link in PostgreSQL.
+- **Code Modification:**
+
+```TypeScript
 // app/api/admin/lessons/route.ts
 const payload: Record<string, any> = {
   title,
@@ -52,14 +57,16 @@ if (body.module_id !== undefined) {
 ```
 
 ### File 2: `app/admin/page.tsx`
-* Ensure `lessonForm.module_id` is retained during modal open and forwarded when calling `fetch('/api/admin/lessons', { method: 'POST', body: JSON.stringify(...) })`.
+
+- Ensure `lessonForm.module_id` is retained during modal open and forwarded when calling `fetch('/api/admin/lessons', { method: 'POST', body: JSON.stringify(...) })`.
 
 ---
 
 ## 3. Feature: Inline Lesson Renaming
 
 ### Endpoint: `PATCH /api/admin/lessons`
-```ts
+
+```TypeScript
 // Handler inside app/api/admin/lessons/route.ts
 export async function PATCH(request: Request) {
   const admin = await requireAdmin()
@@ -82,16 +89,18 @@ export async function PATCH(request: Request) {
 ```
 
 ### UI Component: `components/admin/inline-lesson-title.tsx`
-* Maintains local `isEditing` state.
-* Swaps `<span />` with `<input autoFocus />`.
-* Listens to `onKeyDown` (`Enter` = commit & save, `Escape` = discard).
+
+- Maintains local `isEditing` state.
+- Swaps `<span />` with `<input autoFocus />`.
+- Listens to `onKeyDown` (`Enter` = commit & save, `Escape` = discard).
 
 ---
 
 ## 4. Feature: Video Duration Auto-Sync
 
 ### API Endpoint: `POST /api/admin/lessons/sync-duration`
-```ts
+
+```TypeScript
 // app/api/admin/lessons/sync-duration/route.ts
 export async function POST(req: Request) {
   const { video_source_type, video_external_id } = await req.json()
@@ -116,16 +125,18 @@ export async function POST(req: Request) {
 ## 5. Feature: Thumbnail Fallback & Bulk Inheritance
 
 ### 1. Public Display Fallback
-```tsx
-const lessonCover = 
-  lesson.thumbnail_url || 
-  module?.cover_image_url || 
-  course?.thumbnail_url || 
+
+```TSX
+const lessonCover =
+  lesson.thumbnail_url ||
+  module?.cover_image_url ||
+  course?.thumbnail_url ||
   '/images/default-course-cover.jpg'
 ```
 
 ### 2. Bulk Module Application API
-```ts
+
+```TypeScript
 // PUT /api/admin/modules/apply-thumbnail
 await supabase
   .from('lessons')
