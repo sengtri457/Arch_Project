@@ -14,6 +14,7 @@ import { useAdminData } from "@/lib/react-query/hooks/use-admin"
 import { useAddYoutubeVideoMutation, useUpdateYoutubeVideoMutation, useDeleteYoutubeVideoMutation } from "@/lib/react-query/hooks/use-youtube-videos"
 import { YoutubeVideo } from "@/types/youtube-video"
 import { exportCourseToExcel, exportCourseToPDF } from "@/lib/export-utils"
+import { SyllabusDragList } from "@/components/admin/syllabus-drag-list"
 
 const MySwal = Swal.mixin({
   background: '#060010',
@@ -2407,7 +2408,7 @@ export default function AdminDashboard() {
                             return (
                               <div key={record.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-zinc-900/20 hover:bg-zinc-900/40 transition-colors">
                                 <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-sm font-semibold text-white">{record.email}</span>
                                     <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${
                                       record.status === 'completed' 
@@ -2416,12 +2417,41 @@ export default function AdminDashboard() {
                                     }`}>
                                       {record.status}
                                     </span>
+                                    {record.payment_method && (
+                                      <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-950/40 text-blue-400 border border-blue-900/30">
+                                        {record.payment_method}
+                                      </span>
+                                    )}
+                                    {record.amount && (
+                                      <span className="text-[10px] font-mono font-bold text-primary" style={{ color: "#9ACD32" }}>
+                                        ${parseFloat(record.amount).toFixed(2)}
+                                      </span>
+                                    )}
                                   </div>
                                   <p className="text-xs text-zinc-500">
                                     Course: <span className="text-zinc-300 font-medium">{courseTitle}</span>
                                   </p>
+                                  {record.transaction_reference && (
+                                    <p className="text-[11px] font-mono text-zinc-400">
+                                      Ref / Tx: <span className="text-zinc-200">{record.transaction_reference}</span>
+                                    </p>
+                                  )}
+                                  {record.proof_url && (
+                                    <p className="text-[11px] text-zinc-400">
+                                      Receipt:{" "}
+                                      <a
+                                        href={record.proof_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary hover:underline font-medium inline-flex items-center gap-0.5"
+                                        style={{ color: "#9ACD32" }}
+                                      >
+                                        View Uploaded Proof ↗
+                                      </a>
+                                    </p>
+                                  )}
                                   <p className="text-[10px] text-zinc-600">
-                                    Granted: {new Date(record.created_at).toLocaleString()}
+                                    Logged: {new Date(record.created_at).toLocaleString()}
                                   </p>
                                 </div>
 
@@ -5535,53 +5565,19 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-                  {courseLessons.length === 0 ? (
-                    <p className="text-xs text-zinc-500 italic text-center py-6">No lessons exist in this module yet.</p>
-                  ) : (
-                    courseLessons.map((les) => {
-                      const thumb = les.thumbnail_url || getLessonCoverImage(activeSyllabusCourse.slug || activeSyllabusCourse.course_id || activeSyllabusCourse.id, les, (les.order_index || 1) - 1)
-                      return (
-                        <div key={les.lesson_id} className="p-3 bg-zinc-950 rounded-xl border border-zinc-850 flex justify-between items-center gap-4">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-14 h-9 rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 shrink-0 relative">
-                              <img src={getMediaUrl(thumb)} alt={les.title} className="w-full h-full object-cover" />
-                            </div>
-                            <div className="min-w-0">
-                              <h5 className="text-xs font-semibold text-white truncate">
-                                {les.order_index || 1}. {les.title}
-                              </h5>
-                              <p className="text-[10px] text-zinc-500 mt-0.5 font-mono truncate">ID: {les.video_external_id || "N/A"} • {les.duration_minutes || 0} mins</p>
-                            </div>
-                          </div>
-                          <div className="flex gap-1.5 shrink-0">
-                            <Button 
-                              onClick={() => {
-                                const targetId = activeSyllabusCourse.course_id || activeSyllabusCourse.id
-                                if (targetId && les.lesson_id) {
-                                  router.push(`/admin/courses/${encodeURIComponent(targetId)}/lessons/${encodeURIComponent(les.lesson_id)}/edit`)
-                                }
-                              }}
-                              size="sm" 
-                              variant="ghost" 
-                              className="hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button 
-                              onClick={() => handleDeleteLesson(les.lesson_id)}
-                              size="sm" 
-                              variant="ghost" 
-                              className="hover:bg-red-950/20 text-red-400 hover:text-red-400"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
+                <SyllabusDragList
+                  courseId={activeSyllabusCourse.course_id || activeSyllabusCourse.id}
+                  courseSlug={activeSyllabusCourse.slug}
+                  lessons={courseLessons}
+                  onEditLesson={(les) => {
+                    const targetId = activeSyllabusCourse.course_id || activeSyllabusCourse.id
+                    if (targetId && les.lesson_id) {
+                      router.push(`/admin/courses/${encodeURIComponent(targetId)}/lessons/${encodeURIComponent(les.lesson_id)}/edit`)
+                    }
+                  }}
+                  onDeleteLesson={(lessonId) => handleDeleteLesson(lessonId)}
+                  onReorderSuccess={() => invalidateAll()}
+                />
 
                 <div className="pt-2 border-t border-zinc-800 flex justify-end">
                   <Button onClick={() => setShowSyllabusModal(false)} variant="outline" className="border-zinc-850 px-6">

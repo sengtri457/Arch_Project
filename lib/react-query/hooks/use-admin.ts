@@ -91,7 +91,7 @@ export function useAdminData(activeTab: string) {
       return json.lessons || []
     },
     staleTime: 2 * 60 * 1000,
-    enabled: activeTab === "courses",
+    enabled: activeTab === "courses" || activeTab === "analytics",
   })
 
   const certificates = useQuery({

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { db } from "@/lib/supabase/db"
+import { getDeviceHeaders } from "@/lib/device"
 import { queryKeys } from "@/lib/react-query/query-keys"
 import { resolveCourseUuid } from "@/lib/courses-data"
 
@@ -76,8 +77,13 @@ export function useVideoUrl(lessonId: string | undefined, hasAccess: boolean | n
     queryKey: queryKeys.classroom.video(lessonId ?? "none"),
     queryFn: async () => {
       if (!lessonId || lessonId === "start") return null
-      const res = await fetch(`/api/lessons/${lessonId}/video`)
-      if (!res.ok) return null
+      const headers = typeof window !== "undefined" ? getDeviceHeaders() : {}
+      const res = await fetch(`/api/lessons/${lessonId}/video`, { headers })
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        console.warn("Video stream request rejected:", errorData.error || res.statusText)
+        return null
+      }
       return res.json() as Promise<{ source: string; format: string; url: string } | null>
     },
     enabled: !!lessonId && lessonId !== "start" && Boolean(hasAccess),

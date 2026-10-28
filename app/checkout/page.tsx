@@ -16,6 +16,9 @@ import {
   ArrowLeft,
   Copy,
   ExternalLink,
+  Upload,
+  Globe,
+  FileCheck,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -39,10 +42,17 @@ function CheckoutContent() {
 
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [courseTitle, setCourseTitle] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"khqr" | "telegram">(
+  const [paymentMethod, setPaymentMethod] = useState<"khqr" | "telegram" | "paypal">(
     "khqr",
   );
   const [isCopied, setIsCopied] = useState(false);
+
+  // PayPal States
+  const [paypalTxId, setPaypalTxId] = useState("");
+  const [paypalReceiptFile, setPaypalReceiptFile] = useState<File | null>(null);
+  const [isSubmittingPaypal, setIsSubmittingPaypal] = useState(false);
+  const [paypalSubmitted, setPaypalSubmitted] = useState(false);
+  const [paypalError, setPaypalError] = useState<string | null>(null);
 
   // Promo Code States
   const [promoCodeInput, setPromoCodeInput] = useState("");
@@ -209,6 +219,8 @@ function CheckoutContent() {
             email: user.email.toLowerCase(),
             course_id: courseId,
             status: "pending",
+            payment_method: "telegram",
+            updated_at: new Date().toISOString(),
           },
           { onConflict: "email,course_id" },
         );
@@ -217,6 +229,107 @@ function CheckoutContent() {
       console.warn("Failed to create pending enrollment:", err);
     }
     window.open("https://t.me/bunsambath10", "_blank");
+  };
+
+  const paypalHandle = process.env.NEXT_PUBLIC_PAYPAL_HANDLE || "bunsambath10";
+  const paypalAmountFormatted = checkoutData?.amount ? checkoutData.amount.toFixed(2) : "49.00";
+  const paypalPayUrl = `https://paypal.me/${paypalHandle}/${paypalAmountFormatted}USD`;
+  const paypalOrderRef = checkoutData?.billNumber || (user && courseId ? `ATB-${(checkoutData?.courseSlug || 'COURSE').toUpperCase().slice(0, 4)}-${user.id.slice(0, 6)}` : 'ATB-PAYPAL-ORDER');
+
+  const handleSubmitPaypal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.email) {
+      setPaypalError("Please sign in to submit your PayPal payment.");
+      return;
+    }
+    if (!courseId) {
+      setPaypalError("Course ID missing from checkout session.");
+      return;
+    }
+    if (!paypalTxId.trim() && !paypalReceiptFile) {
+      setPaypalError("Please enter your PayPal Transaction ID or attach a payment receipt.");
+      return;
+    }
+
+    setIsSubmittingPaypal(true);
+    setPaypalError(null);
+
+    try {
+      let uploadedProofUrl: string | null = null;
+
+      if (paypalReceiptFile) {
+        const fileExt = paypalReceiptFile.name.split(".").pop() || "png";
+        const fileName = `paypal-${user.id}-${Date.now()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from("payment-proofs")
+          .upload(filePath, paypalReceiptFile, { upsert: true });
+
+        if (uploadErr) {
+          // Fallback to avatars bucket if payment-proofs bucket is not yet active
+          const { error: fallbackErr } = await supabase.storage
+            .from("avatars")
+            .upload(`proofs/${fileName}`, paypalReceiptFile, { upsert: true });
+
+          if (!fallbackErr) {
+            const { data: pubData } = supabase.storage
+              .from("avatars")
+              .getPublicUrl(`proofs/${fileName}`);
+            uploadedProofUrl = pubData.publicUrl;
+          } else {
+            console.warn("Proof storage upload warning:", uploadErr.message);
+          }
+        } else if (uploadData) {
+          const { data: pubData } = supabase.storage
+            .from("payment-proofs")
+            .getPublicUrl(filePath);
+          uploadedProofUrl = pubData.publicUrl;
+        }
+      }
+
+      const { error: insertErr } = await supabase
+        .from("pending_enrollments")
+        .upsert(
+          {
+            email: user.email.toLowerCase(),
+            course_id: courseId,
+            status: "pending",
+            payment_method: "paypal",
+            transaction_reference: paypalTxId.trim() || paypalOrderRef,
+            proof_url: uploadedProofUrl,
+            amount: checkoutData?.amount || 0,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "email,course_id" },
+        );
+
+      if (insertErr) {
+        // Fallback for base columns if schema additions are not yet applied
+        if (insertErr.code === "42703" || insertErr.message?.includes("column")) {
+          const { error: fallbackDbErr } = await supabase
+            .from("pending_enrollments")
+            .upsert(
+              {
+                email: user.email.toLowerCase(),
+                course_id: courseId,
+                status: "pending",
+              },
+              { onConflict: "email,course_id" },
+            );
+          if (fallbackDbErr) throw fallbackDbErr;
+        } else {
+          throw insertErr;
+        }
+      }
+
+      setPaypalSubmitted(true);
+    } catch (err: any) {
+      console.error("PayPal enrollment submission failed:", err);
+      setPaypalError(err.message || "Failed to submit PayPal payment receipt");
+    } finally {
+      setIsSubmittingPaypal(false);
+    }
   };
 
   // 2. Poll transaction status in real-time
@@ -327,6 +440,17 @@ function CheckoutContent() {
           </button>
           <button
             type="button"
+            onClick={() => setPaymentMethod("paypal")}
+            className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl font-semibold text-xs transition-all ${
+              paymentMethod === "paypal"
+                ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
+                : "text-zinc-400 border border-transparent hover:text-white"
+            }`}
+          >
+            Pay with PayPal (International)
+          </button>
+          <button
+            type="button"
             onClick={() => setPaymentMethod("telegram")}
             className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl font-semibold text-xs transition-all ${
               paymentMethod === "telegram"
@@ -334,7 +458,7 @@ function CheckoutContent() {
                 : "text-zinc-400 border border-transparent hover:text-white"
             }`}
           >
-            Pay via Telegram (Contact Instructor)
+            Pay via Telegram (Manual)
           </button>
         </div>
       )}
@@ -530,6 +654,158 @@ function CheckoutContent() {
                 </p>
               </div>
             </>
+          ) : paymentMethod === "paypal" ? (
+            <div className="w-full space-y-5">
+              {paypalSubmitted ? (
+                <div className="bg-zinc-950/80 border border-zinc-800 p-6 rounded-2xl text-center space-y-4">
+                  <div className="w-14 h-14 rounded-full bg-blue-950/40 border border-blue-900/50 flex items-center justify-center mx-auto text-blue-400">
+                    <FileCheck className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Payment Proof Submitted!</h3>
+                    <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
+                      Your transaction reference has been logged. The instructor will verify your PayPal payment and activate course access shortly.
+                    </p>
+                  </div>
+                  <div className="p-3 bg-zinc-900/60 rounded-xl border border-zinc-800 text-xs font-mono text-zinc-300">
+                    Order Reference: <span className="font-bold text-primary" style={{ color: "#9ACD32" }}>{paypalOrderRef}</span>
+                  </div>
+                  <Link href="/dashboard">
+                    <Button className="w-full bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold py-3 rounded-xl mt-2">
+                      Go to Dashboard
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  {/* Stylized PayPal Stand/Card */}
+                  <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-zinc-200 w-[285px] mx-auto text-black">
+                    <div className="bg-[#003087] text-white px-5 py-3.5 flex justify-center items-center font-black tracking-wider text-lg">
+                      PayPal
+                    </div>
+
+                    <div className="px-5 py-3 text-center">
+                      <p className="text-[10px] text-zinc-400 font-bold tracking-wider uppercase">
+                        Instructor PayPal
+                      </p>
+                      <p className="text-xs font-black text-zinc-800 tracking-wide mt-0.5">
+                        Bun Sambath ({paypalHandle})
+                      </p>
+                    </div>
+
+                    <div className="border-t border-dashed border-zinc-300 mx-5" />
+
+                    <div className="p-5 flex items-center justify-center relative">
+                      <div className="relative">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(paypalPayUrl)}`}
+                          alt="PayPal Payment QR"
+                          className="w-44 h-44 object-contain"
+                        />
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-[#003087] rounded-full border-2 border-white flex items-center justify-center shadow-md">
+                          <span className="text-white font-black text-xs">P</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 w-full">
+                    <a
+                      href={paypalPayUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-xs bg-[#0070BA] hover:bg-[#003087] text-white transition-colors text-center"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      Open PayPal.me (${paypalAmountFormatted} USD)
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+
+                    <div className="bg-zinc-950/60 border border-zinc-850 p-4 rounded-xl space-y-2.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-[10px] uppercase font-bold text-zinc-500">
+                          Required Note / Order Ref
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(paypalOrderRef);
+                            setIsCopied(true);
+                            setTimeout(() => setIsCopied(false), 2000);
+                          }}
+                          className="text-[10px] text-primary hover:underline flex items-center gap-1 font-semibold"
+                          style={{ color: "#9ACD32" }}
+                        >
+                          <Copy className="w-3 h-3" />
+                          {isCopied ? "Copied!" : "Copy Ref"}
+                        </button>
+                      </div>
+                      <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-900 text-xs text-primary font-mono select-all text-center font-bold" style={{ color: "#9ACD32" }}>
+                        {paypalOrderRef}
+                      </div>
+                      <p className="text-[10px] text-zinc-500 leading-tight">
+                        Please enter this reference code into the PayPal note when sending your payment.
+                      </p>
+                    </div>
+
+                    {/* Payment Proof Form */}
+                    <form onSubmit={handleSubmitPaypal} className="bg-zinc-950/60 border border-zinc-850 p-4 rounded-xl space-y-3">
+                      <p className="text-xs font-bold text-white">Submit Payment Details</p>
+                      
+                      <div>
+                        <label className="text-[10px] font-bold text-zinc-400 block mb-1">
+                          PayPal Transaction ID / Email
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 9X928491823 or your PayPal email"
+                          value={paypalTxId}
+                          onChange={(e) => setPaypalTxId(e.target.value)}
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-zinc-400 block mb-1">
+                          Upload Receipt Screenshot (Optional)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setPaypalReceiptFile(e.target.files?.[0] || null)}
+                            className="text-xs text-zinc-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-zinc-800 file:text-white hover:file:bg-zinc-700 cursor-pointer w-full"
+                          />
+                        </div>
+                      </div>
+
+                      {paypalError && (
+                        <p className="text-[10px] text-red-400 leading-tight">
+                          {paypalError}
+                        </p>
+                      )}
+
+                      <Button
+                        type="submit"
+                        disabled={isSubmittingPaypal}
+                        className="w-full bg-primary text-black font-semibold text-xs py-2.5 rounded-lg mt-1"
+                        style={{ backgroundColor: "#9ACD32", color: "#000" }}
+                      >
+                        {isSubmittingPaypal ? (
+                          <span className="flex items-center gap-1.5">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting...
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5">
+                            <Upload className="w-3.5 h-3.5" /> Submit Payment Verification
+                          </span>
+                        )}
+                      </Button>
+                    </form>
+                  </div>
+                </>
+              )}
+            </div>
           ) : (
             <div className="w-full space-y-5">
               <div className="bg-zinc-950/60 border border-zinc-850 p-5 rounded-2xl space-y-4">

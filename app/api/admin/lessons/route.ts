@@ -192,7 +192,6 @@ export async function POST(request: Request) {
   const payload: Record<string, any> = {
     lesson_id: newLessonId,
     course_id: courseUuid,
-    module_id: typeof body.module_id === 'string' && body.module_id ? body.module_id : null,
     title,
     video_source_type: sourceType,
     video_external_id: videoExternalId,
@@ -201,6 +200,11 @@ export async function POST(request: Request) {
     is_preview: Boolean(body.is_preview ?? false),
     downloadable_asset_url: downloadableAssetUrl || null,
     thumbnail_url: thumbnailUrl || null
+  }
+
+  // Preserve existing module_id on update unless explicitly specified
+  if (body.module_id !== undefined || !isUpdating) {
+    payload.module_id = typeof body.module_id === 'string' && body.module_id ? body.module_id : null
   }
 
   const supabase = serviceClient()
