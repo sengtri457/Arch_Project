@@ -8,7 +8,7 @@ import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
-import { ArrowLeft, Plus, Trash2, Upload, Loader2, Video, FileText, Image as ImageIcon, Save, CheckCircle2 } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Upload, Loader2, Video, FileText, Image as ImageIcon, Save, CheckCircle2, RefreshCw, Sparkles, FolderTree } from "lucide-react"
 import { getMediaUrl } from "@/lib/utils"
 import Swal from "sweetalert2"
 
@@ -60,6 +60,8 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false)
   const [uploadingAsset, setUploadingAsset] = useState(false)
   const [courseTitle, setCourseTitle] = useState<string>("")
+  const [courseModules, setCourseModules] = useState<any[]>([])
+  const [isDetectingDuration, setIsDetectingDuration] = useState(false)
 
   const [lessonForm, setLessonForm] = useState({
     title: "",
@@ -68,7 +70,8 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
     duration: "600", // in seconds
     index: "1",
     thumbnail_url: "",
-    is_preview: false
+    is_preview: false,
+    module_id: ""
   })
 
   const [resourceItems, setResourceItems] = useState<ResourceItem[]>([
@@ -118,6 +121,17 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
           if (dbLessons) lessons = dbLessons
         }
 
+        // Fetch course modules to populate chapter selector
+        const { data: dbModules } = await supabase
+          .from('course_modules')
+          .select('id, title, description, order_index, cover_image_url')
+          .or(`course_id.eq.${courseId}`)
+          .order('order_index', { ascending: true })
+
+        if (dbModules) {
+          setCourseModules(dbModules)
+        }
+
         if (isEditing && lessonId) {
           const target = lessons.find((l: any) => String(l.lesson_id) === String(lessonId) || String(l.id) === String(lessonId))
           if (target) {
@@ -129,7 +143,8 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
               duration: String(rawDuration),
               index: String(target.order_index ?? 1),
               thumbnail_url: target.thumbnail_url || "",
-              is_preview: Boolean(target.is_preview)
+              is_preview: Boolean(target.is_preview),
+              module_id: target.module_id || ""
             })
             setResourceItems(parseMultipleResources(target.downloadable_asset_url))
           } else {
@@ -156,6 +171,67 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
 
     init()
   }, [courseId, lessonId, isEditing, supabase, router])
+
+  // Auto-Detect Duration Handler
+  const handleAutoDetectDuration = async (specifiedUrl?: string) => {
+    const targetUrl = (specifiedUrl ?? lessonForm.video_url).trim()
+    if (!targetUrl) {
+      MySwal.fire({ icon: 'warning', title: 'Video Missing', text: 'Please enter a video URL or Bunny GUID first.' })
+      return
+    }
+
+    setIsDetectingDuration(true)
+    try {
+      // 1. Try HTML5 video element probe for direct videos in browser (instant & client-side)
+      if (lessonForm.source === 'direct' && (targetUrl.startsWith('http') || targetUrl.startsWith('/'))) {
+        const probePromise = new Promise<number>((resolve, reject) => {
+          const vid = document.createElement('video')
+          vid.preload = 'metadata'
+          vid.src = targetUrl
+          vid.onloadedmetadata = () => {
+            if (vid.duration && !isNaN(vid.duration) && isFinite(vid.duration)) {
+              resolve(Math.round(vid.duration))
+            } else {
+              reject(new Error('Invalid duration'))
+            }
+          }
+          vid.onerror = () => reject(new Error('Video probe failed'))
+          setTimeout(() => reject(new Error('Video probe timeout')), 4000)
+        })
+
+        try {
+          const detectedSec = await probePromise
+          if (detectedSec > 0) {
+            setLessonForm(prev => ({ ...prev, duration: String(detectedSec) }))
+            setIsDetectingDuration(false)
+            return
+          }
+        } catch {
+          // Fallback to server route
+        }
+      }
+
+      // 2. Query our server duration API route (/api/admin/lessons/duration)
+      const res = await fetch(`/api/admin/lessons/duration?source=${encodeURIComponent(lessonForm.source)}&video=${encodeURIComponent(targetUrl)}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.durationSeconds) {
+          setLessonForm(prev => ({ ...prev, duration: String(data.durationSeconds) }))
+          return
+        }
+      }
+
+      MySwal.fire({
+        icon: 'info',
+        title: 'Duration Detection',
+        text: 'Could not auto-detect duration. Please specify duration in seconds manually.'
+      })
+    } catch (err: any) {
+      console.error("Auto detect duration error:", err)
+    } finally {
+      setIsDetectingDuration(false)
+    }
+  }
 
   // Asset File Upload
   const handleAssetUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetIdx: number = 0) => {
@@ -248,7 +324,8 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
           order_index: parseInt(lessonForm.index) || 1,
           downloadable_asset_url: finalAssetPayload,
           thumbnail_url: lessonForm.thumbnail_url.trim(),
-          is_preview: lessonForm.is_preview
+          is_preview: lessonForm.is_preview,
+          module_id: lessonForm.module_id || undefined
         })
       })
 
@@ -401,6 +478,43 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                 />
                 <p className="text-[11px] text-zinc-500 mt-1">Controls position in curriculum (auto-incremented).</p>
               </div>
+
+              <div className="md:col-span-3">
+                <label className="block text-xs font-bold text-zinc-400 uppercase mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5"><FolderTree className="w-3.5 h-3.5 text-[#9ACD32]" /> Assigned Chapter / Module</span>
+                  {lessonForm.module_id && (
+                    <span className="text-[10px] text-zinc-500 font-normal">Saves with this lesson</span>
+                  )}
+                </label>
+                <select
+                  value={lessonForm.module_id}
+                  onChange={(e) => {
+                    const selectedId = e.target.value
+                    setLessonForm(prev => {
+                      const updated = { ...prev, module_id: selectedId }
+                      // If lesson has no thumbnail yet and the selected module has a cover, auto-fill it
+                      if (!prev.thumbnail_url && selectedId) {
+                        const mod = courseModules.find(m => String(m.id) === String(selectedId))
+                        if (mod?.cover_image_url) {
+                          updated.thumbnail_url = mod.cover_image_url
+                        }
+                      }
+                      return updated
+                    })
+                  }}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#9ACD32]"
+                >
+                  <option value="">(No Module - Standalone Lesson)</option>
+                  {courseModules.map((mod) => (
+                    <option key={mod.id} value={mod.id}>
+                      Chapter {mod.order_index}: {mod.title}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-zinc-500 mt-1">
+                  Assign this lesson to a chapter. Prevents unassigning or losing chapter connection.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -432,6 +546,11 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                       required
                       value={lessonForm.video_url}
                       onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })}
+                      onBlur={() => {
+                        if ((!lessonForm.duration || lessonForm.duration === "600") && lessonForm.video_url.trim()) {
+                          handleAutoDetectDuration()
+                        }
+                      }}
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-blue-400"
                       placeholder="e.g. 9f8c7e6d-1a2b-3c4d-5e6f-7a8b9c0d1e2f"
                     />
@@ -447,6 +566,11 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                       required
                       value={lessonForm.video_url}
                       onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })}
+                      onBlur={() => {
+                        if ((!lessonForm.duration || lessonForm.duration === "600") && lessonForm.video_url.trim()) {
+                          handleAutoDetectDuration()
+                        }
+                      }}
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-blue-400"
                       placeholder="https://your-cdn.com/videos/lesson-01.mp4"
                     />
@@ -458,7 +582,19 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-zinc-400 uppercase mb-2">Duration (Seconds)</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-bold text-zinc-400 uppercase">Duration (Seconds)</label>
+                  <button
+                    type="button"
+                    onClick={() => handleAutoDetectDuration()}
+                    disabled={isDetectingDuration || !lessonForm.video_url.trim()}
+                    className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1 disabled:opacity-40 transition-colors"
+                    title="Auto-detect duration from video file or Bunny Stream"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isDetectingDuration ? 'animate-spin' : ''}`} />
+                    {isDetectingDuration ? "Detecting..." : "Auto-Sync"}
+                  </button>
+                </div>
                 <input
                   type="number"
                   required
@@ -491,9 +627,29 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
 
           {/* Card 3: Lesson Thumbnail / Cover Image */}
           <div className="bg-zinc-950 border border-zinc-850 rounded-2xl p-6 space-y-6">
-            <h2 className="text-base font-bold text-white flex items-center gap-2 border-b border-zinc-850 pb-3">
-              <ImageIcon className="w-4 h-4 text-purple-400" /> Module Cover Image (Thumbnail)
-            </h2>
+            <div className="flex items-center justify-between border-b border-zinc-850 pb-3">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-purple-400" /> Module Cover Image (Thumbnail)
+              </h2>
+
+              {lessonForm.module_id && (() => {
+                const mod = courseModules.find(m => String(m.id) === String(lessonForm.module_id))
+                if (mod?.cover_image_url) {
+                  return (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setLessonForm(prev => ({ ...prev, thumbnail_url: mod.cover_image_url }))}
+                      className="text-xs text-purple-300 hover:text-white border border-purple-500/30 hover:bg-purple-500/10 rounded-xl px-3 py-1.5 h-auto flex items-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                      Use Chapter Cover
+                    </Button>
+                  )
+                }
+                return null
+              })()}
+            </div>
 
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
