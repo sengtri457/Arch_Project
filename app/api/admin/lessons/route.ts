@@ -248,6 +248,40 @@ export async function POST(request: Request) {
   return NextResponse.json({ success: true, lesson: data })
 }
 
+export async function PATCH(request: Request) {
+  const admin = await requireAdmin()
+  if (!admin) {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+  }
+
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 })
+  }
+
+  const lessonId = String(body.lesson_id ?? '').trim()
+  const title = String(body.title ?? '').trim()
+
+  if (!lessonId || !title) {
+    return NextResponse.json({ error: 'lesson_id and title are required' }, { status: 400 })
+  }
+
+  const supabase = serviceClient()
+  const { error } = await supabase
+    .from('lessons')
+    .update({ title })
+    .eq('lesson_id', lessonId)
+
+  if (error) {
+    console.error('Admin lesson rename failed:', error)
+    return NextResponse.json({ error: error.message || 'Failed to rename lesson' }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true, lesson_id: lessonId, title })
+}
+
 export async function DELETE(request: Request) {
   const admin = await requireAdmin()
   if (!admin) {
