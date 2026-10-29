@@ -122,14 +122,22 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
         }
 
         // Fetch course modules to populate chapter selector
-        const { data: dbModules } = await supabase
-          .from('course_modules')
-          .select('id, title, description, order_index, cover_image_url')
-          .or(`course_id.eq.${courseId}`)
-          .order('order_index', { ascending: true })
-
-        if (dbModules) {
-          setCourseModules(dbModules)
+        try {
+          const modRes = await fetch(`/api/admin/modules?courseId=${encodeURIComponent(courseId)}`)
+          if (modRes.ok) {
+            const modJson = await modRes.json()
+            if (modJson.success && Array.isArray(modJson.modules)) {
+              setCourseModules(modJson.modules)
+            }
+          } else {
+            const { data: dbModules } = await supabase
+              .from('course_modules')
+              .select('module_id, title, description, order_index, cover_image_url')
+              .order('order_index', { ascending: true })
+            if (dbModules) setCourseModules(dbModules)
+          }
+        } catch (mErr) {
+          console.error("Failed to load course modules:", mErr)
         }
 
         if (isEditing && lessonId) {
@@ -215,8 +223,9 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
       const res = await fetch(`/api/admin/lessons/duration?source=${encodeURIComponent(lessonForm.source)}&video=${encodeURIComponent(targetUrl)}`)
       if (res.ok) {
         const data = await res.json()
-        if (data.success && data.durationSeconds) {
-          setLessonForm(prev => ({ ...prev, duration: String(data.durationSeconds) }))
+        const detected = data.durationSeconds || data.duration_seconds
+        if (data.success && detected) {
+          setLessonForm(prev => ({ ...prev, duration: String(detected) }))
           return
         }
       }
@@ -325,7 +334,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
           downloadable_asset_url: finalAssetPayload,
           thumbnail_url: lessonForm.thumbnail_url.trim(),
           is_preview: lessonForm.is_preview,
-          module_id: lessonForm.module_id || undefined
+          module_id: lessonForm.module_id || null
         })
       })
 
@@ -494,7 +503,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                       const updated = { ...prev, module_id: selectedId }
                       // If lesson has no thumbnail yet and the selected module has a cover, auto-fill it
                       if (!prev.thumbnail_url && selectedId) {
-                        const mod = courseModules.find(m => String(m.id) === String(selectedId))
+                        const mod = courseModules.find(m => String(m.module_id || m.id) === String(selectedId))
                         if (mod?.cover_image_url) {
                           updated.thumbnail_url = mod.cover_image_url
                         }
@@ -505,11 +514,14 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#9ACD32]"
                 >
                   <option value="">(No Module - Standalone Lesson)</option>
-                  {courseModules.map((mod) => (
-                    <option key={mod.id} value={mod.id}>
-                      Chapter {mod.order_index}: {mod.title}
-                    </option>
-                  ))}
+                  {courseModules.map((mod) => {
+                    const mId = mod.module_id || mod.id
+                    return (
+                      <option key={mId} value={mId}>
+                        Chapter {mod.order_index}: {mod.title}
+                      </option>
+                    )
+                  })}
                 </select>
                 <p className="text-[11px] text-zinc-500 mt-1">
                   Assign this lesson to a chapter. Prevents unassigning or losing chapter connection.
