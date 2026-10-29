@@ -96,27 +96,69 @@ export async function PATCH(request: Request) {
 
 ---
 
-## 4. Feature: Video Duration Auto-Sync
+## 4. Feature: Video Duration Auto-Sync (Multi-Provider: Bunny & YouTube)
 
-### API Endpoint: `POST /api/admin/lessons/sync-duration`
+### API Endpoints: `POST /api/admin/lessons/sync-duration` & `GET|POST /api/admin/lessons/duration`
+Supports dynamic duration resolution across multiple video providers (Bunny Stream, YouTube Data API v3, and Direct Video probe):
 
-```TypeScript
-// app/api/admin/lessons/sync-duration/route.ts
+```ts
+// app/api/admin/lessons/sync-duration/route.ts & duration/route.ts
 export async function POST(req: Request) {
   const { video_source_type, video_external_id } = await req.json()
+  const rawTarget = String(video_external_id || '').trim()
 
-  if (video_source_type === 'bunny') {
-    const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID
-    const apiKey = process.env.BUNNY_STREAM_API_KEY
-    const res = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${video_external_id}`, {
-      headers: { AccessKey: apiKey }
-    })
-    const data = await res.json()
-    const seconds = data.length || 0
-    return NextResponse.json({ duration_minutes: Math.ceil(seconds / 60) })
+  // 1. YouTube Dynamic Resolution (via Google YouTube Data API v3)
+  const ytId = extractYouTubeVideoId(rawTarget)
+  if (video_source_type === 'youtube' || ytId) {
+    const apiKey = process.env.YOUTUBE_API_KEY
+    if (apiKey && ytId) {
+      const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ytId}&key=${apiKey}`)
+      const data = await res.json()
+      const isoDuration = data.items?.[0]?.contentDetails?.duration // e.g. "PT1M57S"
+      if (isoDuration) {
+        const seconds = parseISO8601Duration(isoDuration)           // e.g. 117 seconds
+        return NextResponse.json({
+          success: true,
+          source: 'youtube',
+          duration_seconds: seconds,
+          durationSeconds: seconds,
+          duration_minutes: Math.ceil(seconds / 60),
+          durationMinutes: Math.ceil(seconds / 60)
+        })
+      }
+    }
   }
 
-  return NextResponse.json({ duration_minutes: 10 })
+  // 2. Bunny Stream API Dynamic Resolution
+  if (video_source_type === 'bunny' || isBunnyGuid(rawTarget)) {
+    const { libraryId, videoId } = parseBunnyTarget(rawTarget)
+    const apiKey = process.env.BUNNY_STREAM_API_KEY
+    if (libraryId && apiKey && videoId) {
+      const res = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`, {
+        headers: { AccessKey: apiKey, Accept: 'application/json' }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const seconds = Number(data.length || 0)
+        if (seconds > 0) {
+          return NextResponse.json({
+            success: true,
+            source: 'bunny',
+            duration_seconds: seconds,
+            durationSeconds: seconds,
+            duration_minutes: Math.ceil(seconds / 60),
+            durationMinutes: Math.ceil(seconds / 60)
+          })
+        }
+      }
+    }
+  }
+
+  // 3. Fallback when duration cannot be auto-detected
+  return NextResponse.json({
+    success: false,
+    error: 'Could not auto-detect video duration. Please enter duration in seconds manually.'
+  }, { status: 404 })
 }
 ```
 

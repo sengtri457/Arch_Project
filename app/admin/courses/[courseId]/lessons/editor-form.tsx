@@ -190,8 +190,10 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
 
     setIsDetectingDuration(true)
     try {
-      // 1. Try HTML5 video element probe for direct videos in browser (instant & client-side)
-      if (lessonForm.source === 'direct' && (targetUrl.startsWith('http') || targetUrl.startsWith('/'))) {
+      const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be') || /^[a-zA-Z0-9_-]{11}$/.test(targetUrl)
+
+      // 1. Try HTML5 video element probe for direct videos in browser (instant & client-side, skip for YouTube)
+      if (!isYouTube && lessonForm.source === 'direct' && (targetUrl.startsWith('http') || targetUrl.startsWith('/'))) {
         const probePromise = new Promise<number>((resolve, reject) => {
           const vid = document.createElement('video')
           vid.preload = 'metadata'
@@ -212,6 +214,11 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
           if (detectedSec > 0) {
             setLessonForm(prev => ({ ...prev, duration: String(detectedSec) }))
             setIsDetectingDuration(false)
+            MySwal.fire({
+              icon: 'success',
+              title: 'Duration Synced',
+              text: `Auto-synced from video: ${Math.floor(detectedSec / 60)}m ${detectedSec % 60}s (${detectedSec}s)`
+            })
             return
           }
         } catch {
@@ -225,15 +232,25 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
         const data = await res.json()
         const detected = data.durationSeconds || data.duration_seconds
         if (data.success && detected) {
-          setLessonForm(prev => ({ ...prev, duration: String(detected) }))
+          setLessonForm(prev => ({
+            ...prev,
+            duration: String(detected),
+            source: data.source === 'youtube' && prev.source === 'direct' ? 'youtube' : prev.source
+          }))
+          MySwal.fire({
+            icon: 'success',
+            title: 'Duration Synced',
+            text: `Auto-synced: ${Math.floor(detected / 60)}m ${detected % 60}s (${detected} seconds)`
+          })
           return
         }
       }
 
+      const errData = await res.json().catch(() => ({}))
       MySwal.fire({
         icon: 'info',
         title: 'Duration Detection',
-        text: 'Could not auto-detect duration. Please specify duration in seconds manually.'
+        text: errData.error || 'Could not auto-detect duration. Please specify duration in seconds manually.'
       })
     } catch (err: any) {
       console.error("Auto detect duration error:", err)
@@ -546,6 +563,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                 >
                   <option value="direct">Direct MP4 / CDN Link</option>
                   <option value="bunny">Bunny Stream (video GUID)</option>
+                  <option value="youtube">YouTube (URL or ID)</option>
                 </select>
               </div>
 
@@ -570,6 +588,26 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                       Bunny Stream library GUID. Playback is token-signed server side automatically.
                     </p>
                   </>
+                ) : lessonForm.source === 'youtube' ? (
+                  <>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-2">YouTube Video URL or ID *</label>
+                    <input
+                      type="text"
+                      required
+                      value={lessonForm.video_url}
+                      onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })}
+                      onBlur={() => {
+                        if ((!lessonForm.duration || lessonForm.duration === "600") && lessonForm.video_url.trim()) {
+                          handleAutoDetectDuration()
+                        }
+                      }}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-blue-400"
+                      placeholder="https://youtu.be/oXVAdtZPp3U"
+                    />
+                    <p className="text-[11px] text-zinc-500 mt-1">
+                      YouTube video link (e.g. https://youtu.be/... or 11-char ID). Auto-Sync queries real duration via YouTube API.
+                    </p>
+                  </>
                 ) : (
                   <>
                     <label className="block text-xs font-bold text-zinc-400 uppercase mb-2">Video MP4 URL *</label>
@@ -587,7 +625,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                       placeholder="https://your-cdn.com/videos/lesson-01.mp4"
                     />
                     <p className="text-[11px] text-zinc-500 mt-1">
-                      Must be a direct .mp4 video URL for browser HTML5 streaming.
+                      Must be a direct .mp4 video URL for browser HTML5 streaming, or YouTube URL.
                     </p>
                   </>
                 )}
@@ -601,7 +639,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                     onClick={() => handleAutoDetectDuration()}
                     disabled={isDetectingDuration || !lessonForm.video_url.trim()}
                     className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1 disabled:opacity-40 transition-colors"
-                    title="Auto-detect duration from video file or Bunny Stream"
+                    title="Auto-detect duration from video file, YouTube, or Bunny Stream"
                   >
                     <RefreshCw className={`w-3 h-3 ${isDetectingDuration ? 'animate-spin' : ''}`} />
                     {isDetectingDuration ? "Detecting..." : "Auto-Sync"}
@@ -616,7 +654,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                   placeholder="600"
                 />
                 <p className="text-[11px] text-zinc-500 mt-1">
-                  ~{Math.round((parseInt(lessonForm.duration) || 0) / 60)} minutes total.
+                  ~{Math.round((parseInt(lessonForm.duration) || 0) / 60)} minutes total ({lessonForm.duration || 0} seconds).
                 </p>
               </div>
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { parseMultipleResources, serializeResourceItems } from "@/app/admin/courses/[courseId]/lessons/editor-form"
+import { extractYouTubeVideoId, parseISO8601Duration } from "@/app/api/admin/lessons/duration/route"
 
 describe("Enhancement Tech Spec 01 Tests", () => {
   describe("Resource Item Serialization & Parsing", () => {
@@ -39,6 +40,23 @@ describe("Enhancement Tech Spec 01 Tests", () => {
       expect(computeMinutes(61)).toBe(2)
       expect(computeMinutes(600)).toBe(10)
       expect(computeMinutes(3600)).toBe(60)
+    })
+
+    it("extracts YouTube video IDs from various URL formats", () => {
+      expect(extractYouTubeVideoId("https://youtu.be/oXVAdtZPp3U?si=eKPecabiXQAKBY_P")).toBe("oXVAdtZPp3U")
+      expect(extractYouTubeVideoId("https://www.youtube.com/watch?v=oXVAdtZPp3U")).toBe("oXVAdtZPp3U")
+      expect(extractYouTubeVideoId("https://www.youtube.com/embed/oXVAdtZPp3U")).toBe("oXVAdtZPp3U")
+      expect(extractYouTubeVideoId("https://www.youtube.com/shorts/oXVAdtZPp3U")).toBe("oXVAdtZPp3U")
+      expect(extractYouTubeVideoId("oXVAdtZPp3U")).toBe("oXVAdtZPp3U")
+      expect(extractYouTubeVideoId("https://example.com/not-youtube")).toBeNull()
+    })
+
+    it("accurately parses YouTube ISO 8601 duration strings into seconds", () => {
+      expect(parseISO8601Duration("PT1M57S")).toBe(117)
+      expect(parseISO8601Duration("PT10M")).toBe(600)
+      expect(parseISO8601Duration("PT45S")).toBe(45)
+      expect(parseISO8601Duration("PT1H2M3S")).toBe(3723)
+      expect(parseISO8601Duration("")).toBe(0)
     })
   })
 
