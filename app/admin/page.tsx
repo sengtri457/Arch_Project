@@ -1009,7 +1009,8 @@ export default function AdminDashboard() {
           duration_minutes: Math.round(parseInt(lessonForm.duration) / 60),
           order_index: parseInt(lessonForm.index),
           downloadable_asset_url: finalAssetPayload,
-          thumbnail_url: lessonForm.thumbnail_url
+          thumbnail_url: lessonForm.thumbnail_url,
+          module_id: editingLesson?.module_id || (lessonForm as any).module_id || undefined
         })
       })
 

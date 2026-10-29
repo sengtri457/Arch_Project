@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
-import { GripVertical, Edit3, Trash2, Loader2, Check } from "lucide-react"
+import { GripVertical, Edit3, Trash2, Loader2, Check, X, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getMediaUrl } from "@/lib/utils"
 import { getLessonCoverImage } from "@/lib/courses-data"
@@ -40,18 +40,67 @@ export function SyllabusDragList({
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle")
   const [isMounted, setIsMounted] = useState(false)
+  const [editingLessonId, setEditingLessonId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState("")
+  const [savingTitle, setSavingTitle] = useState(false)
+
+  const lessonsKey = (lessons || []).map((l) => `${l.lesson_id}:${l.title}:${l.order_index}`).join(";")
+
+  const handleStartRename = (les: SyllabusLesson) => {
+    setEditingLessonId(les.lesson_id)
+    setEditingTitle(les.title || "")
+  }
+
+  const handleSaveInlineTitle = async (lessonId: string) => {
+    const trimmed = (editingTitle || "").trim()
+    const current = items.find((l) => l.lesson_id === lessonId)
+    if (!trimmed || trimmed === current?.title) {
+      setEditingLessonId(null)
+      return
+    }
+
+    setSavingTitle(true)
+    try {
+      const res = await fetch("/api/admin/lessons", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lesson_id: lessonId,
+          title: trimmed,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to save title")
+      }
+
+      setItems((prev) =>
+        prev.map((item) =>
+          item.lesson_id === lessonId ? { ...item, title: trimmed } : item
+        )
+      )
+      setEditingLessonId(null)
+      if (onReorderSuccess) onReorderSuccess()
+    } catch (err: any) {
+      console.error("Inline lesson rename failed:", err)
+      alert(`Could not rename lesson: ${err.message}`)
+    } finally {
+      setSavingTitle(false)
+    }
+  }
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
   useEffect(() => {
-    // Keep local items in sync if lessons prop changes and we aren't mid-save
+    // Keep local items in sync only when actual lesson properties change and not mid-save
     if (!isSaving) {
       const sorted = [...lessons].sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
       setItems(sorted)
     }
-  }, [lessons, isSaving])
+  }, [lessonsKey, isSaving])
 
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination || result.destination.index === result.source.index) {
@@ -218,15 +267,91 @@ export function SyllabusDragList({
                           </div>
 
                           {/* Titles */}
-                          <div className="min-w-0">
-                            <h5 className="text-xs font-semibold text-white truncate flex items-center gap-2">
-                              <span>{les.title}</span>
-                              {les.is_preview && (
-                                <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                                  Preview
-                                </span>
-                              )}
-                            </h5>
+                          <div className="flex-1 min-w-0">
+                            {editingLessonId === les.lesson_id ? (
+                              <div
+                                className="flex items-center gap-2 max-w-md py-0.5"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                }}
+                              >
+                                <input
+                                  type="text"
+                                  autoFocus
+                                  disabled={savingTitle}
+                                  value={editingTitle}
+                                  onChange={(e) => setEditingTitle(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      handleSaveInlineTitle(les.lesson_id)
+                                    } else if (e.key === "Escape") {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      setEditingLessonId(null)
+                                    }
+                                  }}
+                                  className="w-full min-w-[220px] bg-zinc-900 border-2 border-[#9ACD32] text-white text-xs font-semibold px-3 py-1.5 rounded-lg focus:outline-none shadow-md shadow-[#9ACD32]/10"
+                                />
+                                {savingTitle ? (
+                                  <Loader2 className="w-4 h-4 text-[#9ACD32] animate-spin shrink-0" />
+                                ) : (
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveInlineTitle(les.lesson_id)}
+                                      className="p-1.5 text-black bg-[#9ACD32] hover:bg-[#8ab82b] rounded-md transition-colors cursor-pointer"
+                                      title="Save (Enter)"
+                                    >
+                                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingLessonId(null)}
+                                      className="p-1.5 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors cursor-pointer"
+                                      title="Cancel (Esc)"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-xs font-semibold text-white flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    handleStartRename(les)
+                                  }}
+                                  className="text-left text-xs font-semibold text-white hover:text-[#9ACD32] transition-colors truncate cursor-pointer bg-transparent border-0 p-0"
+                                  title="Click to rename this lesson"
+                                >
+                                  {les.title || "Untitled Lesson"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    handleStartRename(les)
+                                  }}
+                                  className="text-[10px] text-zinc-400 hover:text-black hover:bg-[#9ACD32] flex items-center gap-1 bg-zinc-900 px-2 py-0.5 rounded-md border border-zinc-750 shrink-0 transition-all cursor-pointer font-medium"
+                                  title="Click to rename this lesson"
+                                >
+                                  <Edit3 className="w-2.5 h-2.5" />
+                                  <span className="text-[9px] font-mono">Rename</span>
+                                </button>
+                                {les.is_preview && (
+                                  <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
+                                    Preview
+                                  </span>
+                                )}
+                              </div>
+                            )}
                             <p className="text-[10px] text-zinc-500 mt-0.5 font-mono truncate">
                               ID: {les.video_external_id || "N/A"} •{" "}
                               {les.duration_minutes || 0} mins
@@ -236,15 +361,28 @@ export function SyllabusDragList({
 
                         {/* Actions */}
                         <div className="flex gap-1.5 shrink-0">
+                          <Button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleStartRename(les)
+                            }}
+                            size="sm"
+                            variant="ghost"
+                            className="hover:bg-zinc-800 text-zinc-400 hover:text-[#9ACD32] h-8 w-8 p-0"
+                            title="Quick Rename (Inline)"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </Button>
                           {onEditLesson && (
                             <Button
                               onClick={() => onEditLesson(les)}
                               size="sm"
                               variant="ghost"
                               className="hover:bg-zinc-800 text-zinc-400 hover:text-white h-8 w-8 p-0"
-                              title="Edit lesson"
+                              title="Open full lesson page (video, assets, chapter)"
                             >
-                              <Edit3 className="w-3.5 h-3.5" />
+                              <ExternalLink className="w-3.5 h-3.5" />
                             </Button>
                           )}
                           {onDeleteLesson && (
