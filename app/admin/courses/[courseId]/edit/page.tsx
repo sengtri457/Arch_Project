@@ -8,7 +8,7 @@ import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
-import { ArrowLeft, Plus, Trash2, Upload, Loader2, Edit3, Video, FileText } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Upload, Loader2, Edit3, Video, FileText, Sparkles } from "lucide-react"
 import { getMediaUrl } from "@/lib/utils"
 import Swal from "sweetalert2"
 import { d5Modules } from "@/lib/courses-data"
@@ -72,6 +72,7 @@ export default function EditCoursePage() {
   const [targetAssignModule, setTargetAssignModule] = useState<any | null>(null)
   const [assignLessonIds, setAssignLessonIds] = useState<string[]>([])
   const [savingAssign, setSavingAssign] = useState(false)
+  const [applyingCover, setApplyingCover] = useState(false)
 
   const loadCourseLessons = async (cId: string, loadedModules: any[] = modules) => {
     try {
@@ -350,6 +351,42 @@ export default function EditCoursePage() {
       alert(err.message || "Failed to save module")
     } finally {
       setSavingModule(false)
+    }
+  }
+
+  const handleApplyCoverToLessons = async () => {
+    if (!editingModuleId) return
+    const cover = moduleForm.cover_image_url?.trim()
+    if (!cover) {
+      MySwal.fire({ icon: 'warning', title: 'Cover Missing', text: 'Please enter or upload a module cover image first.' })
+      return
+    }
+
+    setApplyingCover(true)
+    try {
+      const res = await fetch('/api/admin/modules/apply-thumbnail', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          module_id: editingModuleId,
+          cover_image_url: cover,
+          overwrite: true
+        })
+      })
+
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to apply thumbnail')
+
+      MySwal.fire({
+        icon: 'success',
+        title: 'Thumbnails Applied!',
+        text: json.message || 'Successfully applied chapter cover to lessons.'
+      })
+      if (courseId) loadCourseLessons(courseId)
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Error', text: err.message })
+    } finally {
+      setApplyingCover(false)
     }
   }
 
@@ -1222,6 +1259,26 @@ export default function EditCoursePage() {
                     </label>
                   </div>
                 </div>
+                {moduleForm.cover_image_url && editingModuleId && (
+                  <button
+                    type="button"
+                    onClick={handleApplyCoverToLessons}
+                    disabled={applyingCover}
+                    className="mt-2 text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1.5 underline disabled:opacity-50 transition-colors"
+                  >
+                    {applyingCover ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Applying cover to all chapter lessons...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Apply this cover to all lessons in this chapter
+                      </>
+                    )}
+                  </button>
+                )}
                 {moduleForm.cover_image_url && (
                   <div className="mt-3 relative w-28 h-16 rounded-xl overflow-hidden border border-zinc-800 bg-black">
                     <img
