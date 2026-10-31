@@ -13,7 +13,7 @@ export function useAdminData(activeTab: string) {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
-    enabled: activeTab === "crm" || activeTab === "users" || activeTab === "overview",
+    enabled: activeTab === "crm" || activeTab === "users" || activeTab === "overview" || activeTab === "payments",
   })
 
   const courses = useQuery({
@@ -23,7 +23,7 @@ export function useAdminData(activeTab: string) {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
-    enabled: activeTab === "courses" || activeTab === "overview" || activeTab === "submissions",
+    enabled: activeTab === "courses" || activeTab === "overview" || activeTab === "submissions" || activeTab === "analytics" || activeTab === "payments",
   })
 
   const projects = useQuery({
@@ -69,7 +69,7 @@ export function useAdminData(activeTab: string) {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
-    enabled: activeTab === "overview" || activeTab === "analytics",
+    enabled: activeTab === "overview" || activeTab === "analytics" || activeTab === "payments",
   })
 
   const progressLogs = useQuery({
@@ -79,7 +79,7 @@ export function useAdminData(activeTab: string) {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
-    enabled: activeTab === "users" || activeTab === "analytics",
+    enabled: activeTab === "users" || activeTab === "analytics" || activeTab === "payments",
   })
 
   const lessons = useQuery({
@@ -91,7 +91,7 @@ export function useAdminData(activeTab: string) {
       return json.lessons || []
     },
     staleTime: 2 * 60 * 1000,
-    enabled: activeTab === "courses" || activeTab === "analytics",
+    enabled: activeTab === "courses" || activeTab === "analytics" || activeTab === "payments",
   })
 
   const certificates = useQuery({
