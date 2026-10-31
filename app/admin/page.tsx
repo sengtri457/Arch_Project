@@ -3421,7 +3421,8 @@ export default function AdminDashboard() {
                         const courseLessons = lessons.filter(l => l.course_id === course.course_id || l.course_id === course.id)
                         const courseEnrollments = enrollments.filter(e => e.course_id === course.course_id || e.course_id === course.id)
                         const chartData = courseLessons.map((l, idx) => {
-                          const progressForLesson = progressLogs.filter(p => p.lesson_id === l.lesson_id)
+                          const targetLessonId = l.lesson_id || l.id
+                          const progressForLesson = progressLogs.filter(p => p.lesson_id === targetLessonId)
                           const startedCount = progressForLesson.filter(p => (p.watched_seconds || 0) > 0 || p.is_completed).length
                           const completedCount = progressForLesson.filter(p => p.is_completed).length
                           return {
@@ -3486,7 +3487,8 @@ export default function AdminDashboard() {
                                   </thead>
                                   <tbody className="divide-y divide-zinc-900/40 text-zinc-300">
                                     {courseLessons.map((l, index) => {
-                                      const progressForLesson = progressLogs.filter(p => p.lesson_id === l.lesson_id)
+                                      const targetLessonId = l.lesson_id || l.id
+                                      const progressForLesson = progressLogs.filter(p => p.lesson_id === targetLessonId)
                                       const startedCount = progressForLesson.filter(p => (p.watched_seconds || 0) > 0 || p.is_completed).length
                                       const completedCount = progressForLesson.filter(p => p.is_completed).length
                                       
