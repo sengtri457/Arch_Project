@@ -11,7 +11,7 @@ interface CourseModulesAccordionSidebarProps {
   currentLessonId?: string | null
   currentModuleId?: string | null
   onSelectLesson: (lesson: Lesson, module: CourseModule) => void
-  progressList?: { lesson_id: string; is_completed?: boolean }[]
+  progressList?: { lesson_id: string; is_completed?: boolean; watched_seconds?: number }[]
   slug: string
   courseTitle?: string
 }
@@ -124,7 +124,10 @@ export function CourseModulesAccordionSidebar({
             // Calculate module completion
             const totalLessons = lessons.length
             const completedCount = lessons.filter((l) =>
-              progressList.some((p) => p.lesson_id === l.lesson_id && p.is_completed)
+              progressList.some((p) => (p.lesson_id === l.lesson_id || (l as any).id === p.lesson_id) && p.is_completed)
+            ).length
+            const startedCount = lessons.filter((l) =>
+              progressList.some((p) => (p.lesson_id === l.lesson_id || (l as any).id === p.lesson_id) && ((p.watched_seconds || 0) > 0 || p.is_completed))
             ).length
 
             const completionPercent = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
@@ -165,7 +168,7 @@ export function CourseModulesAccordionSidebar({
                             Completed
                           </span>
                         ) : (
-                          <div className="flex items-center gap-2 w-full max-w-[140px]">
+                          <div className="flex items-center gap-2 w-full max-w-[160px]">
                             <span className="text-[10px] font-mono font-semibold text-zinc-400 shrink-0">
                               {completionPercent}%
                             </span>
@@ -175,6 +178,11 @@ export function CourseModulesAccordionSidebar({
                                 style={{ width: `${completionPercent}%` }}
                               />
                             </div>
+                            {startedCount > 0 && completedCount === 0 && (
+                              <span className="text-[9px] text-[#9ACD32] font-semibold shrink-0">
+                                In Progress
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -205,9 +213,11 @@ export function CourseModulesAccordionSidebar({
                           currentLessonId === (lesson as any).id ||
                           (lIdx === 0 && !currentLessonId && modId === currentModuleId)
 
-                        const isCompleted = progressList.some(
-                          (p) => p.lesson_id === lesson.lesson_id && p.is_completed
+                        const currentProgress = progressList.find(
+                          (p) => p.lesson_id === lesson.lesson_id || (lesson as any).id === p.lesson_id
                         )
+                        const isCompleted = Boolean(currentProgress?.is_completed)
+                        const watchedSecs = currentProgress?.watched_seconds || 0
 
                         const coverUrl = getLessonCoverImage(slug, lesson, lIdx, mod.cover_image)
 
@@ -274,6 +284,20 @@ export function CourseModulesAccordionSidebar({
                                     Preview
                                   </span>
                                 )}
+                                {watchedSecs > 0 && !isCompleted && (
+                                  <div className="pt-1 w-full max-w-[130px]">
+                                    <div className="flex justify-between items-center text-[9px] text-zinc-400 mb-0.5">
+                                      <span className="text-[#9ACD32]">Watched</span>
+                                      <span>{Math.floor(watchedSecs / 60)}m {watchedSecs % 60}s</span>
+                                    </div>
+                                    <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
+                                      <div
+                                        className="bg-[#9ACD32] h-full rounded-full transition-all duration-300"
+                                        style={{ width: `${Math.min(100, Math.max(8, Math.round((watchedSecs / Math.max(1, (lesson.duration_minutes || 2) * 60)) * 100)))}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
@@ -281,6 +305,10 @@ export function CourseModulesAccordionSidebar({
                             <div className="shrink-0 mt-0.5">
                               {isCompleted ? (
                                 <CheckCircle className="w-4 h-4 text-[#9ACD32] fill-[#9ACD32]/10" />
+                              ) : watchedSecs > 0 ? (
+                                <div className="w-3.5 h-3.5 rounded-full border-2 border-[#9ACD32] border-t-transparent flex items-center justify-center" title={`Watched ${watchedSecs}s`}>
+                                  <div className="w-1.5 h-1.5 rounded-full bg-[#9ACD32]" />
+                                </div>
                               ) : isSelected ? (
                                 <Play className="w-3.5 h-3.5 text-[#9ACD32] fill-current" />
                               ) : (

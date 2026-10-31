@@ -544,6 +544,31 @@ export const db = {
     progress: { userId: string; courseId: string; lessonId: string; watchedSeconds: number; isCompleted: boolean }
   ): Promise<{ success: boolean; error?: string }> {
     try {
+      if (typeof window !== 'undefined') {
+        try {
+          const res = await fetch('/api/classroom/progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: progress.userId,
+              courseId: progress.courseId,
+              lessonId: progress.lessonId,
+              watchedSeconds: progress.watchedSeconds,
+              isCompleted: progress.isCompleted
+            })
+          })
+
+          if (res.ok) {
+            console.log("db.updateLessonProgress: Server API update succeeded.")
+            return { success: true }
+          }
+          const errData = await res.json().catch(() => null)
+          console.warn("db.updateLessonProgress: API returned error, attempting fallback:", errData)
+        } catch (fetchErr) {
+          console.warn("db.updateLessonProgress: API fetch failed, falling back to direct client upsert:", fetchErr)
+        }
+      }
+
       const courseUuid = resolveCourseUuid(progress.courseId)
       console.log("db.updateLessonProgress: Triggering upsert with data:", { ...progress, courseUuid })
       const { error } = await supabase

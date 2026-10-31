@@ -135,7 +135,10 @@ export function useUpdateProgress() {
       db.updateLessonProgress(supabase, progress),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.classroom.progress(variables.userId, variables.courseId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.progress(variables.userId, variables.courseId) })
+      queryClient.invalidateQueries({ queryKey: ["classroom", "progress"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.progressLogs })
+      queryClient.invalidateQueries({ queryKey: ["admin", "progressLogs"] })
     },
   })
 }
