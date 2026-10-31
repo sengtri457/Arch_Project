@@ -216,6 +216,38 @@ export default function SpecificModuleClassroomPage({ params }: PageProps) {
     setSubmissionNotes("")
   }, [user, activeLessonId, supabase, exercise])
 
+  const targetLessonId = currentLesson?.lesson_id || (currentLesson as any)?.id
+  const currentProgressRecord = progressList.find(
+    (p: any) => p.lesson_id === targetLessonId || (targetLessonId && p.lesson_id === targetLessonId)
+  )
+  const isCurrentLessonCompleted = Boolean(currentProgressRecord?.is_completed)
+  const [isTogglingComplete, setIsTogglingComplete] = useState(false)
+
+  // Manual completion toggle
+  const handleToggleComplete = async () => {
+    if (!user || !course || !currentLesson || isTogglingComplete) return
+    setIsTogglingComplete(true)
+    const activeCourseId = course.course_id || course.id
+    const newCompleted = !isCurrentLessonCompleted
+    const watched = newCompleted
+      ? (currentLesson.duration_minutes ? currentLesson.duration_minutes * 60 : 120)
+      : (currentProgressRecord?.watched_seconds || 0)
+
+    try {
+      await updateProgress.mutateAsync({
+        userId: user.id,
+        courseId: activeCourseId,
+        lessonId: targetLessonId,
+        watchedSeconds: watched,
+        isCompleted: newCompleted
+      })
+    } catch (err) {
+      console.error("Failed to toggle completion:", err)
+    } finally {
+      setIsTogglingComplete(false)
+    }
+  }
+
   // Progress update handler
   const handleTimeUpdate = async (currentTime: number, duration: number) => {
     if (!user || !course || !currentLesson || isUpdatingProgress.current) return
@@ -227,13 +259,15 @@ export default function SpecificModuleClassroomPage({ params }: PageProps) {
       isUpdatingProgress.current = true
       lastLoggedTime.current = currentTime
 
-      const isCompleted = isFinished || progressList.some((p: any) => p.lesson_id === currentLesson.lesson_id && p.is_completed)
+      const isCompleted = isFinished || progressList.some(
+        (p: any) => (p.lesson_id === targetLessonId || p.lesson_id === currentLesson.lesson_id) && p.is_completed
+      )
 
       try {
         await updateProgress.mutateAsync({
           userId: user.id,
           courseId: activeCourseId,
-          lessonId: currentLesson.lesson_id,
+          lessonId: targetLessonId,
           watchedSeconds: currentTime,
           isCompleted
         })
@@ -412,9 +446,30 @@ export default function SpecificModuleClassroomPage({ params }: PageProps) {
                   <span className="text-xs text-zinc-400 font-medium">{course?.title}</span>
                 </div>
 
-                <h1 className="text-2xl font-bold text-white">
-                  {currentLesson?.title || "Module Lesson"}
-                </h1>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <h1 className="text-2xl font-bold text-white">
+                    {currentLesson?.title || "Module Lesson"}
+                  </h1>
+                  <button
+                    type="button"
+                    onClick={handleToggleComplete}
+                    disabled={isTogglingComplete}
+                    className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 border ${
+                      isCurrentLessonCompleted
+                        ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30"
+                        : "bg-zinc-800/90 text-zinc-300 border-zinc-700 hover:bg-[#9ACD32] hover:text-black hover:border-[#9ACD32]"
+                    }`}
+                  >
+                    {isTogglingComplete ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : isCurrentLessonCompleted ? (
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                    ) : (
+                      <Circle className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isCurrentLessonCompleted ? "Lesson Completed" : "Mark as Completed"}</span>
+                  </button>
+                </div>
                 <p className="text-zinc-400 text-sm mt-2 leading-relaxed">
                   {currentLesson?.description || mod?.description || "Welcome to this module lesson. Learn the core visualization concepts, lighting setups, and material techniques."}
                 </p>
