@@ -91,27 +91,30 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
       if (!courseId) return
       setLoadingData(true)
       try {
-        // Fetch course info for breadcrumbs
-        const { data: courseData } = await supabase
-          .from('courses')
-          .select('title, slug')
-          .or(`id.eq.${courseId},slug.eq.${courseId}`)
-          .maybeSingle()
+        // Fetch course info, lessons, and modules in parallel for instant navigation loading
+        const [courseRes, lessonsFetchRes, modulesFetchRes] = await Promise.all([
+          supabase
+            .from('courses')
+            .select('title, slug')
+            .or(`id.eq.${courseId},slug.eq.${courseId},course_id.eq.${courseId}`)
+            .maybeSingle(),
+          fetch(`/api/admin/lessons?courseId=${encodeURIComponent(courseId)}`)
+            .then(r => r.ok ? r.json() : null)
+            .catch(() => null),
+          fetch(`/api/admin/modules?courseId=${encodeURIComponent(courseId)}`)
+            .then(r => r.ok ? r.json() : null)
+            .catch(() => null)
+        ])
 
-        if (courseData?.title) {
-          setCourseTitle(courseData.title)
+        if (courseRes?.data?.title) {
+          setCourseTitle(courseRes.data.title)
         } else {
           setCourseTitle(courseId)
         }
 
-        // Fetch existing lessons to determine auto-increment order if new, or load target lesson if edit
-        const res = await fetch(`/api/admin/lessons?courseId=${encodeURIComponent(courseId)}`)
         let lessons: any[] = []
-        if (res.ok) {
-          const json = await res.json()
-          if (json.success && Array.isArray(json.lessons)) {
-            lessons = json.lessons
-          }
+        if (lessonsFetchRes?.success && Array.isArray(lessonsFetchRes.lessons)) {
+          lessons = lessonsFetchRes.lessons
         } else {
           const { data: dbLessons } = await supabase
             .from('lessons')
@@ -121,23 +124,14 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
           if (dbLessons) lessons = dbLessons
         }
 
-        // Fetch course modules to populate chapter selector
-        try {
-          const modRes = await fetch(`/api/admin/modules?courseId=${encodeURIComponent(courseId)}`)
-          if (modRes.ok) {
-            const modJson = await modRes.json()
-            if (modJson.success && Array.isArray(modJson.modules)) {
-              setCourseModules(modJson.modules)
-            }
-          } else {
-            const { data: dbModules } = await supabase
-              .from('course_modules')
-              .select('module_id, title, description, order_index, cover_image_url')
-              .order('order_index', { ascending: true })
-            if (dbModules) setCourseModules(dbModules)
-          }
-        } catch (mErr) {
-          console.error("Failed to load course modules:", mErr)
+        if (modulesFetchRes?.success && Array.isArray(modulesFetchRes.modules)) {
+          setCourseModules(modulesFetchRes.modules)
+        } else {
+          const { data: dbModules } = await supabase
+            .from('course_modules')
+            .select('module_id, title, description, order_index, cover_image_url')
+            .order('order_index', { ascending: true })
+          if (dbModules) setCourseModules(dbModules)
         }
 
         if (isEditing && lessonId) {
@@ -494,15 +488,34 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
 
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase mb-2">Sequence Order Index *</label>
-                <input
-                  type="number"
-                  required
-                  value={lessonForm.index}
-                  onChange={(e) => setLessonForm({ ...lessonForm, index: e.target.value })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-[#9ACD32]"
-                  placeholder="1"
-                />
-                <p className="text-[11px] text-zinc-500 mt-1">Controls position in curriculum (auto-incremented).</p>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={lessonForm.index}
+                    onChange={(e) => setLessonForm({ ...lessonForm, index: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-[#9ACD32]"
+                    placeholder="1"
+                  />
+                  {!isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => setLessonForm({ ...lessonForm, index: "1" })}
+                      className={`px-3 py-1 text-[11px] rounded-xl border font-mono transition-colors shrink-0 cursor-pointer ${
+                        lessonForm.index === "1"
+                          ? "bg-[#9ACD32] text-black border-[#9ACD32] font-bold"
+                          : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white"
+                      }`}
+                      title="Place at the very beginning of the syllabus"
+                    >
+                      Start (#1)
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-500 mt-1">
+                  Position in syllabus. Lessons shift automatically if inserted before existing ones.
+                </p>
               </div>
 
               <div className="md:col-span-3">

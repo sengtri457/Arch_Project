@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import Link from "next/link"
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
 import { GripVertical, Edit3, Trash2, Loader2, Check, X, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -345,11 +346,6 @@ export function SyllabusDragList({
                                   <Edit3 className="w-2.5 h-2.5" />
                                   <span className="text-[9px] font-mono">Rename</span>
                                 </button>
-                                {les.is_preview && (
-                                  <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
-                                    Preview
-                                  </span>
-                                )}
                               </div>
                             )}
                             <p className="text-[10px] text-zinc-500 mt-0.5 font-mono truncate">
@@ -361,20 +357,16 @@ export function SyllabusDragList({
 
                         {/* Actions */}
                         <div className="flex gap-1.5 shrink-0">
-                          <Button
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              handleStartRename(les)
-                            }}
-                            size="sm"
-                            variant="ghost"
-                            className="hover:bg-zinc-800 text-zinc-400 hover:text-[#9ACD32] h-8 w-8 p-0"
-                            title="Quick Rename (Inline)"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </Button>
-                          {onEditLesson && (
+                          {courseId && les.lesson_id ? (
+                            <Link
+                              href={`/admin/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(les.lesson_id)}/edit`}
+                              prefetch={true}
+                              className="inline-flex items-center justify-center hover:bg-zinc-800 text-zinc-400 hover:text-white h-8 w-8 rounded-lg transition-colors"
+                              title="Open full lesson page (video, assets, chapter)"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </Link>
+                          ) : onEditLesson ? (
                             <Button
                               onClick={() => onEditLesson(les)}
                               size="sm"
@@ -384,7 +376,7 @@ export function SyllabusDragList({
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
                             </Button>
-                          )}
+                          ) : null}
                           {onDeleteLesson && (
                             <Button
                               onClick={() => onDeleteLesson(les.lesson_id)}
