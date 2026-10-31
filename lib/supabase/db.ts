@@ -1105,5 +1105,37 @@ export const db = {
     } catch {
       return []
     }
+  },
+
+  async getUserActiveDevices(
+    supabase: SupabaseClient,
+    userId: string
+  ): Promise<any[]> {
+    if (!userId) return []
+    try {
+      const { data, error } = await supabase
+        .from('user_active_devices')
+        .select('*')
+        .eq('user_id', userId)
+        .order('last_active_at', { ascending: false })
+
+      if (error || !data) return []
+      return data
+    } catch {
+      return []
+    }
+  },
+
+  async revokeUserActiveDevice(
+    supabase: SupabaseClient,
+    deviceId: string
+  ): Promise<void> {
+    if (!deviceId) return
+    const { error } = await supabase
+      .from('user_active_devices')
+      .delete()
+      .eq('id', deviceId)
+
+    if (error) throw error
   }
 }

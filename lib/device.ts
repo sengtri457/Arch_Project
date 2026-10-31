@@ -56,3 +56,9 @@ export function getDeviceHeaders(): Record<string, string> {
     "x-device-name": getDeviceName(),
   }
 }
+
+export function isCurrentDevice(deviceId: string): boolean {
+  if (!deviceId) return false
+  return getDeviceId() === deviceId
+}
+

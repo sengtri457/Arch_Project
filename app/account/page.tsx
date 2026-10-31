@@ -8,6 +8,7 @@ import { Footer } from "@/components/footer"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Loader2, User as UserIcon, CheckCircle2, AlertCircle } from "lucide-react"
+import { ActiveDevicesCard } from "@/components/account/active-devices-card"
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"]
@@ -207,6 +208,8 @@ export default function AccountPage() {
               )}
             </Button>
           </section>
+
+          <ActiveDevicesCard userId={user.id} />
         </div>
       </div>
 

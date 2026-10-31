@@ -82,6 +82,13 @@ export function useVideoUrl(lessonId: string | undefined, hasAccess: boolean | n
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}))
         console.warn("Video stream request rejected:", errorData.error || res.statusText)
+        if (errorData.code === "DEVICE_LIMIT_EXCEEDED") {
+          const err: any = new Error(
+            errorData.error || "Device limit exceeded: You have reached the maximum allowed active devices."
+          )
+          err.code = "DEVICE_LIMIT_EXCEEDED"
+          throw err
+        }
         return null
       }
       return res.json() as Promise<{ source: string; format: string; url: string } | null>
