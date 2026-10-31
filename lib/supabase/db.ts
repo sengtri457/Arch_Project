@@ -322,11 +322,13 @@ export const db = {
   async getCourseBySlug(supabase: SupabaseClient, slug: string): Promise<Course | null> {
     try {
       const isUuid = /^[0-9a-f-]{36}$/i.test(slug)
-      const { data, error } = await supabase
-        .from('courses')
-        .select('*')
-        .or(`slug.eq.${slug},course_id.eq.${isUuid ? slug : '00000000-0000-0000-0000-000000000000'}`)
-        .maybeSingle()
+      let courseQuery = supabase.from('courses').select('*')
+      if (isUuid) {
+        courseQuery = courseQuery.eq('course_id', slug)
+      } else {
+        courseQuery = courseQuery.eq('slug', slug)
+      }
+      const { data, error } = await courseQuery.maybeSingle()
 
       if (error) throw error
       if (data) return mapDbCourseToFrontend(data)
@@ -659,11 +661,13 @@ export const db = {
       }
 
       // 3. Check if student has an active subscription satisfying the course plan requirement
-      const { data: courseData } = await supabase
-        .from('courses')
-        .select('required_plan_id, slug')
-        .or(`slug.eq.${courseId},course_id.eq.${isUuid ? courseUuid : '00000000-0000-0000-0000-000000000000'}`)
-        .maybeSingle()
+      let courseQuery = supabase.from('courses').select('required_plan_id, slug')
+      if (isUuid) {
+        courseQuery = courseQuery.eq('course_id', courseUuid)
+      } else {
+        courseQuery = courseQuery.eq('slug', courseId)
+      }
+      const { data: courseData } = await courseQuery.maybeSingle()
 
       if (!courseData) return false
       
@@ -1086,16 +1090,20 @@ export const db = {
     lessonId: string
   ): Promise<any[]> {
     if (!lessonId) return []
-    const resolvedId = resolveLessonId(lessonId)
-    const { data, error } = await supabase
-      .from('lesson_resources')
-      .select('*')
-      .eq('lesson_id', resolvedId)
-      .order('order_index', { ascending: true })
+    try {
+      const resolvedId = resolveLessonId(lessonId)
+      const { data, error } = await supabase
+        .from('lesson_resources')
+        .select('*')
+        .eq('lesson_id', resolvedId)
+        .order('order_index', { ascending: true })
 
-    if (error || !data || data.length === 0) {
+      if (error || !data || data.length === 0) {
+        return []
+      }
+      return data
+    } catch {
       return []
     }
-    return data
   }
 }
