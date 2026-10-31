@@ -265,6 +265,17 @@ export function ContactSection() {
                   <RenderIcon icon={FaGlobe} className="w-8 h-8" />
                 </a>
                 
+                {/* Facebook */}
+                <a 
+                  href="https://www.facebook.com/61593134910540/?hpir=1" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-white hover:text-[#1877F2] transition-colors duration-300"
+                  title="Facebook"
+                >
+                  <RenderIcon icon={FaFacebook} className="w-8 h-8" />
+                </a>
+                
                 {/* Instagram */}
                 <a 
                   href="https://www.instagram.com/archtipsbox?igsh=bTgwbHJxaHoyNGpv&utm_source=qr" 

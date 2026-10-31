@@ -39,6 +39,7 @@ export function Navigation() {
   ]
 
   const socialLinks = [
+    { href: "https://www.facebook.com/61593134910540/?hpir=1", icon: FaFacebook, label: "Facebook" },
     { href: "https://www.pinterest.com/archtipsbox/", icon: FaPinterest, label: "Pinterest" },
     { href: "https://www.instagram.com/archtipsbox?igsh=bTgwbHJxaHoyNGpv&utm_source=qr", icon: FaInstagram, label: "Instagram" },
     { href: "https://www.tiktok.com/@archtipsbox?_t=ZS-90p29Q9jQxx&_r=1", icon: FaTiktok, label: "TikTok" },

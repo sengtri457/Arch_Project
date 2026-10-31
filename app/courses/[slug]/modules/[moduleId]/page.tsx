@@ -27,7 +27,8 @@ import {
   Send,
   Award,
   ArrowRight,
-  RotateCcw
+  RotateCcw,
+  ShieldAlert
 } from "lucide-react"
 import { 
   useClassroomCourse, 
@@ -148,7 +149,7 @@ export default function SpecificModuleClassroomPage({ params }: PageProps) {
     : (currentLesson?.downloadable_asset_url ? null : (currentLesson?.resources || null))
 
   // Video URL query hook
-  const { data: videoData, isLoading: loadingVideo } = useVideoUrl(activeLessonId, hasAccess)
+  const { data: videoData, isLoading: loadingVideo, error: videoError } = useVideoUrl(activeLessonId, hasAccess)
   const updateProgress = useUpdateProgress()
 
   // Exercise and Submission state
@@ -339,6 +340,29 @@ export default function SpecificModuleClassroomPage({ params }: PageProps) {
           <div className="relative z-10 flex flex-col items-center gap-3">
             <Loader2 className="w-8 h-8 animate-spin text-[#9ACD32]" />
             <p className="text-xs text-zinc-300 font-medium drop-shadow">Loading stream...</p>
+          </div>
+        </div>
+      )
+    }
+
+    if ((videoError as any)?.code === "DEVICE_LIMIT_EXCEEDED") {
+      return (
+        <div className="aspect-video w-full bg-black rounded-xl overflow-hidden relative border border-amber-500/40 flex flex-col items-center justify-center p-6 text-center">
+          <div className="relative z-10 max-w-md space-y-4">
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Device Limit Reached</h3>
+              <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
+                You have reached the maximum allowed active devices (2 devices) for this account. Please manage your active sessions in Account Settings to continue watching.
+              </p>
+            </div>
+            <Link href="/account#devices">
+              <button className="px-4 py-2 rounded-lg font-semibold text-xs" style={{ backgroundColor: "#9ACD32", color: "#000" }}>
+                Manage Active Devices
+              </button>
+            </Link>
           </div>
         </div>
       )
