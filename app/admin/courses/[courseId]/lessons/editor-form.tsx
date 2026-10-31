@@ -91,27 +91,30 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
       if (!courseId) return
       setLoadingData(true)
       try {
-        // Fetch course info for breadcrumbs
-        const { data: courseData } = await supabase
-          .from('courses')
-          .select('title, slug')
-          .or(`id.eq.${courseId},slug.eq.${courseId}`)
-          .maybeSingle()
+        // Fetch course info, lessons, and modules in parallel for instant navigation loading
+        const [courseRes, lessonsFetchRes, modulesFetchRes] = await Promise.all([
+          supabase
+            .from('courses')
+            .select('title, slug')
+            .or(`id.eq.${courseId},slug.eq.${courseId},course_id.eq.${courseId}`)
+            .maybeSingle(),
+          fetch(`/api/admin/lessons?courseId=${encodeURIComponent(courseId)}`)
+            .then(r => r.ok ? r.json() : null)
+            .catch(() => null),
+          fetch(`/api/admin/modules?courseId=${encodeURIComponent(courseId)}`)
+            .then(r => r.ok ? r.json() : null)
+            .catch(() => null)
+        ])
 
-        if (courseData?.title) {
-          setCourseTitle(courseData.title)
+        if (courseRes?.data?.title) {
+          setCourseTitle(courseRes.data.title)
         } else {
           setCourseTitle(courseId)
         }
 
-        // Fetch existing lessons to determine auto-increment order if new, or load target lesson if edit
-        const res = await fetch(`/api/admin/lessons?courseId=${encodeURIComponent(courseId)}`)
         let lessons: any[] = []
-        if (res.ok) {
-          const json = await res.json()
-          if (json.success && Array.isArray(json.lessons)) {
-            lessons = json.lessons
-          }
+        if (lessonsFetchRes?.success && Array.isArray(lessonsFetchRes.lessons)) {
+          lessons = lessonsFetchRes.lessons
         } else {
           const { data: dbLessons } = await supabase
             .from('lessons')
@@ -121,15 +124,14 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
           if (dbLessons) lessons = dbLessons
         }
 
-        // Fetch course modules to populate chapter selector
-        const { data: dbModules } = await supabase
-          .from('course_modules')
-          .select('id, title, description, order_index, cover_image_url')
-          .or(`course_id.eq.${courseId}`)
-          .order('order_index', { ascending: true })
-
-        if (dbModules) {
-          setCourseModules(dbModules)
+        if (modulesFetchRes?.success && Array.isArray(modulesFetchRes.modules)) {
+          setCourseModules(modulesFetchRes.modules)
+        } else {
+          const { data: dbModules } = await supabase
+            .from('course_modules')
+            .select('module_id, title, description, order_index, cover_image_url')
+            .order('order_index', { ascending: true })
+          if (dbModules) setCourseModules(dbModules)
         }
 
         if (isEditing && lessonId) {
@@ -182,8 +184,10 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
 
     setIsDetectingDuration(true)
     try {
-      // 1. Try HTML5 video element probe for direct videos in browser (instant & client-side)
-      if (lessonForm.source === 'direct' && (targetUrl.startsWith('http') || targetUrl.startsWith('/'))) {
+      const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be') || /^[a-zA-Z0-9_-]{11}$/.test(targetUrl)
+
+      // 1. Try HTML5 video element probe for direct videos in browser (instant & client-side, skip for YouTube)
+      if (!isYouTube && lessonForm.source === 'direct' && (targetUrl.startsWith('http') || targetUrl.startsWith('/'))) {
         const probePromise = new Promise<number>((resolve, reject) => {
           const vid = document.createElement('video')
           vid.preload = 'metadata'
@@ -204,6 +208,11 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
           if (detectedSec > 0) {
             setLessonForm(prev => ({ ...prev, duration: String(detectedSec) }))
             setIsDetectingDuration(false)
+            MySwal.fire({
+              icon: 'success',
+              title: 'Duration Synced',
+              text: `Auto-synced from video: ${Math.floor(detectedSec / 60)}m ${detectedSec % 60}s (${detectedSec}s)`
+            })
             return
           }
         } catch {
@@ -215,16 +224,27 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
       const res = await fetch(`/api/admin/lessons/duration?source=${encodeURIComponent(lessonForm.source)}&video=${encodeURIComponent(targetUrl)}`)
       if (res.ok) {
         const data = await res.json()
-        if (data.success && data.durationSeconds) {
-          setLessonForm(prev => ({ ...prev, duration: String(data.durationSeconds) }))
+        const detected = data.durationSeconds || data.duration_seconds
+        if (data.success && detected) {
+          setLessonForm(prev => ({
+            ...prev,
+            duration: String(detected),
+            source: data.source === 'youtube' && prev.source === 'direct' ? 'youtube' : prev.source
+          }))
+          MySwal.fire({
+            icon: 'success',
+            title: 'Duration Synced',
+            text: `Auto-synced: ${Math.floor(detected / 60)}m ${detected % 60}s (${detected} seconds)`
+          })
           return
         }
       }
 
+      const errData = await res.json().catch(() => ({}))
       MySwal.fire({
         icon: 'info',
         title: 'Duration Detection',
-        text: 'Could not auto-detect duration. Please specify duration in seconds manually.'
+        text: errData.error || 'Could not auto-detect duration. Please specify duration in seconds manually.'
       })
     } catch (err: any) {
       console.error("Auto detect duration error:", err)
@@ -325,7 +345,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
           downloadable_asset_url: finalAssetPayload,
           thumbnail_url: lessonForm.thumbnail_url.trim(),
           is_preview: lessonForm.is_preview,
-          module_id: lessonForm.module_id || undefined
+          module_id: lessonForm.module_id || null
         })
       })
 
@@ -468,15 +488,34 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
 
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase mb-2">Sequence Order Index *</label>
-                <input
-                  type="number"
-                  required
-                  value={lessonForm.index}
-                  onChange={(e) => setLessonForm({ ...lessonForm, index: e.target.value })}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-[#9ACD32]"
-                  placeholder="1"
-                />
-                <p className="text-[11px] text-zinc-500 mt-1">Controls position in curriculum (auto-incremented).</p>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={lessonForm.index}
+                    onChange={(e) => setLessonForm({ ...lessonForm, index: e.target.value })}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-[#9ACD32]"
+                    placeholder="1"
+                  />
+                  {!isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => setLessonForm({ ...lessonForm, index: "1" })}
+                      className={`px-3 py-1 text-[11px] rounded-xl border font-mono transition-colors shrink-0 cursor-pointer ${
+                        lessonForm.index === "1"
+                          ? "bg-[#9ACD32] text-black border-[#9ACD32] font-bold"
+                          : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white"
+                      }`}
+                      title="Place at the very beginning of the syllabus"
+                    >
+                      Start (#1)
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-500 mt-1">
+                  Position in syllabus. Lessons shift automatically if inserted before existing ones.
+                </p>
               </div>
 
               <div className="md:col-span-3">
@@ -494,7 +533,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                       const updated = { ...prev, module_id: selectedId }
                       // If lesson has no thumbnail yet and the selected module has a cover, auto-fill it
                       if (!prev.thumbnail_url && selectedId) {
-                        const mod = courseModules.find(m => String(m.id) === String(selectedId))
+                        const mod = courseModules.find(m => String(m.module_id || m.id) === String(selectedId))
                         if (mod?.cover_image_url) {
                           updated.thumbnail_url = mod.cover_image_url
                         }
@@ -505,11 +544,14 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#9ACD32]"
                 >
                   <option value="">(No Module - Standalone Lesson)</option>
-                  {courseModules.map((mod) => (
-                    <option key={mod.id} value={mod.id}>
-                      Chapter {mod.order_index}: {mod.title}
-                    </option>
-                  ))}
+                  {courseModules.map((mod) => {
+                    const mId = mod.module_id || mod.id
+                    return (
+                      <option key={mId} value={mId}>
+                        Chapter {mod.order_index}: {mod.title}
+                      </option>
+                    )
+                  })}
                 </select>
                 <p className="text-[11px] text-zinc-500 mt-1">
                   Assign this lesson to a chapter. Prevents unassigning or losing chapter connection.
@@ -534,6 +576,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                 >
                   <option value="direct">Direct MP4 / CDN Link</option>
                   <option value="bunny">Bunny Stream (video GUID)</option>
+                  <option value="youtube">YouTube (URL or ID)</option>
                 </select>
               </div>
 
@@ -558,6 +601,26 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                       Bunny Stream library GUID. Playback is token-signed server side automatically.
                     </p>
                   </>
+                ) : lessonForm.source === 'youtube' ? (
+                  <>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-2">YouTube Video URL or ID *</label>
+                    <input
+                      type="text"
+                      required
+                      value={lessonForm.video_url}
+                      onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })}
+                      onBlur={() => {
+                        if ((!lessonForm.duration || lessonForm.duration === "600") && lessonForm.video_url.trim()) {
+                          handleAutoDetectDuration()
+                        }
+                      }}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-blue-400"
+                      placeholder="https://youtu.be/oXVAdtZPp3U"
+                    />
+                    <p className="text-[11px] text-zinc-500 mt-1">
+                      YouTube video link (e.g. https://youtu.be/... or 11-char ID). Auto-Sync queries real duration via YouTube API.
+                    </p>
+                  </>
                 ) : (
                   <>
                     <label className="block text-xs font-bold text-zinc-400 uppercase mb-2">Video MP4 URL *</label>
@@ -575,7 +638,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                       placeholder="https://your-cdn.com/videos/lesson-01.mp4"
                     />
                     <p className="text-[11px] text-zinc-500 mt-1">
-                      Must be a direct .mp4 video URL for browser HTML5 streaming.
+                      Must be a direct .mp4 video URL for browser HTML5 streaming, or YouTube URL.
                     </p>
                   </>
                 )}
@@ -589,7 +652,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                     onClick={() => handleAutoDetectDuration()}
                     disabled={isDetectingDuration || !lessonForm.video_url.trim()}
                     className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1 disabled:opacity-40 transition-colors"
-                    title="Auto-detect duration from video file or Bunny Stream"
+                    title="Auto-detect duration from video file, YouTube, or Bunny Stream"
                   >
                     <RefreshCw className={`w-3 h-3 ${isDetectingDuration ? 'animate-spin' : ''}`} />
                     {isDetectingDuration ? "Detecting..." : "Auto-Sync"}
@@ -604,7 +667,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                   placeholder="600"
                 />
                 <p className="text-[11px] text-zinc-500 mt-1">
-                  ~{Math.round((parseInt(lessonForm.duration) || 0) / 60)} minutes total.
+                  ~{Math.round((parseInt(lessonForm.duration) || 0) / 60)} minutes total ({lessonForm.duration || 0} seconds).
                 </p>
               </div>
 

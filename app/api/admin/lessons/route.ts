@@ -151,7 +151,7 @@ export async function POST(request: Request) {
   }
 
   const sourceType = String(body.video_source_type ?? 'direct')
-  if (!['direct', 'bunny'].includes(sourceType)) {
+  if (!['direct', 'bunny', 'youtube'].includes(sourceType)) {
     return NextResponse.json({ error: 'Unsupported video source type' }, { status: 400 })
   }
 
@@ -231,6 +231,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true })
   }
 
+  // Auto-shift downstream lessons if inserting at an existing order index to avoid duplicate indices
+  const { data: conflicts } = await supabase
+    .from('lessons')
+    .select('lesson_id, order_index')
+    .eq('course_id', courseUuid)
+    .gte('order_index', orderIndex)
+    .order('order_index', { ascending: false })
+
+  if (conflicts && conflicts.length > 0) {
+    for (const c of conflicts) {
+      await supabase
+        .from('lessons')
+        .update({ order_index: (c.order_index || 0) + 1 })
+        .eq('lesson_id', c.lesson_id)
+    }
+  }
+
   let { data, error } = await supabase.from('lessons').insert(payload).select().maybeSingle()
   if (error && (error.code === '42703' || error.message?.includes('thumbnail_url'))) {
     const fallbackPayload = { ...payload }
@@ -246,6 +263,40 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ success: true, lesson: data })
+}
+
+export async function PATCH(request: Request) {
+  const admin = await requireAdmin()
+  if (!admin) {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+  }
+
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 })
+  }
+
+  const lessonId = String(body.lesson_id ?? '').trim()
+  const title = String(body.title ?? '').trim()
+
+  if (!lessonId || !title) {
+    return NextResponse.json({ error: 'lesson_id and title are required' }, { status: 400 })
+  }
+
+  const supabase = serviceClient()
+  const { error } = await supabase
+    .from('lessons')
+    .update({ title })
+    .eq('lesson_id', lessonId)
+
+  if (error) {
+    console.error('Admin lesson rename failed:', error)
+    return NextResponse.json({ error: error.message || 'Failed to rename lesson' }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true, lesson_id: lessonId, title })
 }
 
 export async function DELETE(request: Request) {

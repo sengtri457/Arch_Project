@@ -8,10 +8,11 @@ import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
-import { ArrowLeft, Plus, Trash2, Upload, Loader2, Edit3, Video, FileText } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Upload, Loader2, Edit3, Video, FileText, Sparkles } from "lucide-react"
 import { getMediaUrl } from "@/lib/utils"
 import Swal from "sweetalert2"
 import { d5Modules } from "@/lib/courses-data"
+import { SyllabusDragList } from "@/components/admin/syllabus-drag-list"
 
 const MySwal = Swal.mixin({
   customClass: {
@@ -72,6 +73,7 @@ export default function EditCoursePage() {
   const [targetAssignModule, setTargetAssignModule] = useState<any | null>(null)
   const [assignLessonIds, setAssignLessonIds] = useState<string[]>([])
   const [savingAssign, setSavingAssign] = useState(false)
+  const [applyingCover, setApplyingCover] = useState(false)
 
   const loadCourseLessons = async (cId: string, loadedModules: any[] = modules) => {
     try {
@@ -252,6 +254,33 @@ export default function EditCoursePage() {
     }
   }
 
+  const handleDeleteLesson = async (lId: string) => {
+    const result = await MySwal.fire({
+      title: 'Delete Lesson?',
+      text: 'Are you sure you want to permanently delete this lesson module?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'No, cancel'
+    })
+
+    if (!result.isConfirmed) return
+
+    try {
+      const response = await fetch(`/api/admin/lessons?lessonId=${encodeURIComponent(lId)}`, {
+        method: 'DELETE'
+      })
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}))
+        throw new Error(errJson.error || 'Admin API error')
+      }
+      await MySwal.fire({ icon: 'success', title: 'Deleted!', text: "Lesson deleted successfully!" })
+      if (courseId) loadCourseLessons(courseId)
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Error', text: `Failed to delete lesson: ${err.message}` })
+    }
+  }
+
   const handleOpenCreateModule = () => {
     setEditingModuleId(null)
     setModuleForm({
@@ -353,6 +382,42 @@ export default function EditCoursePage() {
     }
   }
 
+  const handleApplyCoverToLessons = async () => {
+    if (!editingModuleId) return
+    const cover = moduleForm.cover_image_url?.trim()
+    if (!cover) {
+      MySwal.fire({ icon: 'warning', title: 'Cover Missing', text: 'Please enter or upload a module cover image first.' })
+      return
+    }
+
+    setApplyingCover(true)
+    try {
+      const res = await fetch('/api/admin/modules/apply-thumbnail', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          module_id: editingModuleId,
+          cover_image_url: cover,
+          overwrite: true
+        })
+      })
+
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to apply thumbnail')
+
+      MySwal.fire({
+        icon: 'success',
+        title: 'Thumbnails Applied!',
+        text: json.message || 'Successfully applied chapter cover to lessons.'
+      })
+      if (courseId) loadCourseLessons(courseId)
+    } catch (err: any) {
+      MySwal.fire({ icon: 'error', title: 'Error', text: err.message })
+    } finally {
+      setApplyingCover(false)
+    }
+  }
+
   const handleDeleteModule = async (mId: string) => {
     const confirm = await MySwal.fire({
       icon: "warning",
@@ -398,22 +463,23 @@ export default function EditCoursePage() {
       try {
         setFetching(true)
         
-        // 1. Fetch plans
-        const { data: plansData } = await supabase
-          .from('subscription_plans')
-          .select('*')
-          .order('price_usd', { ascending: true })
-        if (plansData) setPlans(plansData)
+        // 1. Fetch plans and course in parallel
+        const [plansRes, courseRes] = await Promise.all([
+          supabase
+            .from('subscription_plans')
+            .select('*')
+            .order('price_usd', { ascending: true }),
+          supabase
+            .from('courses')
+            .select('*')
+            .or(`course_id.eq.${courseId},slug.eq.${courseId}`)
+            .maybeSingle()
+        ])
 
-        // 2. Fetch course
-        const { data: course, error } = await supabase
-          .from('courses')
-          .select('*')
-          .or(`course_id.eq.${courseId},slug.eq.${courseId}`)
-          .maybeSingle()
+        if (plansRes.data) setPlans(plansRes.data)
+        if (courseRes.error) throw courseRes.error
 
-        if (error) throw error
-
+        const course = courseRes.data
         if (course) {
           setCourseForm({
             title: course.title || "",
@@ -433,8 +499,12 @@ export default function EditCoursePage() {
           })
 
           setFeatures(Array.isArray(course.features) ? course.features : [])
-          loadModules(courseId)
-          loadCourseLessons(courseId)
+          
+          // 2. Load modules and lessons simultaneously in parallel
+          await Promise.all([
+            loadModules(courseId),
+            loadCourseLessons(courseId)
+          ])
         }
       } catch (err: any) {
         MySwal.fire({
@@ -1087,48 +1157,19 @@ export default function EditCoursePage() {
                   No lessons found in this course. Click "Add Lesson" above to add your first lesson.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-2.5 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
-                  {courseLessons.map((les: any, lIdx: number) => {
-                    const lessonKey = les.lesson_id || les.id
-                    return (
-                      <div
-                        key={lessonKey || lIdx}
-                        className="p-3 bg-zinc-950 border border-zinc-850 rounded-xl flex items-center justify-between gap-4 hover:border-zinc-750 transition-colors"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="w-6 h-6 rounded-full bg-zinc-900 border border-zinc-800 text-[#9ACD32] flex items-center justify-center text-xs font-mono font-bold shrink-0">
-                            {les.order_index || lIdx + 1}
-                          </span>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h5 className="text-xs font-semibold text-white truncate">{les.title}</h5>
-                              {les.is_preview && (
-                                <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                                  Preview
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[10px] text-zinc-500 mt-0.5 font-mono truncate">
-                              Provider: {les.video_source_type || 'direct'} • {les.duration_minutes || 10} mins • ID: {les.video_external_id || "N/A"}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          <Link href={`/admin/courses/${encodeURIComponent(courseId || "")}/lessons/${encodeURIComponent(lessonKey)}/edit`}>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              className="text-xs text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg flex items-center gap-1"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" /> Edit
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                <SyllabusDragList
+                  courseId={courseId || ""}
+                  courseSlug={courseForm.slug}
+                  lessons={courseLessons}
+                  onEditLesson={(les) => {
+                    const lId = les.lesson_id || (les as any).id
+                    router.push(`/admin/courses/${encodeURIComponent(courseId || "")}/lessons/${encodeURIComponent(lId)}/edit`)
+                  }}
+                  onDeleteLesson={(lessonId) => handleDeleteLesson(lessonId)}
+                  onReorderSuccess={() => {
+                    if (courseId) loadCourseLessons(courseId)
+                  }}
+                />
               )}
             </div>
           </div>
@@ -1222,6 +1263,26 @@ export default function EditCoursePage() {
                     </label>
                   </div>
                 </div>
+                {moduleForm.cover_image_url && editingModuleId && (
+                  <button
+                    type="button"
+                    onClick={handleApplyCoverToLessons}
+                    disabled={applyingCover}
+                    className="mt-2 text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1.5 underline disabled:opacity-50 transition-colors"
+                  >
+                    {applyingCover ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Applying cover to all chapter lessons...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Apply this cover to all lessons in this chapter
+                      </>
+                    )}
+                  </button>
+                )}
                 {moduleForm.cover_image_url && (
                   <div className="mt-3 relative w-28 h-16 rounded-xl overflow-hidden border border-zinc-800 bg-black">
                     <img
