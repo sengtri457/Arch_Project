@@ -151,7 +151,7 @@ export async function POST(request: Request) {
   }
 
   const sourceType = String(body.video_source_type ?? 'direct')
-  if (!['direct', 'bunny'].includes(sourceType)) {
+  if (!['direct', 'bunny', 'youtube'].includes(sourceType)) {
     return NextResponse.json({ error: 'Unsupported video source type' }, { status: 400 })
   }
 
@@ -229,6 +229,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message || 'Failed to update lesson' }, { status: 500 })
     }
     return NextResponse.json({ success: true })
+  }
+
+  // Auto-shift downstream lessons if inserting at an existing order index to avoid duplicate indices
+  const { data: conflicts } = await supabase
+    .from('lessons')
+    .select('lesson_id, order_index')
+    .eq('course_id', courseUuid)
+    .gte('order_index', orderIndex)
+    .order('order_index', { ascending: false })
+
+  if (conflicts && conflicts.length > 0) {
+    for (const c of conflicts) {
+      await supabase
+        .from('lessons')
+        .update({ order_index: (c.order_index || 0) + 1 })
+        .eq('lesson_id', c.lesson_id)
+    }
   }
 
   let { data, error } = await supabase.from('lessons').insert(payload).select().maybeSingle()

@@ -23,7 +23,7 @@ export function useAdminData(activeTab: string) {
       return data || []
     },
     staleTime: 2 * 60 * 1000,
-    enabled: activeTab === "courses" || activeTab === "overview" || activeTab === "submissions",
+    enabled: activeTab === "courses" || activeTab === "overview" || activeTab === "submissions" || activeTab === "analytics",
   })
 
   const projects = useQuery({
