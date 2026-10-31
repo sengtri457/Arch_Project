@@ -24,7 +24,8 @@ import {
   Send,
   Award,
   ArrowRight,
-  RotateCcw
+  RotateCcw,
+  ShieldAlert
 } from "lucide-react"
 
 import { useClassroomCourse, useClassroomLessons, useClassroomModules, useClassroomProgress, useClassroomCertificate, useVideoUrl, useClassroomAccess, useLessonExercise, useUpdateProgress, useLessonResources } from "@/lib/react-query/hooks/use-classroom"
@@ -138,7 +139,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
 
   // Secure video delivery state
   const canAccessVideo = Boolean(currentLesson?.is_preview || profile?.role === 'admin' || profile?.role === 'instructor' || hasAccess)
-  const { data: videoData, isLoading: loadingVideo } = useVideoUrl(activeLessonId, canAccessVideo)
+  const { data: videoData, isLoading: loadingVideo, error: videoError } = useVideoUrl(activeLessonId, canAccessVideo)
   const activeVideo = videoData ? { source: videoData.source as string, format: videoData.format as 'hls' | 'direct', url: videoData.url } : null
 
   // Lesson Multi-Resource attachments state
@@ -548,6 +549,29 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
           <div className="relative z-10 flex flex-col items-center gap-3">
             <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#9ACD32' }} />
             <p className="text-xs text-zinc-300 font-medium drop-shadow">Preparing stream...</p>
+          </div>
+        </div>
+      )
+    }
+
+    if ((videoError as any)?.code === "DEVICE_LIMIT_EXCEEDED") {
+      return (
+        <div className="aspect-video w-full bg-black rounded-xl overflow-hidden relative border border-amber-500/40 flex flex-col items-center justify-center p-6 text-center">
+          <div className="relative z-10 max-w-md space-y-4">
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Device Limit Reached</h3>
+              <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
+                You have reached the maximum allowed active devices (2 devices) for this account. Please manage your active sessions in Account Settings to continue watching.
+              </p>
+            </div>
+            <Link href="/account#devices">
+              <Button size="sm" className="font-semibold text-xs" style={{ backgroundColor: "#9ACD32", color: "#000" }}>
+                Manage Active Devices
+              </Button>
+            </Link>
           </div>
         </div>
       )
