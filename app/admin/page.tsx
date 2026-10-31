@@ -2576,14 +2576,14 @@ export default function AdminDashboard() {
                             >
                               Manage Syllabus
                             </Button>
-                            <Button 
-                              onClick={() => router.push(`/admin/courses/${course.course_id || course.id}/edit`)}
-                              size="sm" 
-                              className="bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 hover:text-white border border-zinc-700 p-2.5 rounded-xl transition-all shadow-sm"
+                            <Link 
+                              href={`/admin/courses/${course.course_id || course.id}/edit`}
+                              prefetch={true}
+                              className="bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 hover:text-white border border-zinc-700 p-2.5 rounded-xl transition-all shadow-sm inline-flex items-center justify-center cursor-pointer"
                               title="Edit Course"
                             >
                               <Edit3 className="w-4 h-4 text-zinc-200" />
-                            </Button>
+                            </Link>
                             <Button 
                               onClick={() => handleDeleteCourse(course.course_id || course.id)}
                               size="sm" 

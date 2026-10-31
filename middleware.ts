@@ -67,22 +67,36 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Load user role from db profiles
-    try {
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+    // Fast-path: Check verified admin cookie or JWT app_metadata to avoid blocking DB query on every route change
+    const hasAdminCookie = request.cookies.get("sb-admin-verified")?.value === user.id;
+    const isMetadataAdmin = (user.app_metadata as any)?.role === "admin" || (user.user_metadata as any)?.role === "admin";
 
-      if (error || !profile || profile.role !== "admin") {
-        // Not an admin, redirect back to homepage
+    if (!hasAdminCookie && !isMetadataAdmin) {
+      // Query profiles only when not yet cached in current session
+      try {
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
+        if (error || !profile || profile.role !== "admin") {
+          // Not an admin, redirect back to homepage
+          url.pathname = "/";
+          return NextResponse.redirect(url);
+        }
+
+        // Remember verification for subsequent fast navigations within /admin (valid for 30 minutes)
+        response.cookies.set("sb-admin-verified", user.id, {
+          path: "/admin",
+          sameSite: "lax",
+          maxAge: 1800,
+          httpOnly: true,
+        });
+      } catch {
         url.pathname = "/";
         return NextResponse.redirect(url);
       }
-    } catch {
-      url.pathname = "/";
-      return NextResponse.redirect(url);
     }
   }
 
