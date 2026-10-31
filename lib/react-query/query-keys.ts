@@ -1,4 +1,7 @@
 export const queryKeys = {
+  account: {
+    devices: (userId: string) => ["account", "devices", userId] as const,
+  },
   courses: {
     all: ["courses"] as const,
     list: (category?: string) => ["courses", "list", category] as const,
