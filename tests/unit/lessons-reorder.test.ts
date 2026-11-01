@@ -77,4 +77,46 @@ describe("Lesson Reordering Logic", () => {
     expect(result.valid).toBe(false)
     expect(result.error).toContain("Invalid order_index")
   })
+
+  describe("Undo & Redo Reorder History Stack", () => {
+    it("restores the previous lesson order when undo is executed", () => {
+      const initial = [
+        { lesson_id: "1", title: "Lesson 1", order_index: 1 },
+        { lesson_id: "2", title: "Lesson 2", order_index: 2 },
+        { lesson_id: "3", title: "Lesson 3", order_index: 3 },
+      ]
+
+      // Drag action: move item 3 to position 1
+      const dragged = [
+        { lesson_id: "3", title: "Lesson 3", order_index: 1 },
+        { lesson_id: "1", title: "Lesson 1", order_index: 2 },
+        { lesson_id: "2", title: "Lesson 2", order_index: 3 },
+      ]
+
+      const history = [initial]
+      const future: typeof initial[] = []
+
+      // Simulate Undo
+      const previous = history.pop()!
+      future.unshift(dragged)
+      const restored = resequenceLessons(previous)
+
+      expect(restored[0].lesson_id).toBe("1")
+      expect(restored[1].lesson_id).toBe("2")
+      expect(restored[2].lesson_id).toBe("3")
+      expect(restored[0].order_index).toBe(1)
+      expect(restored[2].order_index).toBe(3)
+      expect(future.length).toBe(1)
+
+      // Simulate Redo
+      const next = future.shift()!
+      history.push(restored)
+      const redone = resequenceLessons(next)
+
+      expect(redone[0].lesson_id).toBe("3")
+      expect(redone[1].lesson_id).toBe("1")
+      expect(redone[2].lesson_id).toBe("2")
+      expect(history.length).toBe(1)
+    })
+  })
 })

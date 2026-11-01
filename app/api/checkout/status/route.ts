@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getClientIp, rateLimit } from '@/lib/rate-limit'
-import { sendEmail, paymentReceiptEmail } from '@/lib/email'
-import { sendTelegramInvoiceNotification } from '@/lib/telegram'
+import { fulfillPaymentTransaction } from '@/lib/payments/fulfillment'
 
 export async function GET(request: Request) {
   try {
@@ -89,154 +88,12 @@ export async function GET(request: Request) {
 
     // 4. If confirmed paid, trigger the fulfillment process
     if (isPaid) {
-      // A. Update transaction status
-      const { error: updateError } = await supabaseAdmin
-        .from('payment_transactions')
-        .update({
-          payment_status: 'completed',
-          external_tx_hash: externalTxHash,
-          completed_at: new Date().toISOString()
-        })
-        .eq('bill_number', billNumber)
-
-      if (updateError) throw updateError
-
-      // B. Activate Course Enrollment
-      if (transaction.course_id) {
-        const { error: enrollError } = await supabaseAdmin
-          .from('course_enrollments')
-          .upsert({
-            student_id: transaction.user_id,
-            course_id: transaction.course_id,
-            status: 'active',
-            enrolled_at: new Date().toISOString()
-          }, { onConflict: 'student_id,course_id' })
-
-        if (enrollError) throw enrollError
-        console.log(`Webhook-less: Successfully enrolled user ${transaction.user_id} in course ${transaction.course_id}`)
-      }
-
-      // C. Activate Plan Subscription
-      if (transaction.plan_id) {
-        const startDate = new Date()
-        const endDate = new Date()
-        endDate.setMonth(startDate.getMonth() + 1) // 1 month default
-
-        const { error: subError } = await supabaseAdmin
-          .from('user_subscriptions')
-          .upsert({
-            user_id: transaction.user_id,
-            plan_id: transaction.plan_id,
-            status: 'active',
-            current_period_start: startDate.toISOString(),
-            current_period_end: endDate.toISOString(),
-            last_transaction_id: transaction.transaction_id
-          }, { onConflict: 'user_id' })
-
-        if (subError) throw subError
-        console.log(`Webhook-less: Successfully subscribed user ${transaction.user_id} to plan ${transaction.plan_id}`)
-      }
-
-      // D. Upgrade profile role to student (preserve admin and instructor roles)
-      const { data: currentProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('role')
-        .eq('id', transaction.user_id)
-        .maybeSingle()
-
-      if (currentProfile && currentProfile.role !== 'admin' && currentProfile.role !== 'instructor') {
-        await supabaseAdmin
-          .from('profiles')
-          .update({ role: 'student' })
-          .eq('id', transaction.user_id)
-      }
-
-      // E. Increment promo code redemptions count if used
-      if (transaction.promo_code) {
-        const { data: promoData } = await supabaseAdmin
-          .from('promo_codes')
-          .select('redemptions_count')
-          .eq('code', transaction.promo_code)
-          .single()
-
-        if (promoData) {
-          await supabaseAdmin
-            .from('promo_codes')
-            .update({ redemptions_count: (promoData.redemptions_count || 0) + 1 })
-            .eq('code', transaction.promo_code)
-        }
-      }
-
-      // F. Send receipt + access email
-      try {
-        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(transaction.user_id)
-        const userEmail = userData?.user?.email ?? null
-
-        const origin =
-          process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ||
-          new URL(request.url).origin
-        let itemName = 'Your purchase'
-        let ctaUrl = `${origin}/dashboard`
-        let ctaLabel = 'Go to my dashboard'
-
-        if (transaction.course_id) {
-          const { data: course } = await supabaseAdmin
-            .from('courses')
-            .select('title, slug')
-            .eq('course_id', transaction.course_id)
-            .single()
-          itemName = course?.title || 'Course enrollment'
-          ctaUrl = course?.slug ? `${origin}/courses/${course.slug}` : ctaUrl
-          ctaLabel = 'Start learning now'
-        } else if (transaction.plan_id) {
-          const { data: plan } = await supabaseAdmin
-            .from('subscription_plans')
-            .select('name')
-            .eq('plan_id', transaction.plan_id)
-            .single()
-          itemName = `${plan?.name || 'Subscription'} plan`
-        }
-
-        if (userEmail) {
-          await sendEmail({
-            to: userEmail,
-            subject: `Payment confirmed - ${itemName}`,
-            html: paymentReceiptEmail({
-              itemName,
-              amount: Number(transaction.amount),
-              billNumber: billNumber,
-              ctaUrl,
-              ctaLabel
-            })
-          })
-        }
-
-        // Fetch full_name from profiles
-        const { data: profile } = await supabaseAdmin
-          .from('profiles')
-          .select('full_name')
-          .eq('id', transaction.user_id)
-          .single()
-        const customerName = profile?.full_name || 'Student'
-
-        // Send Telegram invoice alert
-        await sendTelegramInvoiceNotification({
-          itemName,
-          amount: Number(transaction.amount),
-          billNumber: transaction.bill_number,
-          paymentMethod: transaction.payment_method || 'bakong_khqr',
-          completedAt: new Date().toISOString(),
-          userEmail: userEmail || '',
-          userId: transaction.user_id,
-          transactionId: transaction.transaction_id,
-          promoCode: transaction.promo_code,
-          customerName
-        }).catch(tgErr => {
-          console.error('Telegram notification failed:', tgErr)
-        })
-      } catch (emailErr) {
-        console.error('Fulfillment notifications failed:', emailErr)
-      }
+      await fulfillPaymentTransaction(supabaseAdmin, {
+        transaction,
+        billNumber,
+        externalTxHash,
+        origin: new URL(request.url).origin
+      })
 
       return NextResponse.json({ success: true, status: 'completed' })
     }
