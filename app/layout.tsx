@@ -8,6 +8,13 @@ import { ErrorHandler } from "@/components/error-handler"
 import { HydrationFix } from "@/components/hydration-fix"
 import { AuthProvider } from "@/components/auth-provider"
 import { ReactQueryProvider } from "@/lib/react-query/provider"
+import {
+  getSiteUrl,
+  siteConfig,
+  generateOrganizationSchema,
+  generateWebSiteSchema,
+  JsonLd
+} from "@/lib/seo"
 import "./globals.css"
 
 const poppins = Poppins({
@@ -16,14 +23,74 @@ const poppins = Poppins({
   variable: "--font-poppins",
 })
 
+const siteUrl = getSiteUrl()
+const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
+
 export const metadata: Metadata = {
-  title: "Archtipsbox - Architectural Visualization Portfolio",
-  description: "Premium 3D architectural visualization and rendering services",
-  generator: "v0.app",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: siteConfig.defaultTitle,
+    template: siteConfig.titleTemplate,
+  },
+  description: siteConfig.description,
+  keywords: siteConfig.keywords,
+  authors: [{ name: siteConfig.author, url: siteUrl }],
+  creator: siteConfig.creator,
+  publisher: siteConfig.publisher,
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   icons: {
     icon: "/projects/Tipsbox logo png.png",
     apple: "/projects/Tipsbox logo png.png",
   },
+  alternates: {
+    canonical: "./",
+  },
+  openGraph: {
+    type: "website",
+    locale: siteConfig.locale,
+    url: siteUrl,
+    siteName: siteConfig.name,
+    title: siteConfig.defaultTitle,
+    description: siteConfig.description,
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Archtipsbox - Architectural Visualization Portfolio & Academy",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteConfig.defaultTitle,
+    description: siteConfig.description,
+    images: ["/opengraph-image"],
+    creator: "@archtipsbox",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  ...(googleVerification
+    ? {
+        verification: {
+          google: googleVerification,
+        },
+      }
+    : {}),
 }
 
 export default function RootLayout({
@@ -31,17 +98,42 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const organizationSchema = generateOrganizationSchema()
+  const webSiteSchema = generateWebSiteSchema()
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://www.youtube-nocookie.com" />
         <link rel="preconnect" href="https://img.youtube.com" />
+        <JsonLd data={organizationSchema} />
+        <JsonLd data={webSiteSchema} />
       </head>
       <body className={`${poppins.variable} font-sans antialiased`} suppressHydrationWarning>
         <AuthProvider>
           <ReactQueryProvider>
             <ErrorHandler />
             <HydrationFix />
+
+            {/* Google Analytics 4 (GA4) */}
+            {gaMeasurementId && (
+              <>
+                <Script
+                  src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
+                  strategy="afterInteractive"
+                />
+                <Script id="google-analytics" strategy="afterInteractive">
+                  {`
+                    window.dataLayer = window.dataLayer || [];
+                    function gtag(){dataLayer.push(arguments);}
+                    gtag('js', new Date());
+                    gtag('config', '${gaMeasurementId}', {
+                      page_path: window.location.pathname,
+                    });
+                  `}
+                </Script>
+              </>
+            )}
 
             {/* TikTok Pixel */}
             <Script id="tiktok-pixel" strategy="afterInteractive">
