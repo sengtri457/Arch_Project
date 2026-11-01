@@ -141,6 +141,23 @@ export async function POST(request: Request) {
         }
       )
 
+      // Ensure profile exists for user to prevent foreign key violation on payment_transactions.user_id
+      const { data: existingProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (!existingProfile) {
+        await supabaseAdmin.from('profiles').insert({
+          id: user.id,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Student',
+          role: 'student',
+          is_active: true
+        })
+      }
+
       const { data: transaction, error: txError } = await supabaseAdmin
         .from('payment_transactions')
         .insert({
@@ -161,7 +178,10 @@ export async function POST(request: Request) {
 
       if (txError || !transaction) {
         console.error("Database free transaction insertion failed:", txError)
-        return NextResponse.json({ error: 'Database transaction insertion failed' }, { status: 500 })
+        return NextResponse.json({ 
+          error: `Database transaction insertion failed: ${txError?.message || 'Unknown database error'}`,
+          details: txError
+        }, { status: 500 })
       }
 
       // Activate Course Enrollment
@@ -289,6 +309,23 @@ export async function POST(request: Request) {
       }
     )
 
+    // Ensure profile exists for user to prevent foreign key violation on payment_transactions.user_id
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (!existingProfile) {
+      await supabaseAdmin.from('profiles').insert({
+        id: user.id,
+        email: user.email,
+        full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Student',
+        role: 'student',
+        is_active: true
+      })
+    }
+
     const { data: transaction, error: txError } = await supabaseAdmin
       .from('payment_transactions')
       .insert({
@@ -308,7 +345,10 @@ export async function POST(request: Request) {
 
     if (txError || !transaction) {
       console.error("Database transaction insertion failed:", txError)
-      return NextResponse.json({ error: 'Database transaction insertion failed' }, { status: 500 })
+      return NextResponse.json({ 
+        error: `Database transaction insertion failed: ${txError?.message || 'Unknown database error'}`,
+        details: txError
+      }, { status: 500 })
     }
 
     // 8. Return payment details to client
