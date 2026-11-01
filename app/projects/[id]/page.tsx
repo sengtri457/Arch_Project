@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
@@ -9,6 +10,7 @@ import { EnhancedCategorizedGallery } from "@/components/enhanced-categorized-ga
 import { VideoGallery } from "@/components/video-gallery"
 import { Button } from "@/components/ui/button"
 import { ProjectHeroMedia } from "@/components/project-hero-media"
+import { generateProjectSchema, generateBreadcrumbSchema, JsonLd, getSiteUrl } from "@/lib/seo"
 
 export async function generateStaticParams() {
   const supabase = createClientClient()
@@ -16,6 +18,65 @@ export async function generateStaticParams() {
   return projectsList.map((project) => ({
     id: project.id,
   }))
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const supabase = await createServerClient()
+  const project = await db.getProjectBySlug(supabase, id)
+
+  if (!project) {
+    return {
+      title: "Project not found - Archtipsbox",
+    }
+  }
+
+  const base = getSiteUrl()
+  const title = `${project.title} | Architectural Visualization`
+  const description =
+    project.description ||
+    `Explore ${project.title}, high-end architectural rendering and 3D visualization showcase produced by Archtipsbox.`
+  const imageUrl = project.image
+    ? project.image.startsWith("http")
+      ? project.image
+      : `${base}${project.image.startsWith("/") ? "" : "/"}${project.image}`
+    : `${base}/opengraph-image`
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/projects/${id}`,
+    },
+    keywords: [
+      project.title,
+      project.category || "Architecture",
+      project.location || "Phnom Penh",
+      "Architectural Visualization",
+      "3D Rendering Portfolio",
+      "Archtipsbox",
+    ].filter(Boolean),
+    openGraph: {
+      type: "article",
+      title,
+      description,
+      url: `/projects/${id}`,
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: project.title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl],
+    },
+  }
 }
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
@@ -27,8 +88,26 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     notFound()
   }
 
+  const projectSchema = generateProjectSchema({
+    title: project.title,
+    description: project.description,
+    slug: id,
+    image: project.image,
+    category: project.category,
+    year: project.year,
+    location: project.location,
+  })
+
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: "Home", url: "/" },
+    { name: "Projects", url: "/projects" },
+    { name: project.title, url: `/projects/${id}` },
+  ])
+
   return (
     <main className="min-h-screen bg-background">
+      <JsonLd data={projectSchema} />
+      <JsonLd data={breadcrumbSchema} />
       {/* Hero Image/Video - Scrollable Full Natural Size */}
       <div className="relative w-full bg-background" style={{ height: "100vh", overflow: "hidden", position: "relative" }}>
         {/* Back Button - Fixed on top */}

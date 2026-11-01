@@ -11,6 +11,7 @@ import { VideoIntroductionPlayer } from "@/components/video-introduction-player"
 import { getMediaUrl } from "@/lib/utils"
 import { Lock, PlayCircle, Clock, BarChart3, User, Award, CheckCircle2 } from "lucide-react"
 import { courses as mockCourses, d5Modules, getLessonCoverImage, CourseModule } from "@/lib/courses-data"
+import { generateCourseSchema, generateBreadcrumbSchema, JsonLd, getSiteUrl } from "@/lib/seo"
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -88,14 +89,47 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Course not found - Archtipsbox" }
   }
 
+  const base = getSiteUrl()
+  const title = `${course.title} | Architectural Visualization Course`
+  const description =
+    course.description ||
+    `Master ${course.title} with hands-on architectural visualization tutorials, scene assets, and instructor guidance at Archtipsbox.`
+  const imageUrl = course.thumbnail_url ? getMediaUrl(course.thumbnail_url) : `${base}/opengraph-image`
+
   return {
-    title: `${course.title} - Archtipsbox`,
-    description: course.description || undefined,
+    title,
+    description,
+    alternates: {
+      canonical: `/courses/${slug}`,
+    },
+    keywords: [
+      course.title,
+      course.category || "Rendering",
+      course.software_used || "ArchViz",
+      "Architectural Visualization Course",
+      "3D Rendering Masterclass",
+      "Archtipsbox"
+    ].filter(Boolean),
     openGraph: {
-      title: course.title,
-      description: course.description || undefined,
-      images: course.thumbnail_url ? [{ url: getMediaUrl(course.thumbnail_url) }] : undefined
-    }
+      type: "website",
+      title,
+      description,
+      url: `/courses/${slug}`,
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: course.title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl],
+    },
   }
 }
 
@@ -111,24 +145,26 @@ export default async function CourseLandingPage({ params }: PageProps) {
 
   const features = Array.isArray((course as any).features) ? (course as any).features : []
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Course",
-    name: course.title,
-    description: course.description || undefined,
-    provider: { "@type": "Organization", name: "Archtipsbox" },
-    instructor: course.instructor ? { "@type": "Person", name: course.instructor } : undefined,
-    offers: {
-      "@type": "Offer",
-      price: course.price ?? undefined,
-      priceCurrency: "USD",
-      availability: "https://schema.org/InStock"
-    }
-  }
+  const courseSchema = generateCourseSchema({
+    title: course.title,
+    description: course.description || "",
+    slug,
+    price: course.price,
+    instructor: course.instructor,
+    image: course.thumbnail_url ? getMediaUrl(course.thumbnail_url) : undefined,
+    category: course.category
+  })
+
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: "Home", url: "/" },
+    { name: "Courses", url: "/courses" },
+    { name: course.title, url: `/courses/${slug}` }
+  ])
 
   return (
     <main className="min-h-screen flex flex-col" style={{ backgroundColor: "#060010" }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <JsonLd data={courseSchema} />
+      <JsonLd data={breadcrumbSchema} />
       <Navigation />
 
       <div className="flex-grow container mx-auto px-6 py-24 md:py-32 max-w-7xl">
