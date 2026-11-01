@@ -7,6 +7,7 @@ import { TestimonialCarousel } from "@/components/testimonial-carousel"
 import { ContactSection } from "@/components/contact-section"
 import { Footer } from "@/components/footer"
 import { getCachedTestimonials, getCachedFeaturedProjects } from "@/lib/supabase/cached-queries"
+import { generateItemListSchema, JsonLd } from "@/lib/seo"
 
 export default async function Home() {
   const [testimonials, projects] = await Promise.all([
@@ -14,8 +15,16 @@ export default async function Home() {
     getCachedFeaturedProjects(8)
   ])
 
+  const featuredProjectsSchema = generateItemListSchema(
+    projects.map((p) => ({
+      name: p.title,
+      url: `/projects/${p.id}`,
+    }))
+  )
+
   return (
     <main className="min-h-screen bg-background" suppressHydrationWarning>
+      <JsonLd data={featuredProjectsSchema} />
       <Navigation />
       <HeroSection />
       <AnimatedTextSection />
