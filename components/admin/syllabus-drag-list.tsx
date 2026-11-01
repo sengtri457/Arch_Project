@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
-import { GripVertical, Edit3, Trash2, Loader2, Check, X, ExternalLink } from "lucide-react"
+import { GripVertical, Edit3, Trash2, Loader2, Check, X, ExternalLink, Undo2, Redo2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getMediaUrl } from "@/lib/utils"
 import { getLessonCoverImage } from "@/lib/courses-data"
@@ -44,8 +44,12 @@ export function SyllabusDragList({
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState("")
   const [savingTitle, setSavingTitle] = useState(false)
+  const [history, setHistory] = useState<SyllabusLesson[][]>([])
+  const [future, setFuture] = useState<SyllabusLesson[][]>([])
+  const [undoNotice, setUndoNotice] = useState<string | null>(null)
 
   const lessonsKey = (lessons || []).map((l) => `${l.lesson_id}:${l.title}:${l.order_index}`).join(";")
+  const lessonsIdKey = (lessons || []).map((l) => l.lesson_id).sort().join(";")
 
   const handleStartRename = (les: SyllabusLesson) => {
     setEditingLessonId(les.lesson_id)
@@ -95,6 +99,12 @@ export function SyllabusDragList({
     setIsMounted(true)
   }, [])
 
+  // Clear undo/redo stacks if course lesson list membership changes (addition / deletion)
+  useEffect(() => {
+    setHistory([])
+    setFuture([])
+  }, [lessonsIdKey])
+
   useEffect(() => {
     // Keep local items in sync only when actual lesson properties change and not mid-save
     if (!isSaving) {
@@ -102,6 +112,99 @@ export function SyllabusDragList({
       setItems(sorted)
     }
   }, [lessonsKey, isSaving])
+
+  const persistReorder = async (
+    targetItems: SyllabusLesson[],
+    rollbackItems: SyllabusLesson[],
+    actionType: "drag" | "undo" | "redo" = "drag"
+  ) => {
+    setItems(targetItems)
+    setIsSaving(true)
+    setSaveStatus("idle")
+
+    if (actionType === "undo") {
+      setUndoNotice("Reverted (Ctrl+Z)!")
+    } else if (actionType === "redo") {
+      setUndoNotice("Redone (Ctrl+Y)!")
+    } else {
+      setUndoNotice(null)
+    }
+
+    try {
+      const response = await fetch("/api/admin/lessons/reorder", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          course_id: courseId,
+          updates: targetItems.map((l, index) => ({
+            lesson_id: l.lesson_id,
+            order_index: index + 1,
+            module_id: l.module_id || null,
+          })),
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to persist new order")
+      }
+
+      setSaveStatus("success")
+      setTimeout(() => {
+        setSaveStatus("idle")
+        setUndoNotice(null)
+      }, 2500)
+      if (onReorderSuccess) {
+        onReorderSuccess()
+      }
+    } catch (err: any) {
+      console.error("Drag-and-drop reordering failed:", err)
+      // Rollback optimistic update
+      setItems(rollbackItems)
+      setSaveStatus("error")
+      setUndoNotice(null)
+      setTimeout(() => setSaveStatus("idle"), 3000)
+      alert(`Reordering failed: ${err.message}. Previous sequence restored.`)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleUndo = async () => {
+    if (isSaving || history.length === 0) return
+
+    const previous = history[history.length - 1]
+    const newHistory = history.slice(0, -1)
+    const current = items
+
+    setHistory(newHistory)
+    setFuture((prev) => [current, ...prev])
+
+    const resequencedPrevious = previous.map((item, index) => ({
+      ...item,
+      order_index: index + 1,
+    }))
+
+    await persistReorder(resequencedPrevious, current, "undo")
+  }
+
+  const handleRedo = async () => {
+    if (isSaving || future.length === 0) return
+
+    const next = future[0]
+    const newFuture = future.slice(1)
+    const current = items
+
+    setFuture(newFuture)
+    setHistory((prev) => [...prev, current])
+
+    const resequencedNext = next.map((item, index) => ({
+      ...item,
+      order_index: index + 1,
+    }))
+
+    await persistReorder(resequencedNext, current, "redo")
+  }
 
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination || result.destination.index === result.source.index) {
@@ -119,46 +222,49 @@ export function SyllabusDragList({
       order_index: index + 1,
     }))
 
-    // Optimistic UI update
-    setItems(updatedItems)
-    setIsSaving(true)
-    setSaveStatus("idle")
+    setHistory((prev) => [...prev.slice(-19), previousItems])
+    setFuture([])
 
-    try {
-      const response = await fetch("/api/admin/lessons/reorder", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          course_id: courseId,
-          updates: updatedItems.map((l) => ({
-            lesson_id: l.lesson_id,
-            order_index: l.order_index,
-            module_id: l.module_id || null,
-          })),
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || "Failed to persist new order")
-      }
-
-      setSaveStatus("success")
-      setTimeout(() => setSaveStatus("idle"), 2500)
-      if (onReorderSuccess) {
-        onReorderSuccess()
-      }
-    } catch (err: any) {
-      console.error("Drag-and-drop reordering failed:", err)
-      // Rollback optimistic update
-      setItems(previousItems)
-      setSaveStatus("error")
-      setTimeout(() => setSaveStatus("idle"), 3000)
-      alert(`Reordering failed: ${err.message}. Previous sequence restored.`)
-    } finally {
-      setIsSaving(false)
-    }
+    await persistReorder(updatedItems, previousItems, "drag")
   }
+
+  // Keyboard shortcut listener for Ctrl+Z (Undo) and Ctrl+Y / Cmd+Shift+Z (Redo)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is currently renaming inline or typing inside an input/textarea
+      if (editingLessonId) return
+
+      const activeEl = document.activeElement
+      if (
+        activeEl instanceof HTMLInputElement ||
+        activeEl instanceof HTMLTextAreaElement ||
+        activeEl?.getAttribute("contenteditable") === "true"
+      ) {
+        return
+      }
+
+      const isModifier = e.ctrlKey || e.metaKey
+      if (!isModifier || e.altKey) return
+
+      const isKeyZ = e.code === "KeyZ" || e.key.toLowerCase() === "z"
+      const isKeyY = e.code === "KeyY" || e.key.toLowerCase() === "y"
+
+      if ((isKeyZ && e.shiftKey) || isKeyY) {
+        if (future.length > 0 && !isSaving) {
+          e.preventDefault()
+          handleRedo()
+        }
+      } else if (isKeyZ && !e.shiftKey) {
+        if (history.length > 0 && !isSaving) {
+          e.preventDefault()
+          handleUndo()
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [history, future, items, isSaving, editingLessonId])
 
   if (!isMounted) {
     return (
@@ -178,20 +284,56 @@ export function SyllabusDragList({
 
   return (
     <div className="space-y-3">
-      {/* Save indicator banner */}
+      {/* Save indicator & Undo/Redo toolbar banner */}
       <div className="flex items-center justify-between text-xs px-1 text-zinc-400">
         <span className="text-[11px] text-zinc-500 flex items-center gap-1.5">
           <GripVertical className="w-3.5 h-3.5 text-zinc-500" />
           Drag items by handle to reorder automatically
         </span>
         <div className="flex items-center gap-2">
+          {/* Undo Action Button */}
+          {history.length > 0 && (
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={isSaving}
+              className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-750 hover:border-zinc-600 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+              title="Undo lesson reorder (Ctrl+Z)"
+            >
+              <Undo2 className="w-3 h-3 text-[#9ACD32]" />
+              <span>Undo</span>
+              <kbd className="text-[9px] bg-zinc-950 border border-zinc-700 px-1 py-0.2 rounded text-zinc-400 font-mono">
+                Ctrl+Z
+              </kbd>
+            </button>
+          )}
+
+          {/* Redo Action Button */}
+          {future.length > 0 && (
+            <button
+              type="button"
+              onClick={handleRedo}
+              disabled={isSaving}
+              className="flex items-center gap-1 text-[11px] font-medium text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-750 hover:border-zinc-600 px-2 py-1 rounded-lg transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+              title="Redo lesson reorder (Ctrl+Y)"
+            >
+              <Redo2 className="w-3 h-3 text-[#9ACD32]" />
+              <span>Redo</span>
+            </button>
+          )}
+
           {isSaving && (
             <span className="flex items-center gap-1.5 text-primary text-[11px] font-mono animate-pulse" style={{ color: "#9ACD32" }}>
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
               Saving sequence...
             </span>
           )}
-          {saveStatus === "success" && (
+          {undoNotice && (
+            <span className="flex items-center gap-1 text-[#9ACD32] text-[11px] font-semibold animate-in fade-in duration-150">
+              <RotateCcw className="w-3 h-3 animate-spin" /> {undoNotice}
+            </span>
+          )}
+          {saveStatus === "success" && !undoNotice && (
             <span className="flex items-center gap-1 text-green-400 text-[11px] font-semibold">
               <Check className="w-3.5 h-3.5" /> Order saved!
             </span>

@@ -19,6 +19,7 @@ import {
   Upload,
   Globe,
   FileCheck,
+  QrCode,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -53,6 +54,16 @@ function CheckoutContent() {
   const [isSubmittingPaypal, setIsSubmittingPaypal] = useState(false);
   const [paypalSubmitted, setPaypalSubmitted] = useState(false);
   const [paypalError, setPaypalError] = useState<string | null>(null);
+  const [paypalOrderData, setPaypalOrderData] = useState<{
+    orderId: string;
+    approvalUrl: string;
+    billNumber: string;
+    amount: number;
+    courseSlug?: string;
+  } | null>(null);
+  const [isCreatingPaypalOrder, setIsCreatingPaypalOrder] = useState(false);
+  const [paypalApiConfigured, setPaypalApiConfigured] = useState(true);
+  const [paypalMode, setPaypalMode] = useState<"auto" | "manual">("auto");
 
   // Promo Code States
   const [promoCodeInput, setPromoCodeInput] = useState("");
@@ -203,6 +214,7 @@ function CheckoutContent() {
       }
 
       setAppliedPromo(data);
+      setPaypalOrderData(null);
       await initializeCheckout(data.code);
     } catch (err: any) {
       setPromoError("Failed to validate promo code.");
@@ -332,37 +344,143 @@ function CheckoutContent() {
     }
   };
 
-  // 2. Poll transaction status in real-time
-  useEffect(() => {
-    if (!checkoutData?.billNumber || paymentCompleted) return;
-
-    const checkInterval = setInterval(async () => {
-      try {
-        const response = await fetch(
-          `/api/checkout/status?billNumber=${checkoutData.billNumber}`,
-        );
-        const statusData = await response.json();
-
-        if (response.ok && statusData.status === "completed") {
-          clearInterval(checkInterval);
-          setPaymentCompleted(true);
-
-          // Auto-redirect to classroom or dashboard in 4 seconds
-          setTimeout(() => {
-            if (checkoutData.courseSlug) {
-              router.push(`/courses/${checkoutData.courseSlug}`);
-            } else {
-              router.push("/dashboard");
-            }
-          }, 4000);
-        }
-      } catch (err) {
-        console.warn("Error checking payment status polling:", err);
+  // Initialize dynamic PayPal order
+  const initPaypalOrder = async () => {
+    if (isCreatingPaypalOrder || !user) return;
+    try {
+      setIsCreatingPaypalOrder(true);
+      setPaypalError(null);
+      const res = await fetch("/api/checkout/paypal/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId,
+          planId,
+          promoCode: appliedPromo?.code || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.notConfigured) {
+        setPaypalApiConfigured(false);
+        setPaypalMode("manual");
+        return;
       }
-    }, 3000);
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to create PayPal dynamic order");
+      }
+      setPaypalOrderData({
+        orderId: data.orderId,
+        approvalUrl: data.approvalUrl,
+        billNumber: data.billNumber,
+        amount: data.amount,
+        courseSlug: data.courseSlug,
+      });
+    } catch (err: any) {
+      console.warn("PayPal dynamic order error, falling back to manual:", err.message);
+      setPaypalMode("manual");
+    } finally {
+      setIsCreatingPaypalOrder(false);
+    }
+  };
 
-    return () => clearInterval(checkInterval);
-  }, [checkoutData, paymentCompleted, router]);
+  // Trigger dynamic PayPal order initialization
+  useEffect(() => {
+    if (
+      paymentMethod === "paypal" &&
+      paypalMode === "auto" &&
+      !paypalOrderData &&
+      !isCreatingPaypalOrder &&
+      paypalApiConfigured &&
+      user &&
+      (courseId || planId)
+    ) {
+      initPaypalOrder();
+    }
+  }, [
+    paymentMethod,
+    paypalMode,
+    paypalOrderData,
+    isCreatingPaypalOrder,
+    paypalApiConfigured,
+    user,
+    courseId,
+    planId,
+  ]);
+
+  // 2. Poll transaction status in real-time (for Bakong KHQR or PayPal Dynamic QR)
+  useEffect(() => {
+    if (paymentCompleted) return;
+
+    // A. Bakong KHQR Polling
+    if (paymentMethod === "khqr" && checkoutData?.billNumber) {
+      const checkInterval = setInterval(async () => {
+        try {
+          const response = await fetch(
+            `/api/checkout/status?billNumber=${checkoutData.billNumber}`,
+          );
+          const statusData = await response.json();
+
+          if (response.ok && statusData.status === "completed") {
+            clearInterval(checkInterval);
+            setPaymentCompleted(true);
+
+            // Auto-redirect to classroom or dashboard
+            setTimeout(() => {
+              if (checkoutData.courseSlug) {
+                router.push(`/courses/${checkoutData.courseSlug}`);
+              } else {
+                router.push("/dashboard");
+              }
+            }, 3500);
+          }
+        } catch (err) {
+          console.warn("Error checking Bakong payment status polling:", err);
+        }
+      }, 3000);
+
+      return () => clearInterval(checkInterval);
+    }
+
+    // B. PayPal Dynamic QR Polling
+    if (paymentMethod === "paypal" && paypalMode === "auto" && paypalOrderData?.billNumber) {
+      const checkInterval = setInterval(async () => {
+        try {
+          const response = await fetch(
+            `/api/checkout/paypal/status?billNumber=${paypalOrderData.billNumber}`,
+          );
+          const statusData = await response.json();
+
+          if (response.ok && statusData.status === "completed") {
+            clearInterval(checkInterval);
+            setPaymentCompleted(true);
+
+            setTimeout(() => {
+              const targetSlug =
+                statusData.courseSlug ||
+                paypalOrderData.courseSlug ||
+                checkoutData?.courseSlug;
+              if (targetSlug) {
+                router.push(`/courses/${targetSlug}`);
+              } else {
+                router.push("/dashboard");
+              }
+            }, 3000);
+          }
+        } catch (err) {
+          console.warn("Error checking PayPal status polling:", err);
+        }
+      }, 3000);
+
+      return () => clearInterval(checkInterval);
+    }
+  }, [
+    checkoutData,
+    paypalOrderData,
+    paymentMethod,
+    paypalMode,
+    paymentCompleted,
+    router,
+  ]);
 
   if (authLoading || loading) {
     return (
@@ -676,8 +794,102 @@ function CheckoutContent() {
                     </Button>
                   </Link>
                 </div>
+              ) : isCreatingPaypalOrder ? (
+                <div className="flex flex-col items-center justify-center py-16 text-zinc-400 gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin" style={{ color: "#0070BA" }} />
+                  <span className="text-xs">Generating secure PayPal QR code...</span>
+                </div>
+              ) : paypalMode === "auto" && paypalOrderData ? (
+                <>
+                  {/* Stylized Dynamic PayPal Stand/Card */}
+                  <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-zinc-200 w-[295px] mx-auto text-black">
+                    <div className="bg-[#003087] text-white px-5 py-3.5 flex justify-between items-center">
+                      <span className="font-black tracking-wider text-lg">PayPal</span>
+                      <span className="text-[10px] font-bold bg-[#0070BA] px-2.5 py-0.5 rounded-full text-white uppercase tracking-wider">
+                        Instant Scan
+                      </span>
+                    </div>
+
+                    <div className="px-5 py-3 text-center">
+                      <p className="text-[10px] text-zinc-400 font-bold tracking-wider uppercase">
+                        Total Amount
+                      </p>
+                      <p className="text-xl font-black text-zinc-900 tracking-tight mt-0.5">
+                        ${paypalOrderData.amount.toFixed(2)} USD
+                      </p>
+                      <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
+                        {paypalOrderData.billNumber}
+                      </p>
+                    </div>
+
+                    <div className="border-t border-dashed border-zinc-300 mx-5" />
+
+                    <div className="p-5 flex items-center justify-center relative">
+                      <div className="relative">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(paypalOrderData.approvalUrl)}`}
+                          alt="Dynamic PayPal Payment QR"
+                          className="w-48 h-48 object-contain"
+                        />
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 bg-[#003087] rounded-full border-2 border-white flex items-center justify-center shadow-md">
+                          <span className="text-white font-black text-sm">P</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-zinc-50 border-t border-zinc-100 px-4 py-2.5 text-center">
+                      <div className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-zinc-600">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0070BA]" />
+                        Awaiting phone scan / approval...
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 w-full">
+                    <a
+                      href={paypalOrderData.approvalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-xs bg-[#0070BA] hover:bg-[#003087] text-white transition-colors text-center shadow-md"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      Pay on this Browser (${paypalOrderData.amount.toFixed(2)} USD)
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+
+                    <p className="text-[11px] text-zinc-400 text-center leading-relaxed max-w-sm mx-auto">
+                      Scan the QR code above with your phone camera or PayPal app to approve payment. The course will automatically unlock once approved.
+                    </p>
+
+                    <div className="text-center pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setPaypalMode("manual")}
+                        className="text-[11px] text-zinc-500 hover:text-zinc-300 underline transition-colors"
+                      >
+                        Having trouble? Switch to manual transfer & receipt upload
+                      </button>
+                    </div>
+                  </div>
+                </>
               ) : (
                 <>
+                  {paypalApiConfigured && (
+                    <div className="text-center pb-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaypalMode("auto");
+                          if (!paypalOrderData) initPaypalOrder();
+                        }}
+                        className="text-xs text-primary font-semibold hover:underline flex items-center justify-center gap-1.5 mx-auto"
+                        style={{ color: "#9ACD32" }}
+                      >
+                        <QrCode className="w-3.5 h-3.5" /> Switch to Automated Instant QR Code
+                      </button>
+                    </div>
+                  )}
+
                   {/* Stylized PayPal Stand/Card */}
                   <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-zinc-200 w-[285px] mx-auto text-black">
                     <div className="bg-[#003087] text-white px-5 py-3.5 flex justify-center items-center font-black tracking-wider text-lg">
