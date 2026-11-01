@@ -1,32 +1,48 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from "react"
-import Link from "next/link"
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
-import { GripVertical, Edit3, Trash2, Loader2, Check, X, ExternalLink, Undo2, Redo2, RotateCcw } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { getMediaUrl } from "@/lib/utils"
-import { getLessonCoverImage } from "@/lib/courses-data"
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "@hello-pangea/dnd";
+import {
+  GripVertical,
+  Edit3,
+  Trash2,
+  Loader2,
+  Check,
+  X,
+  ExternalLink,
+  Undo2,
+  Redo2,
+  RotateCcw,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { getMediaUrl } from "@/lib/utils";
+import { getLessonCoverImage } from "@/lib/courses-data";
 
 export interface SyllabusLesson {
-  lesson_id: string
-  course_id: string
-  module_id?: string | null
-  title: string
-  order_index?: number
-  video_external_id?: string
-  duration_minutes?: number
-  thumbnail_url?: string | null
-  is_preview?: boolean
+  lesson_id: string;
+  course_id: string;
+  module_id?: string | null;
+  title: string;
+  order_index?: number;
+  video_external_id?: string;
+  duration_minutes?: number;
+  thumbnail_url?: string | null;
+  is_preview?: boolean;
 }
 
 interface SyllabusDragListProps {
-  courseId: string
-  courseSlug?: string
-  lessons: SyllabusLesson[]
-  onEditLesson?: (lesson: SyllabusLesson) => void
-  onDeleteLesson?: (lessonId: string) => void
-  onReorderSuccess?: () => void
+  courseId: string;
+  courseSlug?: string;
+  lessons: SyllabusLesson[];
+  onEditLesson?: (lesson: SyllabusLesson) => void;
+  onDeleteLesson?: (lessonId: string) => void;
+  onReorderSuccess?: () => void;
 }
 
 export function SyllabusDragList({
@@ -37,34 +53,41 @@ export function SyllabusDragList({
   onDeleteLesson,
   onReorderSuccess,
 }: SyllabusDragListProps) {
-  const [items, setItems] = useState<SyllabusLesson[]>(lessons)
-  const [isSaving, setIsSaving] = useState(false)
-  const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle")
-  const [isMounted, setIsMounted] = useState(false)
-  const [editingLessonId, setEditingLessonId] = useState<string | null>(null)
-  const [editingTitle, setEditingTitle] = useState("")
-  const [savingTitle, setSavingTitle] = useState(false)
-  const [history, setHistory] = useState<SyllabusLesson[][]>([])
-  const [future, setFuture] = useState<SyllabusLesson[][]>([])
-  const [undoNotice, setUndoNotice] = useState<string | null>(null)
+  const [items, setItems] = useState<SyllabusLesson[]>(lessons);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">(
+    "idle",
+  );
+  const [isMounted, setIsMounted] = useState(false);
+  const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [savingTitle, setSavingTitle] = useState(false);
+  const [history, setHistory] = useState<SyllabusLesson[][]>([]);
+  const [future, setFuture] = useState<SyllabusLesson[][]>([]);
+  const [undoNotice, setUndoNotice] = useState<string | null>(null);
 
-  const lessonsKey = (lessons || []).map((l) => `${l.lesson_id}:${l.title}:${l.order_index}`).join(";")
-  const lessonsIdKey = (lessons || []).map((l) => l.lesson_id).sort().join(";")
+  const lessonsKey = (lessons || [])
+    .map((l) => `${l.lesson_id}:${l.title}:${l.order_index}`)
+    .join(";");
+  const lessonsIdKey = (lessons || [])
+    .map((l) => l.lesson_id)
+    .sort()
+    .join(";");
 
   const handleStartRename = (les: SyllabusLesson) => {
-    setEditingLessonId(les.lesson_id)
-    setEditingTitle(les.title || "")
-  }
+    setEditingLessonId(les.lesson_id);
+    setEditingTitle(les.title || "");
+  };
 
   const handleSaveInlineTitle = async (lessonId: string) => {
-    const trimmed = (editingTitle || "").trim()
-    const current = items.find((l) => l.lesson_id === lessonId)
+    const trimmed = (editingTitle || "").trim();
+    const current = items.find((l) => l.lesson_id === lessonId);
     if (!trimmed || trimmed === current?.title) {
-      setEditingLessonId(null)
-      return
+      setEditingLessonId(null);
+      return;
     }
 
-    setSavingTitle(true)
+    setSavingTitle(true);
     try {
       const res = await fetch("/api/admin/lessons", {
         method: "PATCH",
@@ -73,61 +96,63 @@ export function SyllabusDragList({
           lesson_id: lessonId,
           title: trimmed,
         }),
-      })
+      });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || "Failed to save title")
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to save title");
       }
 
       setItems((prev) =>
         prev.map((item) =>
-          item.lesson_id === lessonId ? { ...item, title: trimmed } : item
-        )
-      )
-      setEditingLessonId(null)
-      if (onReorderSuccess) onReorderSuccess()
+          item.lesson_id === lessonId ? { ...item, title: trimmed } : item,
+        ),
+      );
+      setEditingLessonId(null);
+      if (onReorderSuccess) onReorderSuccess();
     } catch (err: any) {
-      console.error("Inline lesson rename failed:", err)
-      alert(`Could not rename lesson: ${err.message}`)
+      console.error("Inline lesson rename failed:", err);
+      alert(`Could not rename lesson: ${err.message}`);
     } finally {
-      setSavingTitle(false)
+      setSavingTitle(false);
     }
-  }
+  };
 
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
+    setIsMounted(true);
+  }, []);
 
   // Clear undo/redo stacks if course lesson list membership changes (addition / deletion)
   useEffect(() => {
-    setHistory([])
-    setFuture([])
-  }, [lessonsIdKey])
+    setHistory([]);
+    setFuture([]);
+  }, [lessonsIdKey]);
 
   useEffect(() => {
     // Keep local items in sync only when actual lesson properties change and not mid-save
     if (!isSaving) {
-      const sorted = [...lessons].sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
-      setItems(sorted)
+      const sorted = [...lessons].sort(
+        (a, b) => (a.order_index || 0) - (b.order_index || 0),
+      );
+      setItems(sorted);
     }
-  }, [lessonsKey, isSaving])
+  }, [lessonsKey, isSaving]);
 
   const persistReorder = async (
     targetItems: SyllabusLesson[],
     rollbackItems: SyllabusLesson[],
-    actionType: "drag" | "undo" | "redo" = "drag"
+    actionType: "drag" | "undo" | "redo" = "drag",
   ) => {
-    setItems(targetItems)
-    setIsSaving(true)
-    setSaveStatus("idle")
+    setItems(targetItems);
+    setIsSaving(true);
+    setSaveStatus("idle");
 
     if (actionType === "undo") {
-      setUndoNotice("Reverted (Ctrl+Z)!")
+      setUndoNotice("Reverted (Ctrl+Z)!");
     } else if (actionType === "redo") {
-      setUndoNotice("Redone (Ctrl+Y)!")
+      setUndoNotice("Redone (Ctrl+Y)!");
     } else {
-      setUndoNotice(null)
+      setUndoNotice(null);
     }
 
     try {
@@ -142,136 +167,139 @@ export function SyllabusDragList({
             module_id: l.module_id || null,
           })),
         }),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || "Failed to persist new order")
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to persist new order");
       }
 
-      setSaveStatus("success")
+      setSaveStatus("success");
       setTimeout(() => {
-        setSaveStatus("idle")
-        setUndoNotice(null)
-      }, 2500)
+        setSaveStatus("idle");
+        setUndoNotice(null);
+      }, 2500);
       if (onReorderSuccess) {
-        onReorderSuccess()
+        onReorderSuccess();
       }
     } catch (err: any) {
-      console.error("Drag-and-drop reordering failed:", err)
+      console.error("Drag-and-drop reordering failed:", err);
       // Rollback optimistic update
-      setItems(rollbackItems)
-      setSaveStatus("error")
-      setUndoNotice(null)
-      setTimeout(() => setSaveStatus("idle"), 3000)
-      alert(`Reordering failed: ${err.message}. Previous sequence restored.`)
+      setItems(rollbackItems);
+      setSaveStatus("error");
+      setUndoNotice(null);
+      setTimeout(() => setSaveStatus("idle"), 3000);
+      alert(`Reordering failed: ${err.message}. Previous sequence restored.`);
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const handleUndo = async () => {
-    if (isSaving || history.length === 0) return
+    if (isSaving || history.length === 0) return;
 
-    const previous = history[history.length - 1]
-    const newHistory = history.slice(0, -1)
-    const current = items
+    const previous = history[history.length - 1];
+    const newHistory = history.slice(0, -1);
+    const current = items;
 
-    setHistory(newHistory)
-    setFuture((prev) => [current, ...prev])
+    setHistory(newHistory);
+    setFuture((prev) => [current, ...prev]);
 
     const resequencedPrevious = previous.map((item, index) => ({
       ...item,
       order_index: index + 1,
-    }))
+    }));
 
-    await persistReorder(resequencedPrevious, current, "undo")
-  }
+    await persistReorder(resequencedPrevious, current, "undo");
+  };
 
   const handleRedo = async () => {
-    if (isSaving || future.length === 0) return
+    if (isSaving || future.length === 0) return;
 
-    const next = future[0]
-    const newFuture = future.slice(1)
-    const current = items
+    const next = future[0];
+    const newFuture = future.slice(1);
+    const current = items;
 
-    setFuture(newFuture)
-    setHistory((prev) => [...prev, current])
+    setFuture(newFuture);
+    setHistory((prev) => [...prev, current]);
 
     const resequencedNext = next.map((item, index) => ({
       ...item,
       order_index: index + 1,
-    }))
+    }));
 
-    await persistReorder(resequencedNext, current, "redo")
-  }
+    await persistReorder(resequencedNext, current, "redo");
+  };
 
   const handleDragEnd = async (result: DropResult) => {
-    if (!result.destination || result.destination.index === result.source.index) {
-      return
+    if (
+      !result.destination ||
+      result.destination.index === result.source.index
+    ) {
+      return;
     }
 
-    const previousItems = [...items]
-    const reordered = Array.from(items)
-    const [removed] = reordered.splice(result.source.index, 1)
-    reordered.splice(result.destination.index, 0, removed)
+    const previousItems = [...items];
+    const reordered = Array.from(items);
+    const [removed] = reordered.splice(result.source.index, 1);
+    reordered.splice(result.destination.index, 0, removed);
 
     // Recalculate order_index sequentially starting at 1
     const updatedItems = reordered.map((item, index) => ({
       ...item,
       order_index: index + 1,
-    }))
+    }));
 
-    setHistory((prev) => [...prev.slice(-19), previousItems])
-    setFuture([])
+    setHistory((prev) => [...prev.slice(-19), previousItems]);
+    setFuture([]);
 
-    await persistReorder(updatedItems, previousItems, "drag")
-  }
+    await persistReorder(updatedItems, previousItems, "drag");
+  };
 
   // Keyboard shortcut listener for Ctrl+Z (Undo) and Ctrl+Y / Cmd+Shift+Z (Redo)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if user is currently renaming inline or typing inside an input/textarea
-      if (editingLessonId) return
+      if (editingLessonId) return;
 
-      const activeEl = document.activeElement
+      const activeEl = document.activeElement;
       if (
         activeEl instanceof HTMLInputElement ||
         activeEl instanceof HTMLTextAreaElement ||
         activeEl?.getAttribute("contenteditable") === "true"
       ) {
-        return
+        return;
       }
 
-      const isModifier = e.ctrlKey || e.metaKey
-      if (!isModifier || e.altKey) return
+      const isModifier = e.ctrlKey || e.metaKey;
+      if (!isModifier || e.altKey) return;
 
-      const isKeyZ = e.code === "KeyZ" || e.key.toLowerCase() === "z"
-      const isKeyY = e.code === "KeyY" || e.key.toLowerCase() === "y"
+      const isKeyZ = e.code === "KeyZ" || e.key.toLowerCase() === "z";
+      const isKeyY = e.code === "KeyY" || e.key.toLowerCase() === "y";
 
       if ((isKeyZ && e.shiftKey) || isKeyY) {
         if (future.length > 0 && !isSaving) {
-          e.preventDefault()
-          handleRedo()
+          e.preventDefault();
+          handleRedo();
         }
       } else if (isKeyZ && !e.shiftKey) {
         if (history.length > 0 && !isSaving) {
-          e.preventDefault()
-          handleUndo()
+          e.preventDefault();
+          handleUndo();
         }
       }
-    }
+    };
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [history, future, items, isSaving, editingLessonId])
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [history, future, items, isSaving, editingLessonId]);
 
   if (!isMounted) {
     return (
       <div className="py-6 text-center text-xs text-zinc-500">
         Loading syllabus drag layout...
       </div>
-    )
+    );
   }
 
   if (items.length === 0) {
@@ -279,7 +307,7 @@ export function SyllabusDragList({
       <p className="text-xs text-zinc-500 italic text-center py-6">
         No lessons exist in this syllabus yet. Click "Add Lesson" above.
       </p>
-    )
+    );
   }
 
   return (
@@ -323,7 +351,10 @@ export function SyllabusDragList({
           )}
 
           {isSaving && (
-            <span className="flex items-center gap-1.5 text-primary text-[11px] font-mono animate-pulse" style={{ color: "#9ACD32" }}>
+            <span
+              className="flex items-center gap-1.5 text-primary text-[11px] font-mono animate-pulse"
+              style={{ color: "#9ACD32" }}
+            >
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
               Saving sequence...
             </span>
@@ -353,7 +384,9 @@ export function SyllabusDragList({
               {...provided.droppableProps}
               ref={provided.innerRef}
               className={`space-y-2.5 max-h-[360px] overflow-y-auto pr-1 custom-scrollbar transition-colors rounded-xl p-1 ${
-                snapshot.isDraggingOver ? "bg-zinc-950/60 ring-1 ring-zinc-700" : ""
+                snapshot.isDraggingOver
+                  ? "bg-zinc-950/60 ring-1 ring-zinc-700"
+                  : ""
               }`}
             >
               {items.map((les, index) => {
@@ -362,8 +395,8 @@ export function SyllabusDragList({
                   getLessonCoverImage(
                     courseSlug || courseId,
                     { ...les, thumbnail_url: les.thumbnail_url || undefined },
-                    (les.order_index || index + 1) - 1
-                  )
+                    (les.order_index || index + 1) - 1,
+                  );
 
                 return (
                   <Draggable
@@ -382,7 +415,9 @@ export function SyllabusDragList({
                         }`}
                         style={{
                           ...draggableProvided.draggableProps.style,
-                          borderColor: draggableSnapshot.isDragging ? "#9ACD32" : undefined,
+                          borderColor: draggableSnapshot.isDragging
+                            ? "#9ACD32"
+                            : undefined,
                         }}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -415,8 +450,8 @@ export function SyllabusDragList({
                               <div
                                 className="flex items-center gap-2 max-w-md py-0.5"
                                 onClick={(e) => {
-                                  e.preventDefault()
-                                  e.stopPropagation()
+                                  e.preventDefault();
+                                  e.stopPropagation();
                                 }}
                               >
                                 <input
@@ -424,16 +459,18 @@ export function SyllabusDragList({
                                   autoFocus
                                   disabled={savingTitle}
                                   value={editingTitle}
-                                  onChange={(e) => setEditingTitle(e.target.value)}
+                                  onChange={(e) =>
+                                    setEditingTitle(e.target.value)
+                                  }
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
-                                      e.preventDefault()
-                                      e.stopPropagation()
-                                      handleSaveInlineTitle(les.lesson_id)
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleSaveInlineTitle(les.lesson_id);
                                     } else if (e.key === "Escape") {
-                                      e.preventDefault()
-                                      e.stopPropagation()
-                                      setEditingLessonId(null)
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setEditingLessonId(null);
                                     }
                                   }}
                                   className="w-full min-w-[220px] bg-zinc-900 border-2 border-[#9ACD32] text-white text-xs font-semibold px-3 py-1.5 rounded-lg focus:outline-none shadow-md shadow-[#9ACD32]/10"
@@ -444,7 +481,9 @@ export function SyllabusDragList({
                                   <div className="flex items-center gap-1 shrink-0">
                                     <button
                                       type="button"
-                                      onClick={() => handleSaveInlineTitle(les.lesson_id)}
+                                      onClick={() =>
+                                        handleSaveInlineTitle(les.lesson_id)
+                                      }
                                       className="p-1.5 text-black bg-[#9ACD32] hover:bg-[#8ab82b] rounded-md transition-colors cursor-pointer"
                                       title="Save (Enter)"
                                     >
@@ -466,9 +505,9 @@ export function SyllabusDragList({
                                 <button
                                   type="button"
                                   onClick={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    handleStartRename(les)
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleStartRename(les);
                                   }}
                                   className="text-left text-xs font-semibold text-white hover:text-[#9ACD32] transition-colors truncate cursor-pointer bg-transparent border-0 p-0"
                                   title="Click to rename this lesson"
@@ -478,15 +517,17 @@ export function SyllabusDragList({
                                 <button
                                   type="button"
                                   onClick={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    handleStartRename(les)
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleStartRename(les);
                                   }}
                                   className="text-[10px] text-zinc-400 hover:text-black hover:bg-[#9ACD32] flex items-center gap-1 bg-zinc-900 px-2 py-0.5 rounded-md border border-zinc-750 shrink-0 transition-all cursor-pointer font-medium"
                                   title="Click to rename this lesson"
                                 >
                                   <Edit3 className="w-2.5 h-2.5" />
-                                  <span className="text-[9px] font-mono">Rename</span>
+                                  <span className="text-[9px] font-mono">
+                                    Rename
+                                  </span>
                                 </button>
                               </div>
                             )}
@@ -534,7 +575,7 @@ export function SyllabusDragList({
                       </div>
                     )}
                   </Draggable>
-                )
+                );
               })}
               {provided.placeholder}
             </div>
@@ -542,5 +583,5 @@ export function SyllabusDragList({
         </Droppable>
       </DragDropContext>
     </div>
-  )
+  );
 }

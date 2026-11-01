@@ -1,156 +1,172 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw } from "lucide-react"
-import { getMediaUrl } from "@/lib/utils"
+import { useState, useEffect } from "react";
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+} from "lucide-react";
+import { getMediaUrl } from "@/lib/utils";
 
 interface ImageLightboxProps {
-  images: string[]
-  initialIndex?: number
-  isOpen: boolean
-  onClose: () => void
-  title?: string
+  images: string[];
+  initialIndex?: number;
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
 }
 
-export function ImageLightbox({ images, initialIndex = 0, isOpen, onClose, title }: ImageLightboxProps) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex)
-  const [zoom, setZoom] = useState(1)
-  const [isZoomed, setIsZoomed] = useState(false)
-  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+export function ImageLightbox({
+  images,
+  initialIndex = 0,
+  isOpen,
+  onClose,
+  title,
+}: ImageLightboxProps) {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [zoom, setZoom] = useState(1);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   // Update current index when initialIndex changes
   useEffect(() => {
     if (isOpen) {
-      setCurrentIndex(initialIndex)
-      setZoom(1)
-      setIsZoomed(false)
-      setImagePosition({ x: 0, y: 0 })
+      setCurrentIndex(initialIndex);
+      setZoom(1);
+      setIsZoomed(false);
+      setImagePosition({ x: 0, y: 0 });
     }
-  }, [initialIndex, isOpen])
+  }, [initialIndex, isOpen]);
 
   const goToPrevious = () => {
-    const newIndex = currentIndex === 0 ? images.length - 1 : currentIndex - 1
-    setCurrentIndex(newIndex)
-    setZoom(1)
-    setIsZoomed(false)
-    setImagePosition({ x: 0, y: 0 })
-  }
+    const newIndex = currentIndex === 0 ? images.length - 1 : currentIndex - 1;
+    setCurrentIndex(newIndex);
+    setZoom(1);
+    setIsZoomed(false);
+    setImagePosition({ x: 0, y: 0 });
+  };
 
   const goToNext = () => {
-    const newIndex = currentIndex === images.length - 1 ? 0 : currentIndex + 1
-    setCurrentIndex(newIndex)
-    setZoom(1)
-    setIsZoomed(false)
-    setImagePosition({ x: 0, y: 0 })
-  }
+    const newIndex = currentIndex === images.length - 1 ? 0 : currentIndex + 1;
+    setCurrentIndex(newIndex);
+    setZoom(1);
+    setIsZoomed(false);
+    setImagePosition({ x: 0, y: 0 });
+  };
 
   const handleZoomIn = () => {
-    setZoom((prev) => Math.min(prev + 0.5, 4))
-    setIsZoomed(true)
-  }
+    setZoom((prev) => Math.min(prev + 0.5, 4));
+    setIsZoomed(true);
+  };
 
   const handleZoomOut = () => {
-    const newZoom = Math.max(zoom - 0.5, 1)
-    setZoom(newZoom)
+    const newZoom = Math.max(zoom - 0.5, 1);
+    setZoom(newZoom);
     if (newZoom === 1) {
-      setIsZoomed(false)
-      setImagePosition({ x: 0, y: 0 })
+      setIsZoomed(false);
+      setImagePosition({ x: 0, y: 0 });
     }
-  }
+  };
 
   const handleResetZoom = () => {
-    setZoom(1)
-    setIsZoomed(false)
-    setImagePosition({ x: 0, y: 0 })
-  }
+    setZoom(1);
+    setIsZoomed(false);
+    setImagePosition({ x: 0, y: 0 });
+  };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isZoomed) {
-      setIsDragging(true)
-      setDragStart({ x: e.clientX - imagePosition.x, y: e.clientY - imagePosition.y })
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - imagePosition.x,
+        y: e.clientY - imagePosition.y,
+      });
     }
-  }
+  };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging && isZoomed) {
       setImagePosition({
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y,
-      })
+      });
     }
-  }
+  };
 
   const handleMouseUp = () => {
-    setIsDragging(false)
-  }
+    setIsDragging(false);
+  };
 
   const handleWheel = (e: React.WheelEvent) => {
     if (isOpen) {
-      e.preventDefault()
-      const delta = e.deltaY > 0 ? -0.2 : 0.2
-      const newZoom = Math.max(1, Math.min(zoom + delta, 4))
-      setZoom(newZoom)
-      setIsZoomed(newZoom > 1)
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.2 : 0.2;
+      const newZoom = Math.max(1, Math.min(zoom + delta, 4));
+      setZoom(newZoom);
+      setIsZoomed(newZoom > 1);
     }
-  }
+  };
 
   // Keyboard navigation
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
         case "Escape":
-          onClose()
-          break
+          onClose();
+          break;
         case "ArrowLeft":
-          goToPrevious()
-          break
+          goToPrevious();
+          break;
         case "ArrowRight":
-          goToNext()
-          break
+          goToNext();
+          break;
         case "+":
         case "=":
-          e.preventDefault()
-          handleZoomIn()
-          break
+          e.preventDefault();
+          handleZoomIn();
+          break;
         case "-":
-          e.preventDefault()
-          handleZoomOut()
-          break
+          e.preventDefault();
+          handleZoomOut();
+          break;
         case "0":
-          e.preventDefault()
-          handleResetZoom()
-          break
+          e.preventDefault();
+          handleResetZoom();
+          break;
       }
-    }
+    };
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isOpen, currentIndex, zoom])
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, currentIndex, zoom]);
 
   // Prevent body scroll when lightbox is open
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden"
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = ""
+      document.body.style.overflow = "";
     }
     return () => {
-      document.body.style.overflow = ""
-    }
-  }, [isOpen])
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div
       className="fixed inset-0 z-[9999] bg-black/98 flex items-center justify-center"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isZoomed) {
-          onClose()
+          onClose();
         }
       }}
       onWheel={handleWheel}
@@ -218,11 +234,21 @@ export function ImageLightbox({ images, initialIndex = 0, isOpen, onClose, title
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        style={{ cursor: isZoomed ? (isDragging ? "grabbing" : "grab") : "default" }}
+        style={{
+          cursor: isZoomed ? (isDragging ? "grabbing" : "grab") : "default",
+        }}
       >
         <img
-          src={images[currentIndex] ? getMediaUrl(images[currentIndex]) : "/placeholder.svg"}
-          alt={title ? `${title} - Image ${currentIndex + 1}` : `Image ${currentIndex + 1}`}
+          src={
+            images[currentIndex]
+              ? getMediaUrl(images[currentIndex])
+              : "/placeholder.svg"
+          }
+          alt={
+            title
+              ? `${title} - Image ${currentIndex + 1}`
+              : `Image ${currentIndex + 1}`
+          }
           className="max-w-full max-h-full object-contain select-none"
           style={{
             transform: `scale(${zoom}) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
@@ -230,10 +256,10 @@ export function ImageLightbox({ images, initialIndex = 0, isOpen, onClose, title
           }}
           draggable={false}
           onError={(e) => {
-            const target = e.currentTarget as HTMLImageElement
-            if (target.src !== '/placeholder.svg') {
-              console.error('Image failed to load:', images[currentIndex])
-              target.src = '/placeholder.svg'
+            const target = e.currentTarget as HTMLImageElement;
+            if (target.src !== "/placeholder.svg") {
+              console.error("Image failed to load:", images[currentIndex]);
+              target.src = "/placeholder.svg";
             }
           }}
         />
@@ -258,8 +284,5 @@ export function ImageLightbox({ images, initialIndex = 0, isOpen, onClose, title
         <div>ESC Close</div>
       </div>
     </div>
-  )
+  );
 }
-
-
-
