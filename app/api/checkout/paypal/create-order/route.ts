@@ -174,6 +174,23 @@ export async function POST(request: Request) {
       }
     )
 
+    // Ensure profile exists for user to prevent foreign key violation on payment_transactions.user_id
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (!existingProfile) {
+      await supabaseAdmin.from('profiles').insert({
+        id: user.id,
+        email: user.email,
+        full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Student',
+        role: 'student',
+        is_active: true
+      })
+    }
+
     const { error: txError } = await supabaseAdmin.from('payment_transactions').insert({
       user_id: user.id,
       plan_id: targetPlanId,
@@ -189,7 +206,10 @@ export async function POST(request: Request) {
 
     if (txError) {
       console.error('Failed to record pending PayPal transaction:', txError)
-      return NextResponse.json({ error: 'Failed to record transaction' }, { status: 500 })
+      return NextResponse.json({ 
+        error: `Failed to record transaction: ${txError.message || 'Unknown database error'}`,
+        details: txError
+      }, { status: 500 })
     }
 
     return NextResponse.json({
