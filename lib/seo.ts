@@ -68,7 +68,7 @@ export function generateOrganizationSchema() {
     name: siteConfig.name,
     legalName: siteConfig.legalName,
     url: base,
-    logo: `${base}/projects/Tipsbox logo png.png`,
+    logo: `${base}/logo.png`,
     image: `${base}/opengraph-image`,
     description: siteConfig.description,
     sameAs: [
@@ -101,7 +101,7 @@ export function generateWebSiteSchema() {
       name: siteConfig.name,
       logo: {
         "@type": "ImageObject",
-        url: `${base}/projects/Tipsbox logo png.png`
+        url: `${base}/logo.png`
       }
     },
     potentialAction: {

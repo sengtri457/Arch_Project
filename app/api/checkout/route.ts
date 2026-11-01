@@ -93,6 +93,8 @@ export async function POST(request: Request) {
       checkoutAmount = course.price ? parseFloat(course.price) : 49.99
     }
 
+    const originalAmount = checkoutAmount
+
     // Apply Promo Code discount if provided
     let appliedPromoCode: string | null = null
     if (promoCode) {
@@ -228,6 +230,7 @@ export async function POST(request: Request) {
         transactionId: transaction.transaction_id,
         billNumber: transaction.bill_number,
         amount: 0,
+        originalAmount: originalAmount,
         courseSlug: courseSlug
       })
     }
@@ -314,6 +317,7 @@ export async function POST(request: Request) {
       transactionId: transaction.transaction_id,
       billNumber: transaction.bill_number,
       amount: transaction.amount,
+      originalAmount: originalAmount,
       khqrPayload: transaction.khqr_payload,
       courseSlug: courseSlug
     })

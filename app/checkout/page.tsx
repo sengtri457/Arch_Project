@@ -14,6 +14,8 @@ import {
   AlertCircle,
   Lock,
   ArrowLeft,
+  ArrowRight,
+  Send,
   Copy,
   ExternalLink,
   Upload,
@@ -37,6 +39,7 @@ function CheckoutContent() {
   const [checkoutData, setCheckoutData] = useState<{
     billNumber: string;
     amount: number;
+    originalAmount?: number;
     khqrPayload: string;
     courseSlug: string;
   } | null>(null);
@@ -109,12 +112,13 @@ function CheckoutContent() {
         return;
       }
 
-      setCheckoutData({
+      setCheckoutData((prev) => ({
         billNumber: resData.billNumber,
         amount: resData.amount,
+        originalAmount: resData.originalAmount ?? prev?.originalAmount ?? resData.amount,
         khqrPayload: resData.khqrPayload,
         courseSlug: resData.courseSlug,
-      });
+      }));
     } catch (err: any) {
       console.error("Checkout loading error:", err);
       setError(err.message || "An unexpected error occurred.");
@@ -179,6 +183,14 @@ function CheckoutContent() {
   }, [user, authLoading, courseId, planId]);
 
   // Promo Code Validation Handler
+  const handleRemovePromo = async () => {
+    setAppliedPromo(null);
+    setPromoCodeInput("");
+    setPromoError(null);
+    setPaypalOrderData(null);
+    await initializeCheckout();
+  };
+
   const handleApplyPromo = async () => {
     if (!promoCodeInput.trim()) return;
     try {
@@ -620,15 +632,29 @@ function CheckoutContent() {
                 <p className="text-[10px] uppercase font-bold text-zinc-500">
                   Total Cost
                 </p>
-                <p
-                  className="text-xl font-bold text-primary mt-0.5"
-                  style={{ color: "#9ACD32" }}
-                >
-                  ${checkoutData?.amount.toFixed(2)} USD
-                </p>
+                {checkoutData && checkoutData.originalAmount && checkoutData.originalAmount > checkoutData.amount ? (
+                  <div className="flex items-baseline flex-wrap gap-2.5 mt-0.5">
+                    <span className="text-base font-semibold text-zinc-500 line-through decoration-zinc-400">
+                      ${checkoutData.originalAmount.toFixed(2)} USD
+                    </span>
+                    <span
+                      className="text-xl font-bold text-primary"
+                      style={{ color: "#9ACD32" }}
+                    >
+                      ${checkoutData.amount.toFixed(2)} USD
+                    </span>
+                  </div>
+                ) : (
+                  <p
+                    className="text-xl font-bold text-primary mt-0.5"
+                    style={{ color: "#9ACD32" }}
+                  >
+                    ${checkoutData?.amount.toFixed(2)} USD
+                  </p>
+                )}
               </div>
 
-              {!paymentCompleted && paymentMethod === "khqr" && (
+              {!paymentCompleted && (
                 <div className="border-t border-zinc-850/60 pt-3 space-y-2">
                   <p className="text-[10px] uppercase font-bold text-zinc-500">
                     Promo Code
@@ -641,11 +667,21 @@ function CheckoutContent() {
                       >
                         {appliedPromo.code} Applied
                       </span>
-                      <span className="text-xs font-bold text-green-400">
-                        {appliedPromo.discount_type === "percentage"
-                          ? `${appliedPromo.discount_value}% OFF`
-                          : `$${appliedPromo.discount_value} OFF`}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-green-400">
+                          {appliedPromo.discount_type === "percentage"
+                            ? `${appliedPromo.discount_value}% OFF`
+                            : `$${appliedPromo.discount_value} OFF`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleRemovePromo}
+                          className="text-zinc-500 hover:text-zinc-300 text-xs px-1 rounded transition-colors"
+                          title="Remove promo code"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex flex-col sm:flex-row gap-2">
@@ -674,6 +710,34 @@ function CheckoutContent() {
                 </div>
               )}
             </div>
+
+            {!paymentCompleted && paymentMethod !== "telegram" && (
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentMethod("telegram");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-900 hover:border-[#229ED9]/50 transition-all text-xs font-semibold group cursor-pointer shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-[#229ED9]/15 border border-[#229ED9]/30 flex items-center justify-center text-[#229ED9] group-hover:bg-[#229ED9] group-hover:text-white transition-all">
+                      <Send className="w-4 h-4 -rotate-45" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-white group-hover:text-[#229ED9] transition-colors">
+                        Pay via Telegram (Manual)
+                      </p>
+                      <p className="text-[10px] text-zinc-500">
+                        Chat directly with the instructor to confirm payment
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                </button>
+              </div>
+            )}
           </div>
 
           {paymentCompleted && (

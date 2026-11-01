@@ -44,8 +44,14 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/projects/Tipsbox logo png.png",
-    apple: "/projects/Tipsbox logo png.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
   },
   alternates: {
     canonical: "./",
@@ -104,6 +110,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="preconnect" href="https://www.youtube-nocookie.com" />
         <link rel="preconnect" href="https://img.youtube.com" />
         <JsonLd data={organizationSchema} />
