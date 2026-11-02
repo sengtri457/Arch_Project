@@ -8,7 +8,7 @@ import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
-import { ArrowLeft, Plus, Trash2, Upload, Loader2, Edit3, Video, FileText, Sparkles } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Upload, Loader2, Edit3, Video, FileText, Sparkles, Globe } from "lucide-react"
 import { getMediaUrl } from "@/lib/utils"
 import Swal from "sweetalert2"
 import { d5Modules } from "@/lib/courses-data"
@@ -48,7 +48,8 @@ export default function EditCoursePage() {
     requiredPlanId: "",
     published: true,
     lessons: "0",
-    introductionUrl: ""
+    introductionUrl: "",
+    gumroadUrl: ""
   })
 
   const [features, setFeatures] = useState<string[]>([])
@@ -510,7 +511,8 @@ export default function EditCoursePage() {
             requiredPlanId: course.required_plan_id != null ? String(course.required_plan_id) : "",
             published: course.is_published !== false,
             lessons: (course.lessons || 0).toString(),
-            introductionUrl: course.introduction_url || ""
+            introductionUrl: course.introduction_url || "",
+            gumroadUrl: (course as any).gumroad_url || ""
           })
 
           setFeatures(Array.isArray(course.features) ? course.features : [])
@@ -683,16 +685,27 @@ export default function EditCoursePage() {
       duration: courseForm.duration.trim() || null,
       lessons: parseInt(courseForm.lessons) || 0,
       features: features.map(f => f.trim()).filter(Boolean),
-      introduction_url: courseForm.introductionUrl.trim() || null
+      introduction_url: courseForm.introductionUrl.trim() || null,
+      gumroad_url: courseForm.gumroadUrl.trim() || null
     }
 
     try {
-      const { error } = await supabase
+      let { error } = await supabase
         .from('courses')
         .update(payload)
         .eq('course_id', courseId)
 
-      if (error) throw error
+      if (error && error.message?.includes('gumroad_url')) {
+        // Fallback if column not yet added to DB
+        delete (payload as any).gumroad_url
+        const retry = await supabase
+          .from('courses')
+          .update(payload)
+          .eq('course_id', courseId)
+        if (retry.error) throw retry.error
+      } else if (error) {
+        throw error
+      }
 
       await MySwal.fire({
         icon: 'success',
@@ -889,6 +902,24 @@ export default function EditCoursePage() {
                 <option value="published">Published (visible to students)</option>
                 <option value="draft">Draft (hidden)</option>
               </select>
+            </div>
+
+            {/* International / Gumroad Checkout URL */}
+            <div className="md:col-span-2 space-y-2">
+              <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-sky-400" />
+                International / Gumroad Checkout URL
+              </label>
+              <input
+                type="url"
+                placeholder="https://archtipsbox.gumroad.com/l/d5masterclass?wanted=true"
+                value={courseForm.gumroadUrl}
+                onChange={(e) => setCourseForm({ ...courseForm, gumroadUrl: e.target.value })}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-sky-500 font-mono"
+              />
+              <p className="text-[11px] text-zinc-500">
+                Direct URL used when international students choose &quot;Cards / Apple Pay&quot; during checkout.
+              </p>
             </div>
 
             {/* Image Thumbnail */}

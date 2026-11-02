@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { buildGumroadCheckoutUrl } from "@/lib/gumroad";
+import { courses as localCourses } from "@/lib/courses-data";
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
@@ -57,6 +58,7 @@ function CheckoutContent() {
   // Gumroad International Checkout States
   const [isRedirectingGumroad, setIsRedirectingGumroad] = useState(false);
   const [gumroadClicked, setGumroadClicked] = useState(false);
+  const [customGumroadUrl, setCustomGumroadUrl] = useState<string | null>(null);
 
   // Promo Code States
   const [promoCodeInput, setPromoCodeInput] = useState("");
@@ -136,11 +138,18 @@ function CheckoutContent() {
         setLoading(true);
         setError(null);
 
-        // Fetch course name
+        // Fetch course name & international link
         if (courseId) {
+          const matchedLocal = localCourses.find(
+            (c) => c.course_id === courseId || c.id === courseId
+          );
+          if (matchedLocal?.gumroad_url) {
+            setCustomGumroadUrl(matchedLocal.gumroad_url);
+          }
+
           const { data: course, error: courseErr } = await supabase
             .from("courses")
-            .select("title")
+            .select("*")
             .eq("course_id", courseId)
             .single();
 
@@ -148,6 +157,9 @@ function CheckoutContent() {
             throw new Error("Course not found in catalog");
           }
           setCourseTitle(course.title);
+          if ((course as any).gumroad_url) {
+            setCustomGumroadUrl((course as any).gumroad_url);
+          }
         } else if (planId) {
           const { data: plan, error: planErr } = await supabase
             .from("subscription_plans")
@@ -244,7 +256,7 @@ function CheckoutContent() {
   };
 
   const getGumroadUrl = () => {
-    return buildGumroadCheckoutUrl(undefined, {
+    return buildGumroadCheckoutUrl(customGumroadUrl || undefined, {
       email: user?.email || undefined,
       wanted: true,
       discountCode: appliedPromo?.code || undefined,
@@ -391,46 +403,58 @@ function CheckoutContent() {
             <button
               type="button"
               onClick={() => setPaymentMethod("khqr")}
-              className={`py-3 px-2 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap min-w-0 ${
+              className={`py-2.5 sm:py-3 px-2 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap min-w-0 ${
                 paymentMethod === "khqr"
                   ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
                   : "text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-900/60"
               }`}
             >
-              <QrCode className="w-4 h-4 text-[#9ACD32] shrink-0" />
-              <span className="truncate">KHQR Scan</span>
+              <img
+                src="/logo-payment/KHQR-available-here-logo-with-bg.webp"
+                alt="KHQR"
+                className="h-6 sm:h-7 w-auto object-contain rounded shrink-0 shadow-sm"
+              />
+              <span className="truncate font-bold">KHQR Scan</span>
               <span className="hidden sm:inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-zinc-900 text-zinc-300 border border-zinc-700/60 shrink-0">
-                🇰🇭 Cambodia
+                Cambodia
               </span>
             </button>
 
             <button
               type="button"
               onClick={() => setPaymentMethod("international")}
-              className={`py-3 px-2 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap min-w-0 ${
+              className={`py-2.5 sm:py-3 px-2 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap min-w-0 ${
                 paymentMethod === "international"
                   ? "bg-sky-500/15 text-sky-300 border border-sky-500/40 shadow-md"
                   : "text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-900/60"
               }`}
             >
-              <Globe className="w-4 h-4 text-sky-400 shrink-0" />
-              <span className="truncate">Cards / Apple Pay</span>
+              <img
+                src="/logo-payment/visacard.png"
+                alt="Cards / Apple Pay"
+                className="h-5 sm:h-6 w-auto object-contain shrink-0"
+              />
+              <span className="truncate font-bold">Cards / Apple Pay</span>
               <span className="hidden sm:inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-sky-950/80 text-sky-300 border border-sky-800/60 shrink-0">
-                🌐 Global
+                Global
               </span>
             </button>
 
             <button
               type="button"
               onClick={() => setPaymentMethod("telegram")}
-              className={`py-3 px-2 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap min-w-0 ${
+              className={`py-2.5 sm:py-3 px-2 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap min-w-0 ${
                 paymentMethod === "telegram"
                   ? "bg-[#229ED9]/15 text-[#229ED9] border border-[#229ED9]/40 shadow-md"
                   : "text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-900/60"
               }`}
             >
-              <Send className="w-4 h-4 -rotate-45 text-[#229ED9] shrink-0" />
-              <span className="truncate">Telegram</span>
+              <img
+                src="/logo-payment/telegram.webp"
+                alt="Telegram"
+                className="h-6 sm:h-7 w-auto object-contain shrink-0"
+              />
+              <span className="truncate font-bold">Telegram</span>
               <span className="hidden sm:inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-zinc-900 text-zinc-300 border border-zinc-700/60 shrink-0">
                 Direct
               </span>
@@ -688,8 +712,8 @@ function CheckoutContent() {
                       Credit Cards & Apple Pay
                     </h3>
                   </div>
-                  <div className="w-10 h-10 rounded-2xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0">
-                    <Globe className="w-5 h-5" />
+                  <div className="h-10 px-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0">
+                    <img src="/logo-payment/visacard.png" alt="Cards" className="h-5 w-auto object-contain" />
                   </div>
                 </div>
 
@@ -788,10 +812,8 @@ function CheckoutContent() {
           ) : (
             <div className="w-full space-y-4">
               <div className="bg-zinc-950/60 border border-zinc-850 p-5 rounded-2xl space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-[#229ED9]/15 border border-[#229ED9]/30 flex items-center justify-center text-[#229ED9]">
-                    <Send className="w-4 h-4 -rotate-45" />
-                  </div>
+                <div className="flex items-center gap-2.5">
+                  <img src="/logo-payment/telegram.webp" alt="Telegram" className="w-8 h-8 object-contain shrink-0" />
                   <div>
                     <h3 className="text-sm font-bold text-white">
                       Direct Telegram Support & Unlock
