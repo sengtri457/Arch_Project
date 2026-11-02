@@ -4,6 +4,7 @@ import {
   parseGumroadPing,
   DEFAULT_GUMROAD_D5_URL,
 } from "@/lib/gumroad"
+import { courses } from "@/lib/courses-data"
 
 function validateManualEnrollmentPayload(payload: {
   email?: string
@@ -88,6 +89,21 @@ describe("Gumroad Ping & Webhook Payload Parser", () => {
     expect(parseGumroadPing({ price: 4900 })).toBeNull()
     expect(parseGumroadPing({ email: "invalid-email-string" })).toBeNull()
     expect(parseGumroadPing(null as any)).toBeNull()
+  })
+})
+
+describe("Multi-Course Gumroad Catalog Mapping", () => {
+  it("assigns individual Gumroad link to D5 masterclass", () => {
+    const d5Course = courses.find((c) => c.id === "d5-masterclass")
+    expect(d5Course).toBeDefined()
+    expect(d5Course?.gumroad_url).toContain("archtipsbox.gumroad.com/l/d5masterclass")
+  })
+
+  it("assigns valid storefront links to all catalog courses", () => {
+    for (const c of courses) {
+      expect(c.gumroad_url).toBeDefined()
+      expect(c.gumroad_url).toContain("archtipsbox.gumroad.com")
+    }
   })
 })
 
