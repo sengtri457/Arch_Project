@@ -16,6 +16,7 @@ export interface Course {
   introduction_url?: string
   software_used?: string | null
   thumbnail_url?: string
+  gumroad_url?: string
 }
 
 export const courses: Course[] = [
@@ -40,7 +41,8 @@ export const courses: Course[] = [
     instructor: "Bun Sambath",
     students: 1500,
     lessons: 10,
-    software_used: "D5 Render"
+    software_used: "D5 Render",
+    gumroad_url: "https://archtipsbox.gumroad.com/l/d5masterclass?wanted=true"
   },
   {
     id: "enscape-masterclass",
@@ -63,7 +65,8 @@ export const courses: Course[] = [
     instructor: "Bun Sambath",
     students: 1200,
     lessons: 35,
-    software_used: "Enscape"
+    software_used: "Enscape",
+    gumroad_url: "https://archtipsbox.gumroad.com/"
   },
   {
     id: "indesign-masterclass",
@@ -86,7 +89,8 @@ export const courses: Course[] = [
     instructor: "Bun Sambath",
     students: 850,
     lessons: 28,
-    software_used: "Adobe InDesign"
+    software_used: "Adobe InDesign",
+    gumroad_url: "https://archtipsbox.gumroad.com/"
   },
   {
     id: "photoshop-masterclass",
@@ -109,7 +113,8 @@ export const courses: Course[] = [
     instructor: "Bun Sambath",
     students: 1800,
     lessons: 45,
-    software_used: "Adobe Photoshop"
+    software_used: "Adobe Photoshop",
+    gumroad_url: "https://archtipsbox.gumroad.com/"
   }
 ]
 
