@@ -50,10 +50,10 @@ export const siteConfig = {
   publisher: "Archtipsbox",
   locale: "en_US",
   socials: {
-    facebook: "https://www.facebook.com/archtipsbox",
-    youtube: "https://www.youtube.com/@archtipsbox",
-    telegram: "https://t.me/archtipsbox",
-    tiktok: "https://www.tiktok.com/@archtipsbox"
+    facebook: process.env.NEXT_PUBLIC_FACEBOOK_URL || "https://www.facebook.com/61593134910540/?hpir=1",
+    youtube: process.env.NEXT_PUBLIC_YOUTUBE_URL || "https://www.youtube.com/@archtipsbox",
+    telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/archtipsbox",
+    tiktok: process.env.NEXT_PUBLIC_TIKTOK_URL || "https://www.tiktok.com/@archtipsbox"
   }
 }
 

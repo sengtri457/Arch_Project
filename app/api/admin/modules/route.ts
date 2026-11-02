@@ -211,6 +211,8 @@ export async function PUT(request: Request) {
   return NextResponse.json({ success: true, module: moduleData || { module_id: moduleId } })
 }
 
+export const PATCH = PUT
+
 export async function DELETE(request: Request) {
   const admin = await requireAdmin()
   if (!admin) {

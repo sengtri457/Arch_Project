@@ -165,7 +165,7 @@ export async function GET(
 
     // 3. Anti-Piracy Device Limiting & Concurrency Enforcement
     if (user) {
-      const rawDeviceId = request.headers.get('x-device-id')?.trim()
+      const rawDeviceId = request.headers.get('x-device-id')?.trim() || cookieStore.get('archtipsbox_device_id')?.value?.trim()
       const rawDeviceName = request.headers.get('x-device-name')?.trim() || 'Workstation / Browser'
       const userAgent = request.headers.get('user-agent') || ''
 

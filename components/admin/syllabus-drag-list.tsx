@@ -19,6 +19,7 @@ import {
   Undo2,
   Redo2,
   RotateCcw,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMediaUrl } from "@/lib/utils";
@@ -65,6 +66,39 @@ export function SyllabusDragList({
   const [history, setHistory] = useState<SyllabusLesson[][]>([]);
   const [future, setFuture] = useState<SyllabusLesson[][]>([]);
   const [undoNotice, setUndoNotice] = useState<string | null>(null);
+  const [isSyncingDuration, setIsSyncingDuration] = useState(false);
+
+  const handleSyncAllDurations = async () => {
+    if (!courseId || isSyncingDuration) return;
+    setIsSyncingDuration(true);
+    try {
+      const res = await fetch("/api/admin/lessons/duration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ course_id: courseId })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        if (Array.isArray(data.results) && data.results.length > 0) {
+          const map = new Map<string, number>(data.results.map((r: any) => [String(r.lesson_id), Number(r.duration_minutes || 0)]));
+          setItems((prev) =>
+            prev.map((item) =>
+              map.has(item.lesson_id)
+                ? { ...item, duration_minutes: Number(map.get(item.lesson_id) ?? item.duration_minutes) }
+                : item
+            )
+          );
+        }
+        setUndoNotice(`Auto-synced ${data.total_updated || 0} lesson durations`);
+        setTimeout(() => setUndoNotice(null), 3000);
+        onReorderSuccess?.();
+      }
+    } catch (err) {
+      console.error("Failed to sync durations:", err);
+    } finally {
+      setIsSyncingDuration(false);
+    }
+  };
 
   const lessonsKey = (lessons || [])
     .map((l) => `${l.lesson_id}:${l.title}:${l.order_index}`)
@@ -349,6 +383,18 @@ export function SyllabusDragList({
               <span>Redo</span>
             </button>
           )}
+
+          {/* Auto Sync Video Durations Button */}
+          <button
+            type="button"
+            onClick={handleSyncAllDurations}
+            disabled={isSyncingDuration || isSaving}
+            className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-750 hover:border-zinc-600 px-2.5 py-1 rounded-lg transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+            title="Automatically detect video lengths from YouTube/Bunny and update syllabus"
+          >
+            <RefreshCw className={`w-3 h-3 text-[#9ACD32] ${isSyncingDuration ? "animate-spin" : ""}`} />
+            <span>{isSyncingDuration ? "Syncing Durations..." : "Auto Sync Durations"}</span>
+          </button>
 
           {isSaving && (
             <span
