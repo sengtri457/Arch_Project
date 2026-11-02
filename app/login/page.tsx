@@ -46,8 +46,18 @@ export default function LoginPage() {
         </div>
 
         <div className="relative z-10 w-full max-w-md bg-zinc-950 border border-zinc-800/80 p-8 md:p-10 shadow-2xl rounded-2xl flex flex-col">
-          {/* Header */}
+          {/* Brand Logo & Header */}
           <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <img
+                src="/projects/Tipsbox logo png.png"
+                alt="ArchTipsBox Logo"
+                className="h-14 w-auto object-contain"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = "/logo.png"
+                }}
+              />
+            </div>
             <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
             <p className="text-sm text-zinc-400">
               Sign in to access your visualization courses, 3D asset library, and submit exercises.

@@ -4,7 +4,9 @@ import React, { useState, useRef, useEffect } from "react"
 import { Pencil, Check, X, Loader2 } from "lucide-react"
 
 interface InlineLessonTitleProps {
-  lessonId: string
+  lessonId?: string
+  id?: string
+  entityType?: "lesson" | "module"
   initialTitle?: string
   onUpdated?: (newTitle: string) => void
   className?: string
@@ -12,14 +14,18 @@ interface InlineLessonTitleProps {
 
 export function InlineLessonTitle({
   lessonId,
+  id,
+  entityType = "lesson",
   initialTitle = "",
   onUpdated,
   className = "",
 }: InlineLessonTitleProps) {
+  const targetId = id || lessonId
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState(initialTitle || "")
   const [prevInitialTitle, setPrevInitialTitle] = useState(initialTitle || "")
   const [saving, setSaving] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isJustOpenedRef = useRef(false)
@@ -64,25 +70,28 @@ export function InlineLessonTitle({
       return
     }
 
-    if (!lessonId) {
+    if (!targetId) {
       setIsEditing(false)
       return
     }
 
     setSaving(true)
+    setErrorMessage(null)
     try {
-      const res = await fetch("/api/admin/lessons", {
+      const endpoint = entityType === "module" ? "/api/admin/modules" : "/api/admin/lessons"
+      const payload = entityType === "module"
+        ? { module_id: targetId, title: trimmed }
+        : { lesson_id: targetId, title: trimmed }
+
+      const res = await fetch(endpoint, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lesson_id: lessonId,
-          title: trimmed,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || "Failed to save title")
+        throw new Error(err.error || `Failed to save ${entityType} title`)
       }
 
       setTitle(trimmed)
@@ -92,8 +101,9 @@ export function InlineLessonTitle({
         onUpdated(trimmed)
       }
     } catch (err: any) {
-      console.error("Inline lesson rename failed:", err)
-      alert(`Could not rename lesson: ${err.message}`)
+      console.error(`Inline ${entityType} rename failed:`, err)
+      setErrorMessage(err.message || "Failed to save")
+      setTimeout(() => setErrorMessage(null), 3000)
       setTitle(initialTitle || "")
       setIsEditing(false)
     } finally {
@@ -194,11 +204,17 @@ export function InlineLessonTitle({
         type="button"
         onClick={startEditing}
         className="text-[10px] text-zinc-400 hover:text-black hover:bg-[#9ACD32] flex items-center gap-1 bg-zinc-900 px-2 py-0.5 rounded-md border border-zinc-750 shrink-0 transition-all cursor-pointer font-medium"
-        title="Click to rename this lesson"
+        title={`Click to rename this ${entityType}`}
       >
         <Pencil className="w-2.5 h-2.5" />
         <span className="text-[9px] font-mono">Rename</span>
       </button>
+
+      {errorMessage && (
+        <span className="text-[10px] text-red-400 font-medium animate-pulse ml-1">
+          {errorMessage}
+        </span>
+      )}
     </div>
   )
 }

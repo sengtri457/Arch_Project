@@ -16,6 +16,10 @@ export function getDeviceId(): string {
         : `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
       localStorage.setItem(STORAGE_KEY, id)
     }
+    // Also sync with cookie for SSR and edge middleware access
+    if (typeof document !== "undefined") {
+      document.cookie = `${STORAGE_KEY}=${id}; path=/; max-age=31536000; SameSite=Lax`
+    }
     return id
   } catch {
     return "anonymous-device"

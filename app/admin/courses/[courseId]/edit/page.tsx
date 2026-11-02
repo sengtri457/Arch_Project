@@ -160,11 +160,26 @@ export default function EditCoursePage() {
 
   const handleOpenAssignLessons = (mod: any) => {
     setTargetAssignModule(mod)
+    const targetModId = mod?.module_id || mod?.id
     // Pre-select lessons currently assigned to this module
     const currentlyAssigned = courseLessons
-      .filter((l) => l.module_id === mod.module_id)
-      .map((l) => l.lesson_id)
+      .filter((l) => l.module_id === targetModId)
+      .map((l) => l.lesson_id || l.id)
     setAssignLessonIds(currentlyAssigned)
+  }
+
+  const handleResetAssignLessons = () => {
+    if (!targetAssignModule) return
+    const targetModId = targetAssignModule.module_id || targetAssignModule.id
+    const currentlyAssigned = courseLessons
+      .filter((l) => l.module_id === targetModId)
+      .map((l) => l.lesson_id || l.id)
+    setAssignLessonIds(currentlyAssigned)
+  }
+
+  const handleCloseAssignModal = () => {
+    setTargetAssignModule(null)
+    setAssignLessonIds([])
   }
 
   const handleSaveAssignLessons = async () => {
@@ -209,13 +224,13 @@ export default function EditCoursePage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          module_id: targetAssignModule.module_id,
+          module_id: targetAssignModule.module_id || targetAssignModule.id,
           selected_lesson_ids: finalSelectedIds
         })
       })
 
       if (res.ok) {
-        setTargetAssignModule(null)
+        handleCloseAssignModal()
         loadModules(courseId)
         MySwal.fire({
           icon: "success",
@@ -1474,23 +1489,34 @@ export default function EditCoursePage() {
               )}
             </div>
 
-            <div className="flex justify-end gap-3 pt-2 border-t border-zinc-800">
+            <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
               <Button
                 type="button"
-                variant="ghost"
-                onClick={() => setTargetAssignModule(null)}
-                className="text-zinc-400 hover:text-white"
+                variant="outline"
+                size="sm"
+                onClick={handleResetAssignLessons}
+                className="border-zinc-800 text-xs text-zinc-400 hover:text-white hover:border-zinc-700"
               >
-                Cancel
+                Reset to Saved
               </Button>
-              <Button
-                type="button"
-                onClick={handleSaveAssignLessons}
-                disabled={savingAssign}
-                className="bg-[#9ACD32] text-black font-bold px-6 rounded-xl hover:bg-[#8ab82b]"
-              >
-                {savingAssign ? "Saving..." : "Save Assignment"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleCloseAssignModal}
+                  className="text-zinc-400 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSaveAssignLessons}
+                  disabled={savingAssign}
+                  className="bg-[#9ACD32] text-black font-bold px-6 rounded-xl hover:bg-[#8ab82b]"
+                >
+                  {savingAssign ? "Saving..." : "Save Assignment"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

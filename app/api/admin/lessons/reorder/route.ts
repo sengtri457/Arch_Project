@@ -133,3 +133,6 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 })
   }
 }
+
+export const PUT = PATCH
+export const POST = PATCH
