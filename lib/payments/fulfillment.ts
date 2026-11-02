@@ -27,7 +27,7 @@ export interface FulfillmentResult {
 }
 
 /**
- * Shared fulfillment pipeline for verified payments (Bakong KHQR, PayPal, etc.).
+ * Shared fulfillment pipeline for verified payments (Bakong KHQR, Gumroad, etc.).
  * Ensures 100% parity across polling endpoints and webhooks.
  */
 export async function fulfillPaymentTransaction(
@@ -192,7 +192,7 @@ export async function fulfillPaymentTransaction(
       itemName,
       amount: Number(transaction.amount),
       billNumber: transaction.bill_number,
-      paymentMethod: transaction.payment_method || 'paypal',
+      paymentMethod: transaction.payment_method || 'gumroad',
       completedAt: new Date().toISOString(),
       userEmail: userEmail || '',
       userId: transaction.user_id,

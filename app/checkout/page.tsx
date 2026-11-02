@@ -247,6 +247,7 @@ function CheckoutContent() {
     return buildGumroadCheckoutUrl(undefined, {
       email: user?.email || undefined,
       wanted: true,
+      discountCode: appliedPromo?.code || undefined,
       customFields: checkoutData?.billNumber
         ? { bill_number: checkoutData.billNumber }
         : undefined,
