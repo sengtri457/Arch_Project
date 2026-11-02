@@ -139,7 +139,7 @@ export function Navigation() {
                   id="courses-menu"
                   role="menu"
                   aria-labelledby="courses-menu-button"
-                  className="absolute top-full left-0 mt-2 w-[360px] bg-zinc-950/95 backdrop-blur-2xl border border-zinc-800/90 rounded-2xl shadow-2xl p-2.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                  className="absolute top-full left-0 mt-2 w-[380px] bg-zinc-950/95 backdrop-blur-2xl border border-zinc-800/90 rounded-2xl shadow-2xl p-2.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                 >
                   <div className="px-3 py-2 border-b border-zinc-850/80 mb-1.5 flex items-center justify-between">
                     <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
@@ -159,11 +159,11 @@ export function Navigation() {
                       <QrCode className="w-5 h-5" />
                     </div>
                     <div className="flex-grow min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white group-hover:text-primary transition-colors">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold text-white group-hover:text-primary transition-colors whitespace-nowrap">
                           National Students
                         </span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 shrink-0">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 shrink-0 whitespace-nowrap">
                           🇰🇭 Cambodia
                         </span>
                       </div>
@@ -185,11 +185,11 @@ export function Navigation() {
                       <Globe className="w-5 h-5" />
                     </div>
                     <div className="flex-grow min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white group-hover:text-sky-400 transition-colors">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold text-white group-hover:text-sky-400 transition-colors whitespace-nowrap">
                           International Students
                         </span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-950/60 text-sky-300 border border-sky-800/60 shrink-0">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-950/60 text-sky-300 border border-sky-800/60 shrink-0 whitespace-nowrap">
                           🌐 Global
                         </span>
                       </div>

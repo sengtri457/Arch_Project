@@ -369,105 +369,124 @@ function CheckoutContent() {
   }
 
   return (
-    <div className="flex-grow container mx-auto px-4 sm:px-6 py-20 sm:py-24 md:py-32 max-w-4xl relative z-10">
-      {/* Breadcrumb back */}
-      <div className="mb-6 sm:mb-8 flex justify-between items-center">
+    <div className="flex-grow container mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24 max-w-5xl relative z-10">
+      {/* Top Header & Breadcrumb */}
+      <div className="mb-6 flex justify-between items-center">
         <button
           onClick={() => router.back()}
-          className="text-zinc-400 hover:text-white text-sm flex items-center gap-1.5 transition-colors"
+          className="text-zinc-400 hover:text-white text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back
+          <span>Back to Catalog</span>
         </button>
+        <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+          <ShieldCheck className="w-4 h-4 text-[#9ACD32]" />
+          <span>256-bit SSL Encrypted Gateway</span>
+        </div>
       </div>
 
       {!paymentCompleted && (
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-6 bg-zinc-900/30 p-1.5 border border-zinc-800 rounded-2xl">
-          <button
-            type="button"
-            onClick={() => setPaymentMethod("khqr")}
-            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 ${
-              paymentMethod === "khqr"
-                ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
-                : "text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-800/40"
-            }`}
-          >
-            <QrCode className="w-4 h-4 text-[#9ACD32]" />
-            <span>Local Students (KHQR Scan)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setPaymentMethod("international")}
-            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 ${
-              paymentMethod === "international"
-                ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
-                : "text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-800/40"
-            }`}
-          >
-            <Globe className="w-4 h-4 text-[#9ACD32]" />
-            <span>International (Cards / Apple Pay)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setPaymentMethod("telegram")}
-            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 ${
-              paymentMethod === "telegram"
-                ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
-                : "text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-800/40"
-            }`}
-          >
-            <Send className="w-4 h-4 -rotate-45 text-[#229ED9]" />
-            <span>Telegram (Manual Support)</span>
-          </button>
+        <div className="mb-8">
+          <div className="grid grid-cols-3 p-1.5 bg-zinc-950/80 border border-zinc-800/90 rounded-2xl shadow-xl gap-1.5">
+            <button
+              type="button"
+              onClick={() => setPaymentMethod("khqr")}
+              className={`py-3 px-2 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap min-w-0 ${
+                paymentMethod === "khqr"
+                  ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
+                  : "text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-900/60"
+              }`}
+            >
+              <QrCode className="w-4 h-4 text-[#9ACD32] shrink-0" />
+              <span className="truncate">KHQR Scan</span>
+              <span className="hidden sm:inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-zinc-900 text-zinc-300 border border-zinc-700/60 shrink-0">
+                🇰🇭 Cambodia
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPaymentMethod("international")}
+              className={`py-3 px-2 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap min-w-0 ${
+                paymentMethod === "international"
+                  ? "bg-sky-500/15 text-sky-300 border border-sky-500/40 shadow-md"
+                  : "text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-900/60"
+              }`}
+            >
+              <Globe className="w-4 h-4 text-sky-400 shrink-0" />
+              <span className="truncate">Cards / Apple Pay</span>
+              <span className="hidden sm:inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-sky-950/80 text-sky-300 border border-sky-800/60 shrink-0">
+                🌐 Global
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPaymentMethod("telegram")}
+              className={`py-3 px-2 sm:px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap min-w-0 ${
+                paymentMethod === "telegram"
+                  ? "bg-[#229ED9]/15 text-[#229ED9] border border-[#229ED9]/40 shadow-md"
+                  : "text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-900/60"
+              }`}
+            >
+              <Send className="w-4 h-4 -rotate-45 text-[#229ED9] shrink-0" />
+              <span className="truncate">Telegram</span>
+              <span className="hidden sm:inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-zinc-900 text-zinc-300 border border-zinc-700/60 shrink-0">
+                Direct
+              </span>
+            </button>
+          </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 bg-zinc-900/30 border border-zinc-850 p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl">
-        {/* Left panel: Order Details */}
-        <div className="space-y-6 flex flex-col justify-between">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 bg-zinc-950/60 border border-zinc-800/80 p-5 sm:p-8 rounded-3xl shadow-2xl backdrop-blur-xl">
+        {/* Left panel: Order Details (42% width on desktop) */}
+        <div className="lg:col-span-5 space-y-6 flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-zinc-400 text-xs uppercase tracking-wider font-semibold">
               <CreditCard
                 className="w-4 h-4 text-primary"
                 style={{ color: "#9ACD32" }}
               />
-              Secure Checkout Gateway
+              Order Overview
             </div>
 
             <h1 className="text-xl sm:text-2xl font-bold text-white leading-tight">
               {paymentCompleted
                 ? "Payment Received!"
-                : "Complete Your Purchase"}
+                : "Order Summary"}
             </h1>
 
-            <div className="border border-zinc-800 bg-zinc-950/40 p-4 sm:p-5 rounded-2xl space-y-3.5">
+            <div className="border border-zinc-800/90 bg-zinc-900/40 p-4 sm:p-5 rounded-2xl space-y-3.5">
               <div>
-                <p className="text-[10px] uppercase font-bold text-zinc-500">
-                  Selected Product
+                <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
+                  Selected Course
                 </p>
-                <p className="text-sm font-semibold text-white mt-0.5 break-words">
+                <p className="text-sm font-semibold text-white mt-1 break-words">
                   {courseTitle}
                 </p>
               </div>
-              <div className="border-t border-zinc-850/60 pt-3">
-                <p className="text-[10px] uppercase font-bold text-zinc-500">
-                  Order Bill Number
+
+              <div className="border-t border-zinc-850/80 pt-3">
+                <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
+                  Order Reference
                 </p>
-                <p className="text-xs font-mono text-zinc-300 mt-0.5 break-all">
+                <p className="text-xs font-mono text-zinc-300 mt-1 break-all">
                   {checkoutData?.billNumber}
                 </p>
               </div>
-              <div className="border-t border-zinc-850/60 pt-3">
-                <p className="text-[10px] uppercase font-bold text-zinc-500">
-                  Total Cost
+
+              <div className="border-t border-zinc-850/80 pt-3">
+                <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
+                  Total Amount Due
                 </p>
                 {checkoutData && checkoutData.originalAmount && checkoutData.originalAmount > checkoutData.amount ? (
-                  <div className="flex items-baseline flex-wrap gap-2.5 mt-0.5">
-                    <span className="text-base font-semibold text-zinc-500 line-through decoration-zinc-400">
+                  <div className="flex items-baseline flex-wrap gap-2.5 mt-1">
+                    <span className="text-sm font-semibold text-zinc-500 line-through decoration-zinc-400">
                       ${checkoutData.originalAmount.toFixed(2)} USD
                     </span>
                     <span
-                      className="text-xl font-bold text-primary"
+                      className="text-2xl font-black text-primary"
                       style={{ color: "#9ACD32" }}
                     >
                       ${checkoutData.amount.toFixed(2)} USD
@@ -475,7 +494,7 @@ function CheckoutContent() {
                   </div>
                 ) : (
                   <p
-                    className="text-xl font-bold text-primary mt-0.5"
+                    className="text-2xl font-black text-primary mt-1"
                     style={{ color: "#9ACD32" }}
                   >
                     ${checkoutData?.amount.toFixed(2)} USD
@@ -484,9 +503,9 @@ function CheckoutContent() {
               </div>
 
               {!paymentCompleted && (
-                <div className="border-t border-zinc-850/60 pt-3 space-y-2">
-                  <p className="text-[10px] uppercase font-bold text-zinc-500">
-                    Promo Code
+                <div className="border-t border-zinc-850/80 pt-3 space-y-2">
+                  <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
+                    Discount / Promo Code
                   </p>
                   {appliedPromo ? (
                     <div className="flex justify-between items-center bg-zinc-950/80 p-2.5 rounded-xl border border-[#9ACD32]/25">
@@ -513,10 +532,10 @@ function CheckoutContent() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex gap-2">
                       <input
                         type="text"
-                        placeholder="Enter coupon code"
+                        placeholder="COUPON CODE"
                         value={promoCodeInput}
                         onChange={(e) => setPromoCodeInput(e.target.value)}
                         className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 flex-grow uppercase font-mono"
@@ -525,7 +544,7 @@ function CheckoutContent() {
                         type="button"
                         onClick={handleApplyPromo}
                         disabled={isValidatingPromo || !promoCodeInput.trim()}
-                        className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white font-semibold px-4 h-9 sm:h-auto"
+                        className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white font-semibold px-4 h-9"
                       >
                         {isValidatingPromo ? "..." : "Apply"}
                       </Button>
@@ -540,33 +559,17 @@ function CheckoutContent() {
               )}
             </div>
 
-            {!paymentCompleted && paymentMethod !== "telegram" && (
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPaymentMethod("telegram");
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-900 hover:border-[#229ED9]/50 transition-all text-xs font-semibold group cursor-pointer shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-[#229ED9]/15 border border-[#229ED9]/30 flex items-center justify-center text-[#229ED9] group-hover:bg-[#229ED9] group-hover:text-white transition-all">
-                      <Send className="w-4 h-4 -rotate-45" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-xs font-bold text-white group-hover:text-[#229ED9] transition-colors">
-                        Pay via Telegram (Manual)
-                      </p>
-                      <p className="text-[10px] text-zinc-500">
-                        Chat directly with the instructor to confirm payment
-                      </p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
-                </button>
+            {/* Trust highlights */}
+            <div className="grid grid-cols-2 gap-2 text-[11px] text-zinc-400 pt-1">
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-zinc-900/30 border border-zinc-850/60">
+                <Check className="w-3.5 h-3.5 text-[#9ACD32] shrink-0" />
+                <span>Instant Access</span>
               </div>
-            )}
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-zinc-900/30 border border-zinc-850/60">
+                <Check className="w-3.5 h-3.5 text-[#9ACD32] shrink-0" />
+                <span>Verified Certificate</span>
+              </div>
+            </div>
           </div>
 
           {paymentCompleted && (
@@ -597,8 +600,8 @@ function CheckoutContent() {
           )}
         </div>
 
-        {/* Right panel: Payment method dynamic content */}
-        <div className="flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-zinc-850/80 pt-8 md:pt-0 md:pl-8 space-y-5">
+        {/* Right panel: Payment method dynamic content (58% width on desktop) */}
+        <div className="lg:col-span-7 flex flex-col items-center justify-center border-t lg:border-t-0 lg:border-l border-zinc-800/80 pt-8 lg:pt-0 lg:pl-8 space-y-5">
           {paymentCompleted ? (
             <div className="flex flex-col items-center justify-center space-y-4 py-8">
               <div className="w-20 h-20 rounded-full bg-green-950/30 border border-green-900/40 flex items-center justify-center text-green-400 animate-bounce">
@@ -613,16 +616,16 @@ function CheckoutContent() {
               </p>
             </div>
           ) : paymentMethod === "khqr" ? (
-            <>
-              {/* Stylized KHQR Stand/Card */}
-              <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-zinc-200 w-[285px] text-black">
+            <div className="flex flex-col items-center justify-center space-y-4 w-full">
+              {/* Proportional Stylized KHQR Stand/Card */}
+              <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-zinc-200 w-[250px] text-black">
                 {/* Red header with KHQR Logo */}
-                <div className="bg-[#c62828] text-white px-5 py-4 flex justify-center items-center font-black tracking-widest text-xl">
+                <div className="bg-[#c62828] text-white px-4 py-3 flex justify-center items-center font-black tracking-widest text-lg">
                   KHQR
                 </div>
 
                 {/* Merchant Name */}
-                <div className="px-5 py-4 text-center">
+                <div className="px-4 py-3 text-center">
                   <p className="text-[10px] text-zinc-400 font-bold tracking-wider uppercase">
                     Merchant Name
                   </p>
@@ -632,73 +635,71 @@ function CheckoutContent() {
                 </div>
 
                 {/* Dashed Separator */}
-                <div className="border-t border-dashed border-zinc-300 mx-5 my-1" />
+                <div className="border-t border-dashed border-zinc-300 mx-4 my-0.5" />
 
                 {/* QR Code with absolute centered emblem */}
-                <div className="p-6 flex items-center justify-center relative">
+                <div className="p-4 flex items-center justify-center relative">
                   <div className="relative">
                     <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(checkoutData?.khqrPayload || "")}`}
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(checkoutData?.khqrPayload || "")}`}
                       alt="Bakong KHQR Code"
-                      className="w-48 h-48 object-contain"
+                      className="w-40 h-40 object-contain"
                     />
                     {/* Centered Dollar circular emblem */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-zinc-950 rounded-full border-2 border-white flex items-center justify-center shadow-md">
-                      <span className="text-white font-black text-sm">$</span>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 bg-zinc-950 rounded-full border-2 border-white flex items-center justify-center shadow-md">
+                      <span className="text-white font-black text-xs">$</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="text-center space-y-2 max-w-[280px]">
-                <div className="flex items-center justify-center gap-2 text-xs font-semibold text-zinc-400">
+              <div className="text-center space-y-2 max-w-[300px]">
+                <div className="inline-flex items-center justify-center gap-2 text-xs font-semibold text-zinc-300 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800">
                   <Loader2
                     className="w-3.5 h-3.5 animate-spin text-primary"
                     style={{ color: "#9ACD32" }}
                   />
-                  Awaiting scan confirmation...
+                  <span>Waiting for scan confirmation...</span>
                 </div>
-                <p className="text-[11px] text-zinc-500 leading-relaxed">
-                  Open your **Bakong Wallet** or any Cambodian mobile banking
-                  app (ABA, Acleda, etc.), scan this KHQR code, and authorize
-                  payment to unlock instantly.
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  Open your <strong>Bakong Wallet</strong> or any Cambodian banking app (ABA, Acleda, Canadia), scan this KHQR code, and authorize payment to unlock instantly.
                 </p>
               </div>
-            </>
+            </div>
           ) : paymentMethod === "international" ? (
-            <div className="w-full space-y-5">
-              <div className="bg-zinc-950/70 border border-zinc-800 p-6 sm:p-7 rounded-3xl space-y-6 shadow-xl relative overflow-hidden">
+            <div className="w-full space-y-4">
+              <div className="bg-zinc-950/70 border border-zinc-800/90 p-5 sm:p-6 rounded-3xl space-y-5 shadow-xl relative overflow-hidden">
                 {/* Decorative subtle ambient glow */}
-                <div className="absolute top-0 right-0 w-48 h-48 bg-[#9ACD32]/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute top-0 right-0 w-48 h-48 bg-sky-500/5 rounded-full blur-3xl pointer-events-none" />
 
                 {/* Card Header */}
-                <div className="flex items-start justify-between gap-4 border-b border-zinc-850/80 pb-4 relative z-10">
+                <div className="flex items-start justify-between gap-4 border-b border-zinc-850/80 pb-3.5 relative z-10">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold tracking-wider uppercase bg-[#9ACD32]/15 text-[#9ACD32] px-2.5 py-0.5 rounded-full border border-[#9ACD32]/25">
+                      <span className="text-[10px] font-bold tracking-wider uppercase bg-sky-500/15 text-sky-400 px-2.5 py-0.5 rounded-full border border-sky-500/25">
                         Global Checkout
                       </span>
                       <span className="text-[10px] font-medium text-zinc-400 flex items-center gap-1">
                         <ShieldCheck className="w-3.5 h-3.5 text-green-400" />
-                        256-bit SSL Encrypted
+                        Verified Storefront
                       </span>
                     </div>
                     <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                      International & Overseas Students
+                      Credit Cards & Apple Pay
                     </h3>
                   </div>
-                  <div className="w-10 h-10 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[#9ACD32] shrink-0">
+                  <div className="w-10 h-10 rounded-2xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0">
                     <Globe className="w-5 h-5" />
                   </div>
                 </div>
 
                 {/* Accepted Payment Methods Pills */}
-                <div className="space-y-2 relative z-10">
+                <div className="space-y-1.5 relative z-10">
                   <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
-                    Accepted Global Payment Methods
+                    Accepted Methods
                   </p>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {["Visa", "MasterCard", "Amex", "Apple Pay", "Google Pay", "PayPal"].map((method) => (
+                    {["Visa", "MasterCard", "Amex", "Apple Pay", "Google Pay"].map((method) => (
                       <span
                         key={method}
                         className="text-[11px] font-semibold text-zinc-300 bg-zinc-900/90 border border-zinc-800 px-2.5 py-1 rounded-lg"
@@ -710,48 +711,42 @@ function CheckoutContent() {
                 </div>
 
                 {/* Key Benefits */}
-                <div className="bg-zinc-900/40 border border-zinc-850/70 p-4 rounded-2xl space-y-2.5 text-xs text-zinc-300 relative z-10">
+                <div className="bg-zinc-900/40 border border-zinc-850/70 p-3.5 rounded-2xl space-y-2 text-xs text-zinc-300 relative z-10">
                   <div className="flex items-center gap-2.5">
                     <div className="w-4 h-4 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center shrink-0">
                       <Check className="w-3 h-3" />
                     </div>
-                    <span>Instant access instructions & course materials delivery</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-4 h-4 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center shrink-0">
-                      <Check className="w-3 h-3" />
-                    </div>
-                    <span>Zero international bank wire fees or currency conversion friction</span>
+                    <span>Instant visual curriculum unlock upon successful checkout</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-4 h-4 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center shrink-0">
                       <Check className="w-3 h-3" />
                     </div>
                     <span className="truncate">
-                      Prefilled with your student account:{" "}
+                      Pre-filled with your student account:{" "}
                       <span className="text-white font-mono">{user?.email}</span>
                     </span>
                   </div>
                 </div>
 
                 {/* Linking Button Action */}
-                <div className="space-y-3 pt-1 relative z-10">
+                <div className="space-y-2.5 pt-1 relative z-10">
                   <button
                     type="button"
                     onClick={handleGumroadRedirect}
                     disabled={isRedirectingGumroad}
-                    className="w-full group relative flex items-center justify-between p-4 sm:p-4.5 rounded-2xl bg-[#9ACD32] hover:bg-[#8ab82b] text-black font-bold transition-all shadow-lg shadow-[#9ACD32]/15 active:scale-[0.99] cursor-pointer"
+                    className="w-full group relative flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-[#9ACD32] hover:bg-[#8ab82b] text-black font-bold transition-all shadow-lg shadow-[#9ACD32]/15 active:scale-[0.99] cursor-pointer"
                   >
                     <div className="flex items-center gap-3 text-left">
-                      <div className="w-9 h-9 rounded-xl bg-black/15 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-xl bg-black/15 flex items-center justify-center">
                         <ExternalLink className="w-4 h-4 text-black group-hover:scale-110 transition-transform" />
                       </div>
                       <div>
                         <p className="text-sm font-extrabold leading-tight">
-                          {isRedirectingGumroad ? "Opening Checkout..." : "Proceed to International Checkout"}
+                          {isRedirectingGumroad ? "Opening Checkout..." : "Pay with Card / Apple Pay"}
                         </p>
                         <p className="text-[11px] font-medium text-black/75">
-                          Redirects to official Gumroad store
+                          Securely processed on official Gumroad store
                         </p>
                       </div>
                     </div>
@@ -764,19 +759,19 @@ function CheckoutContent() {
                   </button>
 
                   <p className="text-[11px] text-zinc-500 text-center leading-relaxed">
-                    You will complete your transaction securely on our verified Gumroad storefront (archtipsbox.gumroad.com).
+                    Zero international wire fees. 100% money-back satisfaction guarantee.
                   </p>
                 </div>
 
                 {/* Post-Click Reassurance Alert */}
                 {gumroadClicked && (
-                  <div className="p-4 rounded-2xl bg-zinc-900/80 border border-[#9ACD32]/30 space-y-2 text-left relative z-10">
+                  <div className="p-3.5 rounded-2xl bg-zinc-900/80 border border-[#9ACD32]/30 space-y-1.5 text-left relative z-10">
                     <div className="flex items-center gap-2 text-xs font-bold text-white">
                       <CheckCircle className="w-4 h-4 text-[#9ACD32]" />
-                      Checkout Tab Opened
+                      Checkout Window Opened
                     </div>
                     <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      Complete your payment in the opened Gumroad tab. If the window did not open or was blocked by a pop-up blocker,{" "}
+                      Complete your payment in the opened tab. If the tab did not open,{" "}
                       <a
                         href={getGumroadUrl()}
                         target="_blank"
@@ -791,33 +786,32 @@ function CheckoutContent() {
               </div>
             </div>
           ) : (
-            <div className="w-full space-y-5">
-              <div className="bg-zinc-950/60 border border-zinc-850 p-5 rounded-2xl space-y-4">
-                <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                  Telegram Payment Steps
-                </h3>
+            <div className="w-full space-y-4">
+              <div className="bg-zinc-950/60 border border-zinc-850 p-5 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-[#229ED9]/15 border border-[#229ED9]/30 flex items-center justify-center text-[#229ED9]">
+                    <Send className="w-4 h-4 -rotate-45" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">
+                      Direct Telegram Support & Unlock
+                    </h3>
+                    <p className="text-[11px] text-zinc-400">
+                      Message the instructor directly to pay via alternative methods
+                    </p>
+                  </div>
+                </div>
 
-                <ol className="text-xs text-zinc-400 space-y-3 list-decimal list-inside leading-relaxed">
-                  <li>
-                    Copy the template message containing your account details
-                    below.
-                  </li>
-                  <li>
-                    Click the button to open direct Telegram chat with
-                    instructor **Bun Sambath**.
-                  </li>
-                  <li>
-                    Send the copied message along with your **payment
-                    receipt/invoice**.
-                  </li>
-                  <li>
-                    Once the instructor verifies and unlocks it, the course will
-                    be **automatically unlocked** under your email address!
-                  </li>
-                </ol>
+                <div className="border-t border-zinc-850/80 pt-3">
+                  <ol className="text-xs text-zinc-400 space-y-2 list-decimal list-inside leading-relaxed">
+                    <li>Copy your pre-formatted order verification message below.</li>
+                    <li>Click to open direct Telegram chat with instructor <strong>Bun Sambath</strong>.</li>
+                    <li>Send the receipt to get your course unlocked under <strong>{user?.email}</strong>.</li>
+                  </ol>
+                </div>
               </div>
 
-              <div className="bg-zinc-950/40 border border-zinc-800 p-4 rounded-xl space-y-3">
+              <div className="bg-zinc-950/40 border border-zinc-800 p-4 rounded-xl space-y-2.5">
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] uppercase font-bold text-zinc-500">
                     Message Template
@@ -829,15 +823,15 @@ function CheckoutContent() {
                       setIsCopied(true);
                       setTimeout(() => setIsCopied(false), 2000);
                     }}
-                    className="text-[10px] text-primary hover:underline flex items-center gap-1"
+                    className="text-[11px] text-primary hover:underline flex items-center gap-1 font-semibold cursor-pointer"
                     style={{ color: "#9ACD32" }}
                   >
                     <Copy className="w-3 h-3" />
-                    {isCopied ? "Copied!" : "Copy Message"}
+                    {isCopied ? "Copied to Clipboard!" : "Copy Template"}
                   </button>
                 </div>
 
-                <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-900 text-xs text-zinc-300 font-mono select-all leading-normal">
+                <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-900 text-xs text-zinc-300 font-mono select-all leading-relaxed break-all">
                   Hi Bun Sambath, I paid for "{courseTitle}". Please unlock it
                   for my email: "{user?.email || ""}". (Order ref:{" "}
                   {checkoutData?.billNumber})
@@ -847,10 +841,10 @@ function CheckoutContent() {
               <button
                 type="button"
                 onClick={handleTelegramClick}
-                className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-sm bg-primary text-black transition-all hover:brightness-110 text-center"
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm bg-primary text-black transition-all hover:brightness-110 text-center cursor-pointer shadow-lg shadow-[#9ACD32]/10"
                 style={{ backgroundColor: "#9ACD32", color: "#000" }}
               >
-                Go to Telegram Chat
+                <span>Open Telegram Chat</span>
                 <ExternalLink className="w-4 h-4" />
               </button>
             </div>
