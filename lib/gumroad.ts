@@ -10,6 +10,7 @@ export const DEFAULT_GUMROAD_D5_URL =
 export interface GumroadUrlOptions {
   email?: string;
   wanted?: boolean;
+  discountCode?: string;
   customFields?: Record<string, string>;
 }
 
@@ -33,6 +34,10 @@ export function buildGumroadCheckoutUrl(
       url.searchParams.set("email", options.email.trim().toLowerCase());
     }
 
+    if (options?.discountCode && options.discountCode.trim()) {
+      url.searchParams.set("code", options.discountCode.trim().toUpperCase());
+    }
+
     if (options?.customFields) {
       for (const [key, value] of Object.entries(options.customFields)) {
         if (value) {
@@ -49,6 +54,9 @@ export function buildGumroadCheckoutUrl(
     params.set("wanted", "true");
     if (options?.email) {
       params.set("email", options.email.trim().toLowerCase());
+    }
+    if (options?.discountCode) {
+      params.set("code", options.discountCode.trim().toUpperCase());
     }
     return `${base}?${params.toString()}`;
   }

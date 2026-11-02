@@ -53,6 +53,15 @@ describe("Gumroad International Checkout URL Builder", () => {
     expect(parsed.searchParams.get("bill_number")).toBe("BILL-2026-9921")
     expect(parsed.searchParams.get("email")).toBe("test@user.com")
   })
+
+  it("applies discount code query parameter when promo is provided", () => {
+    const url = buildGumroadCheckoutUrl(DEFAULT_GUMROAD_D5_URL, {
+      email: "test@user.com",
+      discountCode: "archvip50",
+    })
+    const parsed = new URL(url)
+    expect(parsed.searchParams.get("code")).toBe("ARCHVIP50")
+  })
 })
 
 describe("Gumroad Ping & Webhook Payload Parser", () => {
