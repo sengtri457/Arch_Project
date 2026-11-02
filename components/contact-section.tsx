@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { FaInstagram, FaLinkedin, FaTiktok, FaFacebook, FaYoutube, FaBehance, FaWeixin, FaTelegram, FaPinterest, FaGlobe, FaWhatsapp } from "react-icons/fa"
 import { RenderIcon } from "@/components/render-icon"
+import { siteConfig } from "@/lib/seo"
 
 export function ContactSection() {
   const [formData, setFormData] = useState({
@@ -267,7 +268,7 @@ export function ContactSection() {
                 
                 {/* Facebook */}
                 <a 
-                  href="https://www.facebook.com/61593134910540/?hpir=1" 
+                  href={siteConfig.socials.facebook} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-white hover:text-[#1877F2] transition-colors duration-300"

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2,
   CheckCircle,
+  Check,
   CreditCard,
   AlertCircle,
   Lock,
@@ -46,10 +47,57 @@ function CheckoutContent() {
 
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [courseTitle, setCourseTitle] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"khqr" | "telegram" | "paypal">(
+  const [paymentMethod, setPaymentMethod] = useState<"khqr" | "telegram" | "paypal" | "card">(
     "khqr",
   );
   const [isCopied, setIsCopied] = useState(false);
+
+  // Card Payment States
+  const [isProcessingCard, setIsProcessingCard] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
+  const [cardSuccess, setCardSuccess] = useState(false);
+  const [cardTxRef, setCardTxRef] = useState("");
+
+  const handleCardPayment = async () => {
+    if (!user) {
+      setCardError("Please sign in to proceed with card payment.");
+      return;
+    }
+    if (!courseId) {
+      setCardError("Course ID missing from checkout session.");
+      return;
+    }
+
+    setIsProcessingCard(true);
+    setCardError(null);
+
+    try {
+      const res = await fetch("/api/checkout/card/create-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId,
+          promoCode: appliedPromo?.code || undefined,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to initialize card checkout");
+      }
+
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        setCardTxRef(data.billNumber || "");
+        setCardSuccess(true);
+      }
+    } catch (err: any) {
+      setCardError(err.message || "Failed to initiate card checkout");
+    } finally {
+      setIsProcessingCard(false);
+    }
+  };
 
   // PayPal States
   const [paypalTxId, setPaypalTxId] = useState("");
@@ -581,6 +629,17 @@ function CheckoutContent() {
           </button>
           <button
             type="button"
+            onClick={() => setPaymentMethod("card")}
+            className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl font-semibold text-xs transition-all ${
+              paymentMethod === "card"
+                ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
+                : "text-zinc-400 border border-transparent hover:text-white"
+            }`}
+          >
+            Pay with Card (Visa / Mastercard)
+          </button>
+          <button
+            type="button"
             onClick={() => setPaymentMethod("telegram")}
             className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl font-semibold text-xs transition-all ${
               paymentMethod === "telegram"
@@ -1080,6 +1139,87 @@ function CheckoutContent() {
                     </form>
                   </div>
                 </>
+              )}
+            </div>
+          ) : paymentMethod === "card" ? (
+            <div className="w-full space-y-5">
+              {cardSuccess ? (
+                <div className="bg-zinc-950/60 border border-green-500/30 p-6 rounded-2xl text-center space-y-4">
+                  <div className="w-12 h-12 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center mx-auto text-green-400">
+                    <Check className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Card Payment Registered</h3>
+                    <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                      Your transaction reference <span className="font-mono text-[#9ACD32]">{cardTxRef}</span> has been logged. Course access will activate automatically.
+                    </p>
+                  </div>
+                  <Link href="/dashboard">
+                    <Button size="sm" className="bg-[#9ACD32] text-black font-semibold text-xs mt-2">
+                      Go to Dashboard
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="bg-zinc-950/60 border border-zinc-850 p-6 rounded-2xl space-y-5">
+                  <div className="flex items-center justify-between border-b border-zinc-850 pb-3">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-[#9ACD32]" />
+                      <h3 className="text-sm font-bold text-white">Credit / Debit Card</h3>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">
+                      <span>VISA</span>
+                      <span>•</span>
+                      <span>MC</span>
+                      <span>•</span>
+                      <span>JCB</span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    Pay securely with your Visa, MasterCard, UnionPay, or American Express card via encrypted checkout.
+                  </p>
+
+                  <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
+                    <div className="flex justify-between text-xs text-zinc-300">
+                      <span>Total Amount:</span>
+                      <span className="font-bold text-white">${checkoutData?.amount?.toFixed(2) || "49.00"} USD</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-zinc-400">
+                      <span>Currency:</span>
+                      <span>USD ($)</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-zinc-400">
+                      <span>Security:</span>
+                      <span className="text-[#9ACD32]">256-bit SSL Encrypted</span>
+                    </div>
+                  </div>
+
+                  {cardError && (
+                    <div className="p-3 bg-red-950/40 border border-red-900/50 rounded-lg text-xs text-red-400">
+                      {cardError}
+                    </div>
+                  )}
+
+                  <Button
+                    type="button"
+                    onClick={handleCardPayment}
+                    disabled={isProcessingCard}
+                    className="w-full bg-[#9ACD32] hover:bg-[#8ab82b] text-black font-bold py-6 rounded-xl text-sm transition-all shadow-lg shadow-[#9ACD32]/10"
+                  >
+                    {isProcessingCard ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Initiating Secure Payment...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4" />
+                        Pay with Card (${checkoutData?.amount?.toFixed(2) || "49.00"} USD)
+                      </span>
+                    )}
+                  </Button>
+                </div>
               )}
             </div>
           ) : (

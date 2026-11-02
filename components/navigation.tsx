@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { FaPinterest, FaInstagram, FaTiktok, FaFacebook, FaYoutube, FaBehance, FaWeixin, FaTelegram, FaGlobe, FaWhatsapp } from "react-icons/fa"
 import { getMediaUrl } from "@/lib/utils"
 import { useAuth } from "@/components/auth-provider"
+import { siteConfig } from "@/lib/seo"
 
 export function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -39,7 +40,7 @@ export function Navigation() {
   ]
 
   const socialLinks = [
-    { href: "https://www.facebook.com/61593134910540/?hpir=1", icon: FaFacebook, label: "Facebook" },
+    { href: siteConfig.socials.facebook, icon: FaFacebook, label: "Facebook" },
     { href: "https://www.pinterest.com/archtipsbox/", icon: FaPinterest, label: "Pinterest" },
     { href: "https://www.instagram.com/archtipsbox?igsh=bTgwbHJxaHoyNGpv&utm_source=qr", icon: FaInstagram, label: "Instagram" },
     { href: "https://www.tiktok.com/@archtipsbox?_t=ZS-90p29Q9jQxx&_r=1", icon: FaTiktok, label: "TikTok" },

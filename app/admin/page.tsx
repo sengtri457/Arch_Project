@@ -401,10 +401,25 @@ export default function AdminDashboard() {
 
   const handleOpenAssignLessons = (mod: any) => {
     setTargetAssignModule(mod)
+    const targetModId = mod?.module_id || mod?.id
     const currentlyAssigned = modulesTabLessons
-      .filter((l) => l.module_id === mod.module_id)
-      .map((l) => l.lesson_id)
+      .filter((l) => (l.module_id === targetModId))
+      .map((l) => l.lesson_id || l.id)
     setAssignLessonIds(currentlyAssigned)
+  }
+
+  const handleResetAssignLessons = () => {
+    if (!targetAssignModule) return
+    const targetModId = targetAssignModule.module_id || targetAssignModule.id
+    const currentlyAssigned = modulesTabLessons
+      .filter((l) => (l.module_id === targetModId))
+      .map((l) => l.lesson_id || l.id)
+    setAssignLessonIds(currentlyAssigned)
+  }
+
+  const handleCloseAssignModal = () => {
+    setTargetAssignModule(null)
+    setAssignLessonIds([])
   }
 
   const handleSaveAssignLessons = async (e?: React.FormEvent) => {
@@ -412,17 +427,18 @@ export default function AdminDashboard() {
     if (!targetAssignModule || !selectedModuleCourseId) return
     setSavingAssign(true)
     try {
+      const targetModId = targetAssignModule.module_id || targetAssignModule.id
       const res = await fetch("/api/admin/modules", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          module_id: targetAssignModule.module_id,
+          module_id: targetModId,
           selected_lesson_ids: assignLessonIds
         })
       })
 
       if (res.ok) {
-        setTargetAssignModule(null)
+        handleCloseAssignModal()
         loadModulesForSelectedCourse(selectedModuleCourseId)
         MySwal.fire({
           icon: "success",
@@ -3436,11 +3452,41 @@ export default function AdminDashboard() {
 
                         return (
                           <div key={course.course_id || course.id} className="bg-zinc-900/30 border border-zinc-850 p-6 rounded-2xl space-y-4">
-                            <div className="flex justify-between items-center border-b border-zinc-850 pb-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-850 pb-3">
                               <h3 className="text-lg font-bold text-white">{course.title}</h3>
-                              <span className="text-xs text-zinc-400 font-semibold bg-zinc-950/60 px-3 py-1 rounded-full border border-zinc-850">
-                                {courseEnrollments.length} Active Students
-                              </span>
+                              <div className="flex items-center gap-2.5">
+                                <span className="text-xs text-zinc-400 font-semibold bg-zinc-950/60 px-3 py-1 rounded-full border border-zinc-850">
+                                  {courseEnrollments.length} Active Students
+                                </span>
+                                {courseLessons.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const header = "Index,Lesson Title,Started Students,Completed Students,Completion Rate %,Avg Watch Minutes\n"
+                                      const rows = courseLessons.map((l, index) => {
+                                        const targetLessonId = l.lesson_id || l.id
+                                        const pLogs = progressLogs.filter(p => p.lesson_id === targetLessonId)
+                                        const started = pLogs.filter(p => (p.watched_seconds || 0) > 0 || p.is_completed).length
+                                        const completed = pLogs.filter(p => p.is_completed).length
+                                        const rate = started > 0 ? Math.round((completed / started) * 100) : 0
+                                        const totalSecs = pLogs.reduce((sum, p) => sum + (p.watched_seconds || 0), 0)
+                                        const avgMins = pLogs.length > 0 ? (totalSecs / pLogs.length / 60).toFixed(1) : "0"
+                                        return `"${index + 1}","${(l.title || '').replace(/"/g, '""')}",${started},${completed},${rate},${avgMins}`
+                                      }).join("\n")
+                                      const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" })
+                                      const url = URL.createObjectURL(blob)
+                                      const a = document.createElement("a")
+                                      a.href = url
+                                      a.download = `${(course.title || 'Course').replace(/[^a-zA-Z0-9_-]/g, '_')}_Syllabus_Analytics.csv`
+                                      a.click()
+                                      URL.revokeObjectURL(url)
+                                    }}
+                                    className="text-[11px] text-[#9ACD32] hover:text-black hover:bg-[#9ACD32] border border-[#9ACD32]/40 px-2.5 py-1 rounded-lg transition-colors font-semibold"
+                                  >
+                                    Export CSV
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             {courseLessons.length === 0 ? (
@@ -5965,13 +6011,24 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              <div className="flex gap-3 justify-end pt-2">
-                <Button type="button" variant="ghost" onClick={() => setTargetAssignModule(null)} className="text-zinc-400 hover:text-white">
-                  Cancel
+              <div className="flex items-center justify-between pt-2 border-t border-zinc-850">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetAssignLessons}
+                  className="border-zinc-800 text-xs text-zinc-400 hover:text-white hover:border-zinc-700"
+                >
+                  Reset to Saved
                 </Button>
-                <Button type="submit" disabled={savingAssign} className="bg-[#9ACD32] text-black font-bold px-6">
-                  {savingAssign ? "Saving..." : "Save Lesson Assignments"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="ghost" onClick={handleCloseAssignModal} className="text-zinc-400 hover:text-white">
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={savingAssign} className="bg-[#9ACD32] text-black font-bold px-6">
+                    {savingAssign ? "Saving..." : "Save Lesson Assignments"}
+                  </Button>
+                </div>
               </div>
             </form>
           </div>
