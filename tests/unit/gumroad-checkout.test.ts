@@ -128,3 +128,28 @@ describe("Enrollment & Payment Method Validation", () => {
     expect(invalid.valid).toBe(false)
   })
 })
+
+describe("Payment Logos & Custom Course URL Resolution", () => {
+  it("uses custom course gumroad link when provided over default", () => {
+    const customLink = "https://archtipsbox.gumroad.com/l/custom-photoshop?wanted=true"
+    const url = buildGumroadCheckoutUrl(customLink, {
+      email: "buyer@example.com",
+    })
+    expect(url).toContain("custom-photoshop")
+    expect(url).toContain("email=buyer%40example.com")
+  })
+
+  it("verifies payment brand logo assets exist in public/logo-payment/", () => {
+    const fs = require("fs")
+    const path = require("path")
+    const logos = [
+      "KHQR-available-here-logo-with-bg.webp",
+      "visacard.png",
+      "telegram.webp",
+    ]
+    for (const file of logos) {
+      const fullPath = path.resolve(__dirname, "../../public/logo-payment", file)
+      expect(fs.existsSync(fullPath)).toBe(true)
+    }
+  })
+})
