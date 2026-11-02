@@ -23,8 +23,10 @@ import {
   Globe,
   FileCheck,
   QrCode,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
+import { buildGumroadCheckoutUrl } from "@/lib/gumroad";
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
@@ -47,74 +49,14 @@ function CheckoutContent() {
 
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [courseTitle, setCourseTitle] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"khqr" | "telegram" | "paypal" | "card">(
+  const [paymentMethod, setPaymentMethod] = useState<"khqr" | "telegram" | "international">(
     "khqr",
   );
   const [isCopied, setIsCopied] = useState(false);
 
-  // Card Payment States
-  const [isProcessingCard, setIsProcessingCard] = useState(false);
-  const [cardError, setCardError] = useState<string | null>(null);
-  const [cardSuccess, setCardSuccess] = useState(false);
-  const [cardTxRef, setCardTxRef] = useState("");
-
-  const handleCardPayment = async () => {
-    if (!user) {
-      setCardError("Please sign in to proceed with card payment.");
-      return;
-    }
-    if (!courseId) {
-      setCardError("Course ID missing from checkout session.");
-      return;
-    }
-
-    setIsProcessingCard(true);
-    setCardError(null);
-
-    try {
-      const res = await fetch("/api/checkout/card/create-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courseId,
-          promoCode: appliedPromo?.code || undefined,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to initialize card checkout");
-      }
-
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      } else {
-        setCardTxRef(data.billNumber || "");
-        setCardSuccess(true);
-      }
-    } catch (err: any) {
-      setCardError(err.message || "Failed to initiate card checkout");
-    } finally {
-      setIsProcessingCard(false);
-    }
-  };
-
-  // PayPal States
-  const [paypalTxId, setPaypalTxId] = useState("");
-  const [paypalReceiptFile, setPaypalReceiptFile] = useState<File | null>(null);
-  const [isSubmittingPaypal, setIsSubmittingPaypal] = useState(false);
-  const [paypalSubmitted, setPaypalSubmitted] = useState(false);
-  const [paypalError, setPaypalError] = useState<string | null>(null);
-  const [paypalOrderData, setPaypalOrderData] = useState<{
-    orderId: string;
-    approvalUrl: string;
-    billNumber: string;
-    amount: number;
-    courseSlug?: string;
-  } | null>(null);
-  const [isCreatingPaypalOrder, setIsCreatingPaypalOrder] = useState(false);
-  const [paypalApiConfigured, setPaypalApiConfigured] = useState(true);
-  const [paypalMode, setPaypalMode] = useState<"auto" | "manual">("auto");
+  // Gumroad International Checkout States
+  const [isRedirectingGumroad, setIsRedirectingGumroad] = useState(false);
+  const [gumroadClicked, setGumroadClicked] = useState(false);
 
   // Promo Code States
   const [promoCodeInput, setPromoCodeInput] = useState("");
@@ -235,7 +177,6 @@ function CheckoutContent() {
     setAppliedPromo(null);
     setPromoCodeInput("");
     setPromoError(null);
-    setPaypalOrderData(null);
     await initializeCheckout();
   };
 
@@ -274,7 +215,6 @@ function CheckoutContent() {
       }
 
       setAppliedPromo(data);
-      setPaypalOrderData(null);
       await initializeCheckout(data.code);
     } catch (err: any) {
       setPromoError("Failed to validate promo code.");
@@ -303,175 +243,47 @@ function CheckoutContent() {
     window.open("https://t.me/bunsambath10", "_blank");
   };
 
-  const paypalHandle = process.env.NEXT_PUBLIC_PAYPAL_HANDLE || "bunsambath10";
-  const paypalAmountFormatted = checkoutData?.amount ? checkoutData.amount.toFixed(2) : "49.00";
-  const paypalPayUrl = `https://paypal.me/${paypalHandle}/${paypalAmountFormatted}USD`;
-  const paypalOrderRef = checkoutData?.billNumber || (user && courseId ? `ATB-${(checkoutData?.courseSlug || 'COURSE').toUpperCase().slice(0, 4)}-${user.id.slice(0, 6)}` : 'ATB-PAYPAL-ORDER');
+  const getGumroadUrl = () => {
+    return buildGumroadCheckoutUrl(undefined, {
+      email: user?.email || undefined,
+      wanted: true,
+      customFields: checkoutData?.billNumber
+        ? { bill_number: checkoutData.billNumber }
+        : undefined,
+    });
+  };
 
-  const handleSubmitPaypal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user?.email) {
-      setPaypalError("Please sign in to submit your PayPal payment.");
-      return;
-    }
-    if (!courseId) {
-      setPaypalError("Course ID missing from checkout session.");
-      return;
-    }
-    if (!paypalTxId.trim() && !paypalReceiptFile) {
-      setPaypalError("Please enter your PayPal Transaction ID or attach a payment receipt.");
-      return;
-    }
-
-    setIsSubmittingPaypal(true);
-    setPaypalError(null);
-
+  const handleGumroadRedirect = async () => {
+    setIsRedirectingGumroad(true);
     try {
-      let uploadedProofUrl: string | null = null;
-
-      if (paypalReceiptFile) {
-        const fileExt = paypalReceiptFile.name.split(".").pop() || "png";
-        const fileName = `paypal-${user.id}-${Date.now()}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
-
-        const { data: uploadData, error: uploadErr } = await supabase.storage
-          .from("payment-proofs")
-          .upload(filePath, paypalReceiptFile, { upsert: true });
-
-        if (uploadErr) {
-          // Fallback to avatars bucket if payment-proofs bucket is not yet active
-          const { error: fallbackErr } = await supabase.storage
-            .from("avatars")
-            .upload(`proofs/${fileName}`, paypalReceiptFile, { upsert: true });
-
-          if (!fallbackErr) {
-            const { data: pubData } = supabase.storage
-              .from("avatars")
-              .getPublicUrl(`proofs/${fileName}`);
-            uploadedProofUrl = pubData.publicUrl;
-          } else {
-            console.warn("Proof storage upload warning:", uploadErr.message);
-          }
-        } else if (uploadData) {
-          const { data: pubData } = supabase.storage
-            .from("payment-proofs")
-            .getPublicUrl(filePath);
-          uploadedProofUrl = pubData.publicUrl;
-        }
-      }
-
-      const { error: insertErr } = await supabase
-        .from("pending_enrollments")
-        .upsert(
+      if (user?.email && courseId) {
+        await supabase.from("pending_enrollments").upsert(
           {
             email: user.email.toLowerCase(),
             course_id: courseId,
             status: "pending",
-            payment_method: "paypal",
-            transaction_reference: paypalTxId.trim() || paypalOrderRef,
-            proof_url: uploadedProofUrl,
+            payment_method: "gumroad",
+            transaction_reference: checkoutData?.billNumber || `GUM-${Date.now()}`,
             amount: checkoutData?.amount || 0,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "email,course_id" },
         );
-
-      if (insertErr) {
-        // Fallback for base columns if schema additions are not yet applied
-        if (insertErr.code === "42703" || insertErr.message?.includes("column")) {
-          const { error: fallbackDbErr } = await supabase
-            .from("pending_enrollments")
-            .upsert(
-              {
-                email: user.email.toLowerCase(),
-                course_id: courseId,
-                status: "pending",
-              },
-              { onConflict: "email,course_id" },
-            );
-          if (fallbackDbErr) throw fallbackDbErr;
-        } else {
-          throw insertErr;
-        }
       }
-
-      setPaypalSubmitted(true);
-    } catch (err: any) {
-      console.error("PayPal enrollment submission failed:", err);
-      setPaypalError(err.message || "Failed to submit PayPal payment receipt");
+    } catch (err) {
+      console.warn("Failed to record Gumroad enrollment attempt:", err);
     } finally {
-      setIsSubmittingPaypal(false);
+      setIsRedirectingGumroad(false);
+      setGumroadClicked(true);
+      window.open(getGumroadUrl(), "_blank", "noopener,noreferrer");
     }
   };
 
-  // Initialize dynamic PayPal order
-  const initPaypalOrder = async () => {
-    if (isCreatingPaypalOrder || !user) return;
-    try {
-      setIsCreatingPaypalOrder(true);
-      setPaypalError(null);
-      const res = await fetch("/api/checkout/paypal/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courseId,
-          planId,
-          promoCode: appliedPromo?.code || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (data.notConfigured) {
-        setPaypalApiConfigured(false);
-        setPaypalMode("manual");
-        return;
-      }
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to create PayPal dynamic order");
-      }
-      setPaypalOrderData({
-        orderId: data.orderId,
-        approvalUrl: data.approvalUrl,
-        billNumber: data.billNumber,
-        amount: data.amount,
-        courseSlug: data.courseSlug,
-      });
-    } catch (err: any) {
-      console.warn("PayPal dynamic order error, falling back to manual:", err.message);
-      setPaypalMode("manual");
-    } finally {
-      setIsCreatingPaypalOrder(false);
-    }
-  };
-
-  // Trigger dynamic PayPal order initialization
-  useEffect(() => {
-    if (
-      paymentMethod === "paypal" &&
-      paypalMode === "auto" &&
-      !paypalOrderData &&
-      !isCreatingPaypalOrder &&
-      paypalApiConfigured &&
-      user &&
-      (courseId || planId)
-    ) {
-      initPaypalOrder();
-    }
-  }, [
-    paymentMethod,
-    paypalMode,
-    paypalOrderData,
-    isCreatingPaypalOrder,
-    paypalApiConfigured,
-    user,
-    courseId,
-    planId,
-  ]);
-
-  // 2. Poll transaction status in real-time (for Bakong KHQR or PayPal Dynamic QR)
+  // 2. Poll transaction status in real-time (for Bakong KHQR)
   useEffect(() => {
     if (paymentCompleted) return;
 
-    // A. Bakong KHQR Polling
+    // Bakong KHQR Polling
     if (paymentMethod === "khqr" && checkoutData?.billNumber) {
       const checkInterval = setInterval(async () => {
         try {
@@ -500,44 +312,9 @@ function CheckoutContent() {
 
       return () => clearInterval(checkInterval);
     }
-
-    // B. PayPal Dynamic QR Polling
-    if (paymentMethod === "paypal" && paypalMode === "auto" && paypalOrderData?.billNumber) {
-      const checkInterval = setInterval(async () => {
-        try {
-          const response = await fetch(
-            `/api/checkout/paypal/status?billNumber=${paypalOrderData.billNumber}`,
-          );
-          const statusData = await response.json();
-
-          if (response.ok && statusData.status === "completed") {
-            clearInterval(checkInterval);
-            setPaymentCompleted(true);
-
-            setTimeout(() => {
-              const targetSlug =
-                statusData.courseSlug ||
-                paypalOrderData.courseSlug ||
-                checkoutData?.courseSlug;
-              if (targetSlug) {
-                router.push(`/courses/${targetSlug}`);
-              } else {
-                router.push("/dashboard");
-              }
-            }, 3000);
-          }
-        } catch (err) {
-          console.warn("Error checking PayPal status polling:", err);
-        }
-      }, 3000);
-
-      return () => clearInterval(checkInterval);
-    }
   }, [
     checkoutData,
-    paypalOrderData,
     paymentMethod,
-    paypalMode,
     paymentCompleted,
     router,
   ]);
@@ -604,50 +381,42 @@ function CheckoutContent() {
       </div>
 
       {!paymentCompleted && (
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-6 bg-zinc-900/20 p-1.5 border border-zinc-850 rounded-2xl">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-6 bg-zinc-900/30 p-1.5 border border-zinc-800 rounded-2xl">
           <button
             type="button"
             onClick={() => setPaymentMethod("khqr")}
-            className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl font-semibold text-xs transition-all ${
+            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 ${
               paymentMethod === "khqr"
                 ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
-                : "text-zinc-400 border border-transparent hover:text-white"
+                : "text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-800/40"
             }`}
           >
-            Pay with KHQR (Scan QR)
+            <QrCode className="w-4 h-4 text-[#9ACD32]" />
+            <span>Local Students (KHQR Scan)</span>
           </button>
           <button
             type="button"
-            onClick={() => setPaymentMethod("paypal")}
-            className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl font-semibold text-xs transition-all ${
-              paymentMethod === "paypal"
+            onClick={() => setPaymentMethod("international")}
+            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 ${
+              paymentMethod === "international"
                 ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
-                : "text-zinc-400 border border-transparent hover:text-white"
+                : "text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-800/40"
             }`}
           >
-            Pay with PayPal (International)
-          </button>
-          <button
-            type="button"
-            onClick={() => setPaymentMethod("card")}
-            className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl font-semibold text-xs transition-all ${
-              paymentMethod === "card"
-                ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
-                : "text-zinc-400 border border-transparent hover:text-white"
-            }`}
-          >
-            Pay with Card (Visa / Mastercard)
+            <Globe className="w-4 h-4 text-[#9ACD32]" />
+            <span>International (Cards / Apple Pay)</span>
           </button>
           <button
             type="button"
             onClick={() => setPaymentMethod("telegram")}
-            className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl font-semibold text-xs transition-all ${
+            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 ${
               paymentMethod === "telegram"
                 ? "bg-zinc-800 text-white border border-zinc-700 shadow-md"
-                : "text-zinc-400 border border-transparent hover:text-white"
+                : "text-zinc-400 border border-transparent hover:text-white hover:bg-zinc-800/40"
             }`}
           >
-            Pay via Telegram (Manual)
+            <Send className="w-4 h-4 -rotate-45 text-[#229ED9]" />
+            <span>Telegram (Manual Support)</span>
           </button>
         </div>
       )}
@@ -895,332 +664,130 @@ function CheckoutContent() {
                 </p>
               </div>
             </>
-          ) : paymentMethod === "paypal" ? (
+          ) : paymentMethod === "international" ? (
             <div className="w-full space-y-5">
-              {paypalSubmitted ? (
-                <div className="bg-zinc-950/80 border border-zinc-800 p-6 rounded-2xl text-center space-y-4">
-                  <div className="w-14 h-14 rounded-full bg-blue-950/40 border border-blue-900/50 flex items-center justify-center mx-auto text-blue-400">
-                    <FileCheck className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-white">Payment Proof Submitted!</h3>
-                    <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
-                      Your transaction reference has been logged. The instructor will verify your PayPal payment and activate course access shortly.
-                    </p>
-                  </div>
-                  <div className="p-3 bg-zinc-900/60 rounded-xl border border-zinc-800 text-xs font-mono text-zinc-300">
-                    Order Reference: <span className="font-bold text-primary" style={{ color: "#9ACD32" }}>{paypalOrderRef}</span>
-                  </div>
-                  <Link href="/dashboard">
-                    <Button className="w-full bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold py-3 rounded-xl mt-2">
-                      Go to Dashboard
-                    </Button>
-                  </Link>
-                </div>
-              ) : isCreatingPaypalOrder ? (
-                <div className="flex flex-col items-center justify-center py-16 text-zinc-400 gap-3">
-                  <Loader2 className="w-8 h-8 animate-spin" style={{ color: "#0070BA" }} />
-                  <span className="text-xs">Generating secure PayPal QR code...</span>
-                </div>
-              ) : paypalMode === "auto" && paypalOrderData ? (
-                <>
-                  {/* Stylized Dynamic PayPal Stand/Card */}
-                  <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-zinc-200 w-[295px] mx-auto text-black">
-                    <div className="bg-[#003087] text-white px-5 py-3.5 flex justify-between items-center">
-                      <span className="font-black tracking-wider text-lg">PayPal</span>
-                      <span className="text-[10px] font-bold bg-[#0070BA] px-2.5 py-0.5 rounded-full text-white uppercase tracking-wider">
-                        Instant Scan
-                      </span>
-                    </div>
+              <div className="bg-zinc-950/70 border border-zinc-800 p-6 sm:p-7 rounded-3xl space-y-6 shadow-xl relative overflow-hidden">
+                {/* Decorative subtle ambient glow */}
+                <div className="absolute top-0 right-0 w-48 h-48 bg-[#9ACD32]/5 rounded-full blur-3xl pointer-events-none" />
 
-                    <div className="px-5 py-3 text-center">
-                      <p className="text-[10px] text-zinc-400 font-bold tracking-wider uppercase">
-                        Total Amount
-                      </p>
-                      <p className="text-xl font-black text-zinc-900 tracking-tight mt-0.5">
-                        ${paypalOrderData.amount.toFixed(2)} USD
-                      </p>
-                      <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
-                        {paypalOrderData.billNumber}
-                      </p>
-                    </div>
-
-                    <div className="border-t border-dashed border-zinc-300 mx-5" />
-
-                    <div className="p-5 flex items-center justify-center relative">
-                      <div className="relative">
-                        <img
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(paypalOrderData.approvalUrl)}`}
-                          alt="Dynamic PayPal Payment QR"
-                          className="w-48 h-48 object-contain"
-                        />
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 bg-[#003087] rounded-full border-2 border-white flex items-center justify-center shadow-md">
-                          <span className="text-white font-black text-sm">P</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-zinc-50 border-t border-zinc-100 px-4 py-2.5 text-center">
-                      <div className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-zinc-600">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0070BA]" />
-                        Awaiting phone scan / approval...
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 w-full">
-                    <a
-                      href={paypalOrderData.approvalUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-xs bg-[#0070BA] hover:bg-[#003087] text-white transition-colors text-center shadow-md"
-                    >
-                      <Globe className="w-3.5 h-3.5" />
-                      Pay on this Browser (${paypalOrderData.amount.toFixed(2)} USD)
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-
-                    <p className="text-[11px] text-zinc-400 text-center leading-relaxed max-w-sm mx-auto">
-                      Scan the QR code above with your phone camera or PayPal app to approve payment. The course will automatically unlock once approved.
-                    </p>
-
-                    <div className="text-center pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setPaypalMode("manual")}
-                        className="text-[11px] text-zinc-500 hover:text-zinc-300 underline transition-colors"
-                      >
-                        Having trouble? Switch to manual transfer & receipt upload
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {paypalApiConfigured && (
-                    <div className="text-center pb-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPaypalMode("auto");
-                          if (!paypalOrderData) initPaypalOrder();
-                        }}
-                        className="text-xs text-primary font-semibold hover:underline flex items-center justify-center gap-1.5 mx-auto"
-                        style={{ color: "#9ACD32" }}
-                      >
-                        <QrCode className="w-3.5 h-3.5" /> Switch to Automated Instant QR Code
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Stylized PayPal Stand/Card */}
-                  <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-zinc-200 w-[285px] mx-auto text-black">
-                    <div className="bg-[#003087] text-white px-5 py-3.5 flex justify-center items-center font-black tracking-wider text-lg">
-                      PayPal
-                    </div>
-
-                    <div className="px-5 py-3 text-center">
-                      <p className="text-[10px] text-zinc-400 font-bold tracking-wider uppercase">
-                        Instructor PayPal
-                      </p>
-                      <p className="text-xs font-black text-zinc-800 tracking-wide mt-0.5">
-                        Bun Sambath ({paypalHandle})
-                      </p>
-                    </div>
-
-                    <div className="border-t border-dashed border-zinc-300 mx-5" />
-
-                    <div className="p-5 flex items-center justify-center relative">
-                      <div className="relative">
-                        <img
-                          src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(paypalPayUrl)}`}
-                          alt="PayPal Payment QR"
-                          className="w-44 h-44 object-contain"
-                        />
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-[#003087] rounded-full border-2 border-white flex items-center justify-center shadow-md">
-                          <span className="text-white font-black text-xs">P</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 w-full">
-                    <a
-                      href={paypalPayUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-xs bg-[#0070BA] hover:bg-[#003087] text-white transition-colors text-center"
-                    >
-                      <Globe className="w-3.5 h-3.5" />
-                      Open PayPal.me (${paypalAmountFormatted} USD)
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-
-                    <div className="bg-zinc-950/60 border border-zinc-850 p-4 rounded-xl space-y-2.5">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-[10px] uppercase font-bold text-zinc-500">
-                          Required Note / Order Ref
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(paypalOrderRef);
-                            setIsCopied(true);
-                            setTimeout(() => setIsCopied(false), 2000);
-                          }}
-                          className="text-[10px] text-primary hover:underline flex items-center gap-1 font-semibold"
-                          style={{ color: "#9ACD32" }}
-                        >
-                          <Copy className="w-3 h-3" />
-                          {isCopied ? "Copied!" : "Copy Ref"}
-                        </button>
-                      </div>
-                      <div className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-900 text-xs text-primary font-mono select-all text-center font-bold" style={{ color: "#9ACD32" }}>
-                        {paypalOrderRef}
-                      </div>
-                      <p className="text-[10px] text-zinc-500 leading-tight">
-                        Please enter this reference code into the PayPal note when sending your payment.
-                      </p>
-                    </div>
-
-                    {/* Payment Proof Form */}
-                    <form onSubmit={handleSubmitPaypal} className="bg-zinc-950/60 border border-zinc-850 p-4 rounded-xl space-y-3">
-                      <p className="text-xs font-bold text-white">Submit Payment Details</p>
-                      
-                      <div>
-                        <label className="text-[10px] font-bold text-zinc-400 block mb-1">
-                          PayPal Transaction ID / Email
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 9X928491823 or your PayPal email"
-                          value={paypalTxId}
-                          onChange={(e) => setPaypalTxId(e.target.value)}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700 font-mono"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-bold text-zinc-400 block mb-1">
-                          Upload Receipt Screenshot (Optional)
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => setPaypalReceiptFile(e.target.files?.[0] || null)}
-                            className="text-xs text-zinc-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-zinc-800 file:text-white hover:file:bg-zinc-700 cursor-pointer w-full"
-                          />
-                        </div>
-                      </div>
-
-                      {paypalError && (
-                        <p className="text-[10px] text-red-400 leading-tight">
-                          {paypalError}
-                        </p>
-                      )}
-
-                      <Button
-                        type="submit"
-                        disabled={isSubmittingPaypal}
-                        className="w-full bg-primary text-black font-semibold text-xs py-2.5 rounded-lg mt-1"
-                        style={{ backgroundColor: "#9ACD32", color: "#000" }}
-                      >
-                        {isSubmittingPaypal ? (
-                          <span className="flex items-center gap-1.5">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting...
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5">
-                            <Upload className="w-3.5 h-3.5" /> Submit Payment Verification
-                          </span>
-                        )}
-                      </Button>
-                    </form>
-                  </div>
-                </>
-              )}
-            </div>
-          ) : paymentMethod === "card" ? (
-            <div className="w-full space-y-5">
-              {cardSuccess ? (
-                <div className="bg-zinc-950/60 border border-green-500/30 p-6 rounded-2xl text-center space-y-4">
-                  <div className="w-12 h-12 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center mx-auto text-green-400">
-                    <Check className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-white">Card Payment Registered</h3>
-                    <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                      Your transaction reference <span className="font-mono text-[#9ACD32]">{cardTxRef}</span> has been logged. Course access will activate automatically.
-                    </p>
-                  </div>
-                  <Link href="/dashboard">
-                    <Button size="sm" className="bg-[#9ACD32] text-black font-semibold text-xs mt-2">
-                      Go to Dashboard
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="bg-zinc-950/60 border border-zinc-850 p-6 rounded-2xl space-y-5">
-                  <div className="flex items-center justify-between border-b border-zinc-850 pb-3">
+                {/* Card Header */}
+                <div className="flex items-start justify-between gap-4 border-b border-zinc-850/80 pb-4 relative z-10">
+                  <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <CreditCard className="w-5 h-5 text-[#9ACD32]" />
-                      <h3 className="text-sm font-bold text-white">Credit / Debit Card</h3>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">
-                      <span>VISA</span>
-                      <span>•</span>
-                      <span>MC</span>
-                      <span>•</span>
-                      <span>JCB</span>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-zinc-400 leading-relaxed">
-                    Pay securely with your Visa, MasterCard, UnionPay, or American Express card via encrypted checkout.
-                  </p>
-
-                  <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
-                    <div className="flex justify-between text-xs text-zinc-300">
-                      <span>Total Amount:</span>
-                      <span className="font-bold text-white">${checkoutData?.amount?.toFixed(2) || "49.00"} USD</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-zinc-400">
-                      <span>Currency:</span>
-                      <span>USD ($)</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-zinc-400">
-                      <span>Security:</span>
-                      <span className="text-[#9ACD32]">256-bit SSL Encrypted</span>
-                    </div>
-                  </div>
-
-                  {cardError && (
-                    <div className="p-3 bg-red-950/40 border border-red-900/50 rounded-lg text-xs text-red-400">
-                      {cardError}
-                    </div>
-                  )}
-
-                  <Button
-                    type="button"
-                    onClick={handleCardPayment}
-                    disabled={isProcessingCard}
-                    className="w-full bg-[#9ACD32] hover:bg-[#8ab82b] text-black font-bold py-6 rounded-xl text-sm transition-all shadow-lg shadow-[#9ACD32]/10"
-                  >
-                    {isProcessingCard ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Initiating Secure Payment...
+                      <span className="text-[10px] font-bold tracking-wider uppercase bg-[#9ACD32]/15 text-[#9ACD32] px-2.5 py-0.5 rounded-full border border-[#9ACD32]/25">
+                        Global Checkout
                       </span>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4" />
-                        Pay with Card (${checkoutData?.amount?.toFixed(2) || "49.00"} USD)
+                      <span className="text-[10px] font-medium text-zinc-400 flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-green-400" />
+                        256-bit SSL Encrypted
                       </span>
-                    )}
-                  </Button>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                      International & Overseas Students
+                    </h3>
+                  </div>
+                  <div className="w-10 h-10 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[#9ACD32] shrink-0">
+                    <Globe className="w-5 h-5" />
+                  </div>
                 </div>
-              )}
+
+                {/* Accepted Payment Methods Pills */}
+                <div className="space-y-2 relative z-10">
+                  <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
+                    Accepted Global Payment Methods
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {["Visa", "MasterCard", "Amex", "Apple Pay", "Google Pay", "PayPal"].map((method) => (
+                      <span
+                        key={method}
+                        className="text-[11px] font-semibold text-zinc-300 bg-zinc-900/90 border border-zinc-800 px-2.5 py-1 rounded-lg"
+                      >
+                        {method}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Key Benefits */}
+                <div className="bg-zinc-900/40 border border-zinc-850/70 p-4 rounded-2xl space-y-2.5 text-xs text-zinc-300 relative z-10">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-4 h-4 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center shrink-0">
+                      <Check className="w-3 h-3" />
+                    </div>
+                    <span>Instant access instructions & course materials delivery</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-4 h-4 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center shrink-0">
+                      <Check className="w-3 h-3" />
+                    </div>
+                    <span>Zero international bank wire fees or currency conversion friction</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-4 h-4 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center shrink-0">
+                      <Check className="w-3 h-3" />
+                    </div>
+                    <span className="truncate">
+                      Prefilled with your student account:{" "}
+                      <span className="text-white font-mono">{user?.email}</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Linking Button Action */}
+                <div className="space-y-3 pt-1 relative z-10">
+                  <button
+                    type="button"
+                    onClick={handleGumroadRedirect}
+                    disabled={isRedirectingGumroad}
+                    className="w-full group relative flex items-center justify-between p-4 sm:p-4.5 rounded-2xl bg-[#9ACD32] hover:bg-[#8ab82b] text-black font-bold transition-all shadow-lg shadow-[#9ACD32]/15 active:scale-[0.99] cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 text-left">
+                      <div className="w-9 h-9 rounded-xl bg-black/15 flex items-center justify-center">
+                        <ExternalLink className="w-4 h-4 text-black group-hover:scale-110 transition-transform" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-extrabold leading-tight">
+                          {isRedirectingGumroad ? "Opening Checkout..." : "Proceed to International Checkout"}
+                        </p>
+                        <p className="text-[11px] font-medium text-black/75">
+                          Redirects to official Gumroad store
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 pl-2">
+                      <span className="text-xs font-mono font-black bg-black/10 px-2.5 py-1 rounded-lg">
+                        ${checkoutData?.amount?.toFixed(2) || "49.00"} USD
+                      </span>
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
+                  </button>
+
+                  <p className="text-[11px] text-zinc-500 text-center leading-relaxed">
+                    You will complete your transaction securely on our verified Gumroad storefront (archtipsbox.gumroad.com).
+                  </p>
+                </div>
+
+                {/* Post-Click Reassurance Alert */}
+                {gumroadClicked && (
+                  <div className="p-4 rounded-2xl bg-zinc-900/80 border border-[#9ACD32]/30 space-y-2 text-left relative z-10">
+                    <div className="flex items-center gap-2 text-xs font-bold text-white">
+                      <CheckCircle className="w-4 h-4 text-[#9ACD32]" />
+                      Checkout Tab Opened
+                    </div>
+                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                      Complete your payment in the opened Gumroad tab. If the window did not open or was blocked by a pop-up blocker,{" "}
+                      <a
+                        href={getGumroadUrl()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#9ACD32] underline font-semibold hover:text-white"
+                      >
+                        click here to open directly
+                      </a>.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="w-full space-y-5">
