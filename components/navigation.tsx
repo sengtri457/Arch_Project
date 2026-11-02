@@ -3,7 +3,7 @@
 import { RenderIcon } from "@/components/render-icon"
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { Menu, X, ChevronDown, Globe, QrCode, BookOpen, ExternalLink } from "lucide-react"
+import { Menu, X, ChevronDown, Globe, QrCode, BookOpen, ExternalLink, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { FaPinterest, FaInstagram, FaTiktok, FaFacebook, FaYoutube, FaBehance, FaWeixin, FaTelegram, FaGlobe, FaWhatsapp } from "react-icons/fa"
 import { getMediaUrl } from "@/lib/utils"
@@ -139,81 +139,83 @@ export function Navigation() {
                   id="courses-menu"
                   role="menu"
                   aria-labelledby="courses-menu-button"
-                  className="absolute top-full left-0 mt-1.5 w-80 bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                  className="absolute top-full left-0 mt-2 w-[360px] bg-zinc-950/95 backdrop-blur-2xl border border-zinc-800/90 rounded-2xl shadow-2xl p-2.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                 >
-                  <div className="px-3 py-1.5 border-b border-zinc-850/80 mb-1">
-                    <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
-                      Select Learning Path
+                  <div className="px-3 py-2 border-b border-zinc-850/80 mb-1.5 flex items-center justify-between">
+                    <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+                      Select Learning Pathway
                     </p>
+                    <span className="text-[10px] text-zinc-500 font-medium">Multiple Masterclasses</span>
                   </div>
 
                   {/* National / Local Students */}
                   <Link
-                    href="/courses"
+                    href="/courses?audience=national"
                     role="menuitem"
                     onClick={() => setIsCoursesDropdownOpen(false)}
-                    className="group flex items-start gap-3 p-2.5 rounded-xl hover:bg-zinc-900/90 transition-all text-left"
+                    className="group flex items-start gap-3.5 p-3 rounded-xl hover:bg-zinc-900/90 transition-all text-left"
                   >
-                    <div className="w-9 h-9 rounded-xl bg-[#9ACD32]/10 border border-[#9ACD32]/25 flex items-center justify-center text-[#9ACD32] shrink-0 group-hover:bg-[#9ACD32] group-hover:text-black transition-colors">
-                      <QrCode className="w-4 h-4" />
+                    <div className="w-10 h-10 rounded-xl bg-[#9ACD32]/10 border border-[#9ACD32]/25 flex items-center justify-center text-[#9ACD32] shrink-0 group-hover:bg-[#9ACD32] group-hover:text-black transition-colors">
+                      <QrCode className="w-5 h-5" />
                     </div>
                     <div className="flex-grow min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-white group-hover:text-primary transition-colors">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white group-hover:text-primary transition-colors">
                           National Students
                         </span>
-                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
-                          Cambodia 🇰🇭
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 shrink-0">
+                          🇰🇭 Cambodia
                         </span>
                       </div>
-                      <p className="text-xs text-zinc-400 mt-0.5 leading-snug">
-                        Local curriculum, ABA Bank & Bakong KHQR scan
+                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                        Local curriculum, ABA Bank & Bakong KHQR instant scan
                       </p>
                     </div>
+                    <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
                   </Link>
 
                   {/* International Students */}
-                  <a
-                    href={DEFAULT_GUMROAD_D5_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    href="/courses?audience=international"
                     role="menuitem"
                     onClick={() => setIsCoursesDropdownOpen(false)}
-                    className="group flex items-start gap-3 p-2.5 rounded-xl hover:bg-zinc-900/90 transition-all text-left"
+                    className="group flex items-start gap-3.5 p-3 rounded-xl hover:bg-zinc-900/90 transition-all text-left"
                   >
-                    <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center text-blue-400 shrink-0 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                      <Globe className="w-4 h-4" />
+                    <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0 group-hover:bg-sky-500 group-hover:text-white transition-colors">
+                      <Globe className="w-5 h-5" />
                     </div>
                     <div className="flex-grow min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white group-hover:text-sky-400 transition-colors">
                           International Students
                         </span>
-                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-950/60 text-blue-300 border border-blue-800/60">
-                          Global 🌐
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-950/60 text-sky-300 border border-sky-800/60 shrink-0">
+                          🌐 Global
                         </span>
                       </div>
-                      <p className="text-xs text-zinc-400 mt-0.5 leading-snug">
-                        Cards, Apple Pay via verified Gumroad store
+                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                        Choose course & enroll via Cards, Apple Pay or Gumroad
                       </p>
                     </div>
-                    <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white shrink-0 mt-1 transition-colors" />
-                  </a>
+                    <ArrowRight className="w-4 h-4 text-zinc-600 group-hover:text-sky-400 group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+                  </Link>
 
-                  <div className="border-t border-zinc-850/80 my-1" />
+                  <div className="border-t border-zinc-850/80 my-1.5" />
 
                   {/* Browse All Courses */}
                   <Link
                     href="/courses"
                     role="menuitem"
                     onClick={() => setIsCoursesDropdownOpen(false)}
-                    className="group flex items-center justify-between p-2 rounded-xl hover:bg-zinc-900/60 text-xs text-zinc-400 hover:text-white transition-all"
+                    className="group flex items-center justify-between p-2.5 rounded-xl hover:bg-zinc-900/60 text-xs text-zinc-400 hover:text-white transition-all"
                   >
                     <div className="flex items-center gap-2">
-                      <BookOpen className="w-3.5 h-3.5 text-zinc-500 group-hover:text-primary transition-colors" />
-                      <span>Browse Full Catalog</span>
+                      <BookOpen className="w-4 h-4 text-zinc-500 group-hover:text-primary transition-colors" />
+                      <span>Browse Full Catalog (All Levels)</span>
                     </div>
-                    <span className="text-[10px] text-zinc-500 font-mono">View All →</span>
+                    <span className="text-[11px] text-zinc-400 group-hover:text-primary font-mono transition-colors">
+                      View All →
+                    </span>
                   </Link>
                 </div>
               )}
@@ -288,37 +290,35 @@ export function Navigation() {
               {isMobileCoursesOpen && (
                 <div className="pl-2 mt-2 space-y-2 border-l border-zinc-800 ml-1">
                   <Link
-                    href="/courses"
+                    href="/courses?audience=national"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-start gap-2.5 p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 text-left transition-colors"
+                    className="flex items-start gap-2.5 p-2.5 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 text-left transition-colors"
                   >
                     <QrCode className="w-4 h-4 text-[#9ACD32] shrink-0 mt-0.5" />
                     <div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-semibold text-white">National Students</span>
-                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300">🇰🇭</span>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300">🇰🇭</span>
                       </div>
                       <p className="text-[11px] text-zinc-400 mt-0.5">Local Bakong & KHQR scan</p>
                     </div>
                   </Link>
 
-                  <a
-                    href={DEFAULT_GUMROAD_D5_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    href="/courses?audience=international"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-start gap-2.5 p-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 text-left transition-colors"
+                    className="flex items-start gap-2.5 p-2.5 rounded-lg bg-zinc-900/50 hover:bg-zinc-900 text-left transition-colors"
                   >
-                    <Globe className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                    <Globe className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
                     <div className="flex-grow">
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-semibold text-white">International Students</span>
-                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-950 text-blue-300">🌐</span>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-sky-950 text-sky-300">🌐</span>
                       </div>
-                      <p className="text-[11px] text-zinc-400 mt-0.5">Cards & Apple Pay via Gumroad</p>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">Choose course & enroll via Cards / Gumroad</p>
                     </div>
-                    <ExternalLink className="w-3.5 h-3.5 text-zinc-500 shrink-0 mt-1" />
-                  </a>
+                    <ArrowRight className="w-3.5 h-3.5 text-zinc-500 shrink-0 mt-1" />
+                  </Link>
 
                   <Link
                     href="/courses"
