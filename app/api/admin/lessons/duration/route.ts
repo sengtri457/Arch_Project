@@ -63,6 +63,61 @@ export function parseISO8601Duration(durationStr: string): number {
   return hours * 3600 + minutes * 60 + seconds
 }
 
+export function extractBunnyVideoDetails(input: string): { videoId: string; libraryId?: string } | null {
+  const trimmed = (input || '').trim()
+  if (!trimmed) return null
+
+  // 1. Check for GUID pattern anywhere in input
+  const guidMatch = trimmed.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+  if (!guidMatch) return null
+  const videoId = guidMatch[0]
+
+  // 2. Extract library ID if present before or near the GUID
+  // e.g. "embed/758330/uuid", "play/758330/uuid", "758330/uuid", "758330:uuid"
+  const libMatch = trimmed.match(/(?:(?:mediadelivery\.net|bunnycdn\.com)\/(?:embed|play)\/|[\/:]|^)(\d{5,10})[\/:]/i)
+  const libraryId = libMatch ? libMatch[1] : undefined
+
+  return { videoId, libraryId }
+}
+
+async function probeRemoteMp4Duration(url: string): Promise<number | null> {
+  try {
+    if (!url.startsWith('http://') && !url.startsWith('https://')) return null
+    // Fetch first 128KB of the MP4 file to locate the mvhd atom
+    const res = await fetch(url, {
+      headers: { Range: 'bytes=0-131071' }
+    })
+    if (!res.ok && res.status !== 206) return null
+    const arrayBuffer = await res.arrayBuffer()
+    const buf = Buffer.from(arrayBuffer)
+
+    const mvhdIndex = buf.indexOf('mvhd')
+    if (mvhdIndex !== -1 && mvhdIndex + 24 <= buf.length) {
+      const version = buf.readUInt8(mvhdIndex + 4)
+      if (version === 0) {
+        // 32-bit timescale & duration
+        const timeScale = buf.readUInt32BE(mvhdIndex + 16)
+        const duration = buf.readUInt32BE(mvhdIndex + 20)
+        if (timeScale > 0 && duration > 0) {
+          return Math.round(duration / timeScale)
+        }
+      } else if (version === 1 && mvhdIndex + 36 <= buf.length) {
+        // 64-bit timescale & duration
+        const timeScale = buf.readUInt32BE(mvhdIndex + 24)
+        const durationHi = buf.readUInt32BE(mvhdIndex + 28)
+        const durationLo = buf.readUInt32BE(mvhdIndex + 32)
+        const duration = (durationHi * 4294967296) + durationLo
+        if (timeScale > 0 && duration > 0) {
+          return Math.round(duration / timeScale)
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Direct MP4 server probe notice:', err)
+  }
+  return null
+}
+
 export async function resolveDuration(videoIdOrUrl: string, source: string) {
   const rawTarget = (videoIdOrUrl || '').trim()
   if (!rawTarget) {
@@ -72,7 +127,7 @@ export async function resolveDuration(videoIdOrUrl: string, source: string) {
     }
   }
 
-  // 1. YouTube dynamic duration via Google YouTube Data API v3 or oEmbed fallback
+  // 1. YouTube dynamic duration via Google YouTube Data API v3, web scrape, or oEmbed fallback
   const ytId = extractYouTubeVideoId(rawTarget)
   if (source === 'youtube' || ytId) {
     const apiKey = process.env.YOUTUBE_API_KEY
@@ -91,6 +146,7 @@ export async function resolveDuration(videoIdOrUrl: string, source: string) {
                 source: 'youtube',
                 video_id: ytId,
                 title: item.snippet?.title || undefined,
+                thumbnail_url: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
                 duration_seconds: lengthSec,
                 durationSeconds: lengthSec,
                 duration_minutes: Math.ceil(lengthSec / 60),
@@ -105,6 +161,35 @@ export async function resolveDuration(videoIdOrUrl: string, source: string) {
       }
     }
 
+    // Direct YouTube video page scrape fallback (zero-key fallback for lengthSeconds)
+    if (ytId) {
+      try {
+        const htmlRes = await fetch(`https://www.youtube.com/watch?v=${ytId}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+        })
+        if (htmlRes.ok) {
+          const html = await htmlRes.text()
+          const lengthMatch = html.match(/"lengthSeconds":"(\d+)"/)
+          if (lengthMatch && parseInt(lengthMatch[1], 10) > 0) {
+            const lengthSec = parseInt(lengthMatch[1], 10)
+            return {
+              success: true,
+              source: 'youtube',
+              video_id: ytId,
+              thumbnail_url: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
+              duration_seconds: lengthSec,
+              durationSeconds: lengthSec,
+              duration_minutes: Math.ceil(lengthSec / 60),
+              durationMinutes: Math.ceil(lengthSec / 60),
+              message: `YouTube video duration detected via stream metadata (${lengthSec}s)`
+            }
+          }
+        }
+      } catch (scrapeErr: any) {
+        console.warn('YouTube direct scrape notice:', scrapeErr.message)
+      }
+    }
+
     // Fallback: oEmbed metadata check if API key not available or quota exceeded
     if (ytId) {
       try {
@@ -116,6 +201,7 @@ export async function resolveDuration(videoIdOrUrl: string, source: string) {
             source: 'youtube',
             video_id: ytId,
             title: oembedData.title || undefined,
+            thumbnail_url: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
             duration_seconds: 600, // 10 min sensible placeholder when duration metadata restricted
             durationSeconds: 600,
             duration_minutes: 10,
@@ -130,16 +216,12 @@ export async function resolveDuration(videoIdOrUrl: string, source: string) {
   }
 
   // 2. Bunny Stream API
-  if (source === 'bunny' || /^[0-9a-f-]{36}$/i.test(rawTarget) || /^\d+[\/:][0-9a-f-]{36}$/i.test(rawTarget)) {
-    let vidId = rawTarget
-    let libId = process.env.BUNNY_STREAM_LIBRARY_ID
+  const bunnyDetails = extractBunnyVideoDetails(rawTarget)
+  if (source === 'bunny' || bunnyDetails) {
+    const vidId = bunnyDetails?.videoId || rawTarget
+    const libId = bunnyDetails?.libraryId || process.env.BUNNY_STREAM_LIBRARY_ID
     const apiKey = process.env.BUNNY_STREAM_API_KEY
-
-    if (rawTarget.includes('/') || rawTarget.includes(':')) {
-      const parts = rawTarget.replace(':', '/').split('/')
-      libId = parts[0]
-      vidId = parts[1]
-    }
+    const pullZone = process.env.BUNNY_STREAM_PULL_ZONE_HOST
 
     if (libId && apiKey) {
       try {
@@ -154,10 +236,13 @@ export async function resolveDuration(videoIdOrUrl: string, source: string) {
           const data = await res.json()
           const lengthSec = Number(data.length || 0)
           if (lengthSec > 0) {
+            const thumbUrl = pullZone ? `https://${pullZone}/${vidId}/thumbnail.jpg` : undefined
             return {
               success: true,
               source: 'bunny',
               video_id: vidId,
+              library_id: libId,
+              thumbnail_url: thumbUrl,
               duration_seconds: lengthSec,
               durationSeconds: lengthSec,
               duration_minutes: Math.ceil(lengthSec / 60),
@@ -168,6 +253,22 @@ export async function resolveDuration(videoIdOrUrl: string, source: string) {
         }
       } catch (bunnyErr: any) {
         console.warn('Bunny API duration fetch notice:', bunnyErr.message)
+      }
+    }
+  }
+
+  // 3. Direct Video probe (MP4 / WebM / CDN Range probe)
+  if (rawTarget.startsWith('http://') || rawTarget.startsWith('https://')) {
+    const directDuration = await probeRemoteMp4Duration(rawTarget)
+    if (directDuration && directDuration > 0) {
+      return {
+        success: true,
+        source: 'direct',
+        duration_seconds: directDuration,
+        durationSeconds: directDuration,
+        duration_minutes: Math.ceil(directDuration / 60),
+        durationMinutes: Math.ceil(directDuration / 60),
+        message: `Direct MP4 video duration detected (${directDuration}s)`
       }
     }
   }
