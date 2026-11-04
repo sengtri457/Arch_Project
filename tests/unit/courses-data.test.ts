@@ -53,15 +53,25 @@ describe('Courses Data & Helpers (lib/courses-data.ts)', () => {
     expect(getLessonCoverImage('d5-masterclass', { thumbnail_url: 'https://cdn.example.com/thumb.jpg' }))
       .toBe('https://cdn.example.com/thumb.jpg')
 
-    // 2. D5 course normalized module image
+    // 2. D5 course normalized module image when no fallbackCover is provided
     expect(getLessonCoverImage('d5-masterclass', { order_index: 3 }))
       .toBe('/assets/images/D5_class_img/M3.jpg')
 
-    // 3. Fallback when placeholder is provided
+    // 3. Auto-derives YouTube thumbnail from video_external_id or video_url
+    expect(getLessonCoverImage('d5-masterclass', { video_external_id: 'dQw4w9WgXcQ' }))
+      .toBe('https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg')
+    expect(getLessonCoverImage('d5-masterclass', { video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }))
+      .toBe('https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg')
+
+    // 4. Uses fallbackCover (e.g. module cover) for higher order index instead of clamping to M10
+    expect(getLessonCoverImage('d5-masterclass', { order_index: 34 }, 3, '/assets/images/D5_class_img/M9.jpg'))
+      .toBe('/assets/images/D5_class_img/M9.jpg')
+
+    // 5. Fallback when custom cover is provided
     expect(getLessonCoverImage('other-course', null, 0, '/custom-cover.jpg'))
       .toBe('/custom-cover.jpg')
 
-    // 4. Default placeholder
+    // 6. Default placeholder
     expect(getLessonCoverImage('unknown', null, 0, null))
       .toBe('/placeholder.svg')
   })

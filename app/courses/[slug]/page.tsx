@@ -70,7 +70,16 @@ async function getModules(slug: string): Promise<CourseModule[]> {
         cover_image: m.module_cover_image || getLessonCoverImage(slug, null, m.module_order_index - 1),
         duration_minutes: (m.lessons || []).reduce((sum: number, l: any) => sum + (l.duration_minutes || 0), 0),
         is_preview: (m.lessons || []).some((l: any) => l.is_preview),
-        lessons: m.lessons || []
+        lessons: (m.lessons || []).map((l: any, lIdx: number) => {
+          const modCover = m.module_cover_image || getLessonCoverImage(slug, null, m.module_order_index - 1)
+          const rawThumb = l.thumbnail_url || l.cover_image || null
+          const resolved = getLessonCoverImage(slug, { ...l, thumbnail_url: rawThumb }, lIdx, modCover)
+          return {
+            ...l,
+            thumbnail_url: rawThumb || resolved,
+            cover_image: resolved
+          }
+        })
       }))
     }
   } catch {}
@@ -238,7 +247,7 @@ export default async function CourseLandingPage({ params }: PageProps) {
               ) : (
                 <div className="space-y-4">
                   {modules.map((mod, idx) => {
-                    const coverUrl = getLessonCoverImage(course.slug || course.title || slug, mod, idx)
+                    const coverUrl = mod.cover_image || (mod as any).cover_image_url || getLessonCoverImage(course.slug || course.title || slug, null, idx)
                     const moduleNum = mod.module_number || `Module ${String(mod.order_index || idx + 1).padStart(2, '0')}`
 
                     return (
