@@ -529,6 +529,7 @@ export function getLessonCoverImage(
     title?: string | null;
     cover_image?: string | null;
     thumbnail_url?: string | null;
+    video_source_type?: string | null;
     video_external_id?: string | null;
     video_url?: string | null;
   } | null,
@@ -563,7 +564,7 @@ export function getLessonCoverImage(
     return fallbackCover
   }
 
-  const slug = (courseSlugOrId || "").toLowerCase()
+  const slug = String(courseSlugOrId || "").toLowerCase()
   const isD5 =
     slug.includes("d5") ||
     slug.includes("render") ||

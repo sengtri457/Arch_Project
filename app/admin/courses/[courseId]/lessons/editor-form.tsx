@@ -10,6 +10,7 @@ import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
 import { ArrowLeft, Plus, Trash2, Upload, Loader2, Video, FileText, Image as ImageIcon, Save, CheckCircle2, RefreshCw, Sparkles, FolderTree } from "lucide-react"
 import { getMediaUrl } from "@/lib/utils"
+import { getLessonCoverImage } from "@/lib/courses-data"
 import Swal from "sweetalert2"
 
 const MySwal = Swal.mixin({
@@ -62,6 +63,36 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
   const [courseTitle, setCourseTitle] = useState<string>("")
   const [courseModules, setCourseModules] = useState<any[]>([])
   const [isDetectingDuration, setIsDetectingDuration] = useState(false)
+  const [isCustomThumbnail, setIsCustomThumbnail] = useState(false)
+
+  const resolveModuleCover = (mod: any): string => {
+    if (!mod) return ""
+    return (
+      mod.cover_image_url ||
+      mod.cover_image ||
+      getLessonCoverImage(courseId, null, (mod.order_index || 1) - 1)
+    )
+  }
+
+  const detectProviderFromUrl = (url: string): "youtube" | "bunny" | "direct" | null => {
+    const trimmed = (url || "").trim()
+    if (!trimmed) return null
+    if (trimmed.includes("youtube.com") || trimmed.includes("youtu.be") || /^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+      return "youtube"
+    }
+    if (
+      trimmed.includes("mediadelivery.net") ||
+      trimmed.includes("b-cdn.net") ||
+      /^[0-9a-f-]{36}$/i.test(trimmed) ||
+      /^\d+[\/:][0-9a-f-]{36}$/i.test(trimmed)
+    ) {
+      return "bunny"
+    }
+    if (trimmed.endsWith(".mp4") || trimmed.endsWith(".webm") || trimmed.includes(".mp4?")) {
+      return "direct"
+    }
+    return null
+  }
 
   const [lessonForm, setLessonForm] = useState({
     title: "",
@@ -148,6 +179,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
               is_preview: Boolean(target.is_preview),
               module_id: target.module_id || ""
             })
+            setIsCustomThumbnail(Boolean(target.thumbnail_url))
             setResourceItems(parseMultipleResources(target.downloadable_asset_url))
           } else {
             MySwal.fire({ icon: 'error', title: 'Error', text: 'Lesson not found.' })
@@ -175,38 +207,66 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
   }, [courseId, lessonId, isEditing, supabase, router])
 
   // Auto-Detect Duration Handler
-  const handleAutoDetectDuration = async (specifiedUrl?: string) => {
+  const handleAutoDetectDuration = async (specifiedUrl?: string, specifiedSource?: string) => {
     const targetUrl = (specifiedUrl ?? lessonForm.video_url).trim()
     if (!targetUrl) {
       MySwal.fire({ icon: 'warning', title: 'Video Missing', text: 'Please enter a video URL or Bunny GUID first.' })
       return
     }
 
+    const detectedSource = specifiedSource || detectProviderFromUrl(targetUrl) || lessonForm.source
     setIsDetectingDuration(true)
     try {
-      const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be') || /^[a-zA-Z0-9_-]{11}$/.test(targetUrl)
+      const isYouTube = detectedSource === 'youtube' || targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be') || /^[a-zA-Z0-9_-]{11}$/.test(targetUrl)
+      const isBunny = detectedSource === 'bunny' || targetUrl.includes('mediadelivery.net') || targetUrl.includes('b-cdn.net') || /^[0-9a-f-]{36}$/i.test(targetUrl)
 
-      // 1. Try HTML5 video element probe for direct videos in browser (instant & client-side, skip for YouTube)
-      if (!isYouTube && lessonForm.source === 'direct' && (targetUrl.startsWith('http') || targetUrl.startsWith('/'))) {
+      // 1. Try HTML5 video element probe for direct videos in browser (instant & client-side, skip for YouTube/Bunny)
+      if (!isYouTube && !isBunny && (targetUrl.startsWith('http') || targetUrl.startsWith('/'))) {
         const probePromise = new Promise<number>((resolve, reject) => {
           const vid = document.createElement('video')
           vid.preload = 'metadata'
-          vid.src = targetUrl
-          vid.onloadedmetadata = () => {
-            if (vid.duration && !isNaN(vid.duration) && isFinite(vid.duration)) {
+          vid.muted = true
+          vid.playsInline = true
+          let resolved = false
+          const cleanup = () => {
+            vid.onloadedmetadata = null
+            vid.ondurationchange = null
+            vid.onerror = null
+            vid.src = ""
+          }
+          const checkDuration = () => {
+            if (!resolved && vid.duration && !isNaN(vid.duration) && isFinite(vid.duration) && vid.duration > 0) {
+              resolved = true
+              cleanup()
               resolve(Math.round(vid.duration))
-            } else {
-              reject(new Error('Invalid duration'))
             }
           }
-          vid.onerror = () => reject(new Error('Video probe failed'))
-          setTimeout(() => reject(new Error('Video probe timeout')), 4000)
+          vid.onloadedmetadata = checkDuration
+          vid.ondurationchange = checkDuration
+          vid.onerror = () => {
+            cleanup()
+            reject(new Error('Video probe failed'))
+          }
+          setTimeout(() => {
+            if (!resolved) {
+              cleanup()
+              reject(new Error('Video probe timeout'))
+            }
+          }, 3500)
+          vid.src = targetUrl
+          try {
+            vid.load()
+          } catch {}
         })
 
         try {
           const detectedSec = await probePromise
           if (detectedSec > 0) {
-            setLessonForm(prev => ({ ...prev, duration: String(detectedSec) }))
+            setLessonForm(prev => ({
+              ...prev,
+              duration: String(detectedSec),
+              source: detectedSource
+            }))
             setIsDetectingDuration(false)
             MySwal.fire({
               icon: 'success',
@@ -221,16 +281,23 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
       }
 
       // 2. Query our server duration API route (/api/admin/lessons/duration)
-      const res = await fetch(`/api/admin/lessons/duration?source=${encodeURIComponent(lessonForm.source)}&video=${encodeURIComponent(targetUrl)}`)
-      if (res.ok) {
-        const data = await res.json()
+      let serverErr = ""
+      try {
+        const res = await fetch(`/api/admin/lessons/duration?source=${encodeURIComponent(detectedSource)}&video=${encodeURIComponent(targetUrl)}`)
+        const data = await res.json().catch(() => ({}))
         const detected = data.durationSeconds || data.duration_seconds
-        if (data.success && detected) {
-          setLessonForm(prev => ({
-            ...prev,
-            duration: String(detected),
-            source: data.source === 'youtube' && prev.source === 'direct' ? 'youtube' : prev.source
-          }))
+        if (res.ok && data.success && detected) {
+          setLessonForm(prev => {
+            const nextForm = {
+              ...prev,
+              duration: String(detected),
+              source: data.source || detectedSource || prev.source
+            }
+            if (data.thumbnail_url && !prev.thumbnail_url) {
+              nextForm.thumbnail_url = data.thumbnail_url
+            }
+            return nextForm
+          })
           MySwal.fire({
             icon: 'success',
             title: 'Duration Synced',
@@ -238,19 +305,31 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
           })
           return
         }
+        serverErr = data?.error || ""
+      } catch (err: any) {
+        serverErr = err?.message || ""
       }
 
-      const errData = await res.json().catch(() => ({}))
       MySwal.fire({
         icon: 'info',
         title: 'Duration Detection',
-        text: errData.error || 'Could not auto-detect duration. Please specify duration in seconds manually.'
+        text: serverErr || 'Could not auto-detect video duration. Please specify duration in seconds manually.'
       })
     } catch (err: any) {
       console.error("Auto detect duration error:", err)
     } finally {
       setIsDetectingDuration(false)
     }
+  }
+
+  // Handle video input changes with auto-provider detection
+  const handleVideoUrlChange = (val: string) => {
+    const detected = detectProviderFromUrl(val)
+    setLessonForm(prev => ({
+      ...prev,
+      video_url: val,
+      source: detected || prev.source
+    }))
   }
 
   // Asset File Upload
@@ -310,6 +389,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
         .getPublicUrl(filePath)
 
       setLessonForm(prev => ({ ...prev, thumbnail_url: data.publicUrl }))
+      setIsCustomThumbnail(true)
     } catch (err: any) {
       MySwal.fire({ icon: 'error', title: 'Upload Failed', text: `Thumbnail upload failed: ${err.message}` })
     } finally {
@@ -531,11 +611,18 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                     const selectedId = e.target.value
                     setLessonForm(prev => {
                       const updated = { ...prev, module_id: selectedId }
-                      // If lesson has no thumbnail yet and the selected module has a cover, auto-fill it
-                      if (!prev.thumbnail_url && selectedId) {
-                        const mod = courseModules.find(m => String(m.module_id || m.id) === String(selectedId))
-                        if (mod?.cover_image_url) {
-                          updated.thumbnail_url = mod.cover_image_url
+                      if (selectedId) {
+                        const targetMod = courseModules.find(m => String(m.module_id || m.id) === String(selectedId))
+                        const targetCover = targetMod ? resolveModuleCover(targetMod) : ""
+                        const matchesAnyModule = courseModules.some(m => {
+                          const mCov = resolveModuleCover(m)
+                          return Boolean(mCov && mCov === prev.thumbnail_url)
+                        })
+                        // Auto-fill or switch thumbnail if user hasn't uploaded custom image, thumbnail is empty, or current thumbnail matches another module's cover
+                        if (!isCustomThumbnail || !prev.thumbnail_url || matchesAnyModule) {
+                          if (targetCover) {
+                            updated.thumbnail_url = targetCover
+                          }
                         }
                       }
                       return updated
@@ -571,7 +658,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                 <label className="block text-xs font-bold text-zinc-400 uppercase mb-2">Video Provider</label>
                 <select
                   value={lessonForm.source}
-                  onChange={(e) => setLessonForm({ ...lessonForm, source: e.target.value })}
+                  onChange={(e) => setLessonForm(prev => ({ ...prev, source: e.target.value }))}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-400"
                 >
                   <option value="direct">Direct MP4 / CDN Link</option>
@@ -588,7 +675,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                       type="text"
                       required
                       value={lessonForm.video_url}
-                      onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })}
+                      onChange={(e) => handleVideoUrlChange(e.target.value)}
                       onBlur={() => {
                         if ((!lessonForm.duration || lessonForm.duration === "600") && lessonForm.video_url.trim()) {
                           handleAutoDetectDuration()
@@ -598,7 +685,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                       placeholder="e.g. 9f8c7e6d-1a2b-3c4d-5e6f-7a8b9c0d1e2f"
                     />
                     <p className="text-[11px] text-zinc-500 mt-1">
-                      Bunny Stream library GUID. Playback is token-signed server side automatically.
+                      Bunny Stream library GUID or embed link. Playback is token-signed server side automatically.
                     </p>
                   </>
                 ) : lessonForm.source === 'youtube' ? (
@@ -608,7 +695,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                       type="text"
                       required
                       value={lessonForm.video_url}
-                      onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })}
+                      onChange={(e) => handleVideoUrlChange(e.target.value)}
                       onBlur={() => {
                         if ((!lessonForm.duration || lessonForm.duration === "600") && lessonForm.video_url.trim()) {
                           handleAutoDetectDuration()
@@ -628,7 +715,7 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                       type="text"
                       required
                       value={lessonForm.video_url}
-                      onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })}
+                      onChange={(e) => handleVideoUrlChange(e.target.value)}
                       onBlur={() => {
                         if ((!lessonForm.duration || lessonForm.duration === "600") && lessonForm.video_url.trim()) {
                           handleAutoDetectDuration()
@@ -696,13 +783,17 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
               </h2>
 
               {lessonForm.module_id && (() => {
-                const mod = courseModules.find(m => String(m.id) === String(lessonForm.module_id))
-                if (mod?.cover_image_url) {
+                const mod = courseModules.find(m => String(m.module_id || m.id) === String(lessonForm.module_id))
+                const modCover = mod ? resolveModuleCover(mod) : ""
+                if (modCover) {
                   return (
                     <Button
                       type="button"
                       variant="ghost"
-                      onClick={() => setLessonForm(prev => ({ ...prev, thumbnail_url: mod.cover_image_url }))}
+                      onClick={() => {
+                        setIsCustomThumbnail(false)
+                        setLessonForm(prev => ({ ...prev, thumbnail_url: modCover }))
+                      }}
                       className="text-xs text-purple-300 hover:text-white border border-purple-500/30 hover:bg-purple-500/10 rounded-xl px-3 py-1.5 h-auto flex items-center gap-1.5"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-purple-400" />
@@ -719,7 +810,10 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
                 <input
                   type="text"
                   value={lessonForm.thumbnail_url}
-                  onChange={(e) => setLessonForm({ ...lessonForm, thumbnail_url: e.target.value })}
+                  onChange={(e) => {
+                    setIsCustomThumbnail(true)
+                    setLessonForm(prev => ({ ...prev, thumbnail_url: e.target.value }))
+                  }}
                   className="flex-grow bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-xs sm:text-sm text-white font-mono focus:outline-none focus:border-purple-400"
                   placeholder="Image URL or upload file directly..."
                 />
