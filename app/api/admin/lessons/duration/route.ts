@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { createHash } from 'crypto'
 
 async function requireAdmin() {
   const cookieStore = await cookies()
@@ -78,6 +79,105 @@ export function extractBunnyVideoDetails(input: string): { videoId: string; libr
   const libraryId = libMatch ? libMatch[1] : undefined
 
   return { videoId, libraryId }
+}
+
+export async function probeBunnyEmbedMetadata(
+  videoId: string,
+  explicitLibraryId?: string
+): Promise<{
+  success: boolean
+  durationSeconds: number
+  thumbnail_url?: string
+  title?: string
+  library_id?: string
+} | null> {
+  const candidateLibs = [
+    explicitLibraryId,
+    process.env.BUNNY_STREAM_LIBRARY_ID,
+    '759381',
+    '787962'
+  ].filter(Boolean) as string[]
+
+  if (process.env.BUNNY_STREAM_LIBRARY_KEYS) {
+    try {
+      const keysMap = JSON.parse(process.env.BUNNY_STREAM_LIBRARY_KEYS)
+      if (keysMap && typeof keysMap === 'object') {
+        Object.keys(keysMap).forEach(k => {
+          if (k && !candidateLibs.includes(k)) candidateLibs.push(k)
+        })
+      }
+    } catch {}
+  }
+
+  const uniqueLibs = Array.from(new Set(candidateLibs))
+  const tokenKey = process.env.BUNNY_STREAM_TOKEN_SECURITY_KEY?.trim() || ''
+
+  for (const lib of uniqueLibs) {
+    const urlsToTry: string[] = []
+    urlsToTry.push(`https://iframe.mediadelivery.net/embed/${lib}/${videoId}`)
+
+    if (tokenKey) {
+      try {
+        const expires = Math.floor(Date.now() / 1000) + 7200
+        const hash = createHash('sha256')
+          .update(`${tokenKey}${videoId}${expires}`)
+          .digest('hex')
+        urlsToTry.push(`https://iframe.mediadelivery.net/embed/${lib}/${videoId}?token=${hash}&expires=${expires}&autoplay=true`)
+      } catch {}
+    }
+
+    for (const url of urlsToTry) {
+      try {
+        const res = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        })
+        if (!res.ok) continue
+        const html = await res.text()
+
+        // 1. Check meta tag
+        const metaMatch = html.match(/<meta[^>]+property=["']video:duration["'][^>]+content=["'](\d+)["']/i) ||
+                          html.match(/<meta[^>]+content=["'](\d+)["'][^>]+property=["']video:duration["']/i)
+        let durationSec = metaMatch ? parseInt(metaMatch[1], 10) : 0
+
+        // 2. Check videoLength variable in player script
+        if (!durationSec) {
+          const vlMatch = html.match(/videoLength:\s*(\d+)/i)
+          if (vlMatch) durationSec = parseInt(vlMatch[1], 10)
+        }
+
+        // 3. Check JSON-LD metadata
+        let thumbnailUrl: string | undefined
+        let videoTitle: string | undefined
+        const jsonLdMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/i)
+        if (jsonLdMatch) {
+          try {
+            const data = JSON.parse(jsonLdMatch[1])
+            if (!durationSec && data.duration) {
+              durationSec = parseISO8601Duration(data.duration)
+            }
+            if (data.thumbnailUrl) thumbnailUrl = data.thumbnailUrl
+            if (data.name) videoTitle = data.name
+          } catch {}
+        }
+
+        if (durationSec > 0) {
+          return {
+            success: true,
+            durationSeconds: durationSec,
+            thumbnail_url: thumbnailUrl,
+            title: videoTitle,
+            library_id: lib
+          }
+        }
+      } catch (err) {
+        // Continue to next URL / library candidate
+      }
+    }
+  }
+
+  return null
 }
 
 async function probeRemoteMp4Duration(url: string): Promise<number | null> {
@@ -215,7 +315,7 @@ export async function resolveDuration(videoIdOrUrl: string, source: string) {
     }
   }
 
-  // 2. Bunny Stream API
+  // 2. Bunny Stream Probe & API
   const bunnyDetails = extractBunnyVideoDetails(rawTarget)
   if (source === 'bunny' || bunnyDetails) {
     const vidId = bunnyDetails?.videoId || rawTarget
@@ -223,6 +323,29 @@ export async function resolveDuration(videoIdOrUrl: string, source: string) {
     const apiKey = process.env.BUNNY_STREAM_API_KEY
     const pullZone = process.env.BUNNY_STREAM_PULL_ZONE_HOST
 
+    // 2a. First, probe Bunny embed page metadata (fast, zero API key requirement, captures duration + CDN thumbnail)
+    const embedProbe = await probeBunnyEmbedMetadata(vidId, libId)
+    if (embedProbe && embedProbe.durationSeconds > 0) {
+      const lengthSec = embedProbe.durationSeconds
+      const resolvedLib = embedProbe.library_id || libId
+      const finalThumb = embedProbe.thumbnail_url || (pullZone ? `https://${pullZone}/${vidId}/thumbnail.jpg` : undefined)
+
+      return {
+        success: true,
+        source: 'bunny',
+        video_id: vidId,
+        library_id: resolvedLib,
+        title: embedProbe.title,
+        thumbnail_url: finalThumb,
+        duration_seconds: lengthSec,
+        durationSeconds: lengthSec,
+        duration_minutes: Math.ceil(lengthSec / 60),
+        durationMinutes: Math.ceil(lengthSec / 60),
+        message: `Bunny Stream video duration detected (${lengthSec}s)`
+      }
+    }
+
+    // 2b. Attempt Bunny Stream REST API if API Key is configured
     if (libId && apiKey) {
       try {
         const res = await fetch(`https://video.bunnycdn.com/library/${libId}/videos/${vidId}`, {
