@@ -219,7 +219,8 @@ export function CourseModulesAccordionSidebar({
                         const isCompleted = Boolean(currentProgress?.is_completed)
                         const watchedSecs = currentProgress?.watched_seconds || 0
 
-                        const coverUrl = getLessonCoverImage(slug, lesson, lIdx, mod.cover_image)
+                        const moduleFallback = mod.cover_image || (mod as any).cover_image_url || null
+                        const coverUrl = getLessonCoverImage(slug, lesson, lIdx, moduleFallback)
 
                         const durationStr = lesson.duration_minutes
                           ? `${lesson.duration_minutes}m`
@@ -243,6 +244,7 @@ export function CourseModulesAccordionSidebar({
                               <img
                                 src={getMediaUrl(coverUrl)}
                                 alt={lesson.title}
+                                onError={(e) => { e.currentTarget.src = "/placeholder.svg" }}
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                               />
 

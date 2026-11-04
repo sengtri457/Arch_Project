@@ -524,7 +524,14 @@ export const d5Modules: CourseModule[] = [
 
 export function getLessonCoverImage(
   courseSlugOrId?: string | null,
-  lesson?: { order_index?: number; title?: string; cover_image?: string; thumbnail_url?: string } | null,
+  lesson?: {
+    order_index?: number | null;
+    title?: string | null;
+    cover_image?: string | null;
+    thumbnail_url?: string | null;
+    video_external_id?: string | null;
+    video_url?: string | null;
+  } | null,
   index?: number,
   fallbackCover?: string | null
 ): string {
@@ -533,6 +540,27 @@ export function getLessonCoverImage(
   }
   if (lesson?.cover_image && !lesson.cover_image.includes("placeholder.svg")) {
     return lesson.cover_image
+  }
+
+  // Auto-derive YouTube thumbnail if lesson has YouTube video ID or URL
+  const videoTarget = lesson?.video_external_id || lesson?.video_url
+  if (videoTarget && typeof videoTarget === "string") {
+    const trimmed = videoTarget.trim()
+    let ytId: string | null = null
+    if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+      ytId = trimmed
+    } else {
+      const match = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([a-zA-Z0-9_-]{11})/i)
+      if (match) ytId = match[1]
+    }
+    if (ytId) {
+      return `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
+    }
+  }
+
+  // Fallback to module cover or course cover if provided
+  if (fallbackCover && !fallbackCover.includes("placeholder.svg")) {
+    return fallbackCover
   }
 
   const slug = (courseSlugOrId || "").toLowerCase()
@@ -548,10 +576,6 @@ export function getLessonCoverImage(
     const order = lesson?.order_index ?? (index !== undefined ? index + 1 : 1)
     const normalizedOrder = Math.max(1, Math.min(10, order))
     return `/assets/images/D5_class_img/M${normalizedOrder}.jpg`
-  }
-
-  if (fallbackCover && !fallbackCover.includes("placeholder.svg")) {
-    return fallbackCover
   }
 
   return "/placeholder.svg"

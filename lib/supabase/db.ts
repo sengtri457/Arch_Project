@@ -463,23 +463,36 @@ export const db = {
       const { data: rpcData, error: rpcError } = await supabase.rpc('get_course_modules', { p_slug: courseIdOrSlug })
 
       if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
-        return rpcData.map((m: any) => ({
-          module_id: m.module_id,
-          course_id: m.course_id,
-          order_index: m.module_order_index,
-          module_number: `Module ${String(m.module_order_index).padStart(2, '0')}`,
-          title: m.module_title,
-          description: m.module_description || '',
-          cover_image: m.module_cover_image || getLessonCoverImage(courseIdOrSlug, null, m.module_order_index - 1),
-          duration_minutes: m.duration_minutes || 0,
-          is_preview: Boolean(m.is_preview),
-          lessons: (m.lessons || []).map((l: any, lIdx: number) => ({
-            ...l,
-            video_url: l.video_external_id || l.video_url || null,
-            video_external_id: l.video_external_id || l.video_url || null,
-            cover_image: l.cover_image || getLessonCoverImage(courseIdOrSlug, l, lIdx)
-          }))
-        }))
+        return rpcData.map((m: any) => {
+          const modCover = m.module_cover_image || getLessonCoverImage(courseIdOrSlug, null, (m.module_order_index || 1) - 1)
+          return {
+            module_id: m.module_id,
+            course_id: m.course_id,
+            order_index: m.module_order_index,
+            module_number: `Module ${String(m.module_order_index).padStart(2, '0')}`,
+            title: m.module_title,
+            description: m.module_description || '',
+            cover_image: modCover,
+            duration_minutes: m.duration_minutes || 0,
+            is_preview: Boolean(m.is_preview),
+            lessons: (m.lessons || []).map((l: any, lIdx: number) => {
+              const lessonThumb = l.thumbnail_url || l.cover_image || null
+              const resolvedCover = getLessonCoverImage(
+                courseIdOrSlug,
+                { ...l, thumbnail_url: lessonThumb },
+                lIdx,
+                modCover
+              )
+              return {
+                ...l,
+                thumbnail_url: lessonThumb || resolvedCover,
+                cover_image: resolvedCover,
+                video_url: l.video_external_id || l.video_url || null,
+                video_external_id: l.video_external_id || l.video_url || null
+              }
+            })
+          }
+        })
       }
     } catch (err) {
       console.warn(`RPC get_course_modules failed for ${courseIdOrSlug}:`, err)
