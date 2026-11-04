@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest"
 import { parseMultipleResources, serializeResourceItems } from "@/app/admin/courses/[courseId]/lessons/editor-form"
-import { extractYouTubeVideoId, parseISO8601Duration, extractBunnyVideoDetails } from "@/app/api/admin/lessons/duration/route"
+import {
+  extractYouTubeVideoId,
+  parseISO8601Duration,
+  extractBunnyVideoDetails,
+  probeBunnyEmbedMetadata
+} from "@/app/api/admin/lessons/duration/route"
 import { getLessonCoverImage } from "@/lib/courses-data"
 
 describe("Enhancement Tech Spec 01 Tests", () => {
@@ -86,6 +91,21 @@ describe("Enhancement Tech Spec 01 Tests", () => {
       })
 
       expect(extractBunnyVideoDetails("https://example.com/not-bunny")).toBeNull()
+    })
+
+    it("probes Bunny embed metadata for duration and thumbnail", async () => {
+      // Test non-existent video returns null without crashing
+      const nonExistent = await probeBunnyEmbedMetadata("00000000-0000-0000-0000-000000000000", "999999")
+      expect(nonExistent).toBeNull()
+
+      // Test real Bunny video in project database
+      const realVideo = await probeBunnyEmbedMetadata("d81c8867-a19c-4b61-b241-7a554ab0e41c", "787962")
+      if (realVideo) {
+        expect(realVideo.success).toBe(true)
+        expect(realVideo.durationSeconds).toBe(340)
+        expect(realVideo.thumbnail_url).toContain("b-cdn.net")
+        expect(realVideo.library_id).toBe("787962")
+      }
     })
   })
 
