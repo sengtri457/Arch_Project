@@ -293,8 +293,16 @@ export default function LessonEditorForm({ courseId, lessonId }: LessonEditorFor
               duration: String(detected),
               source: data.source || detectedSource || prev.source
             }
-            if (data.thumbnail_url && !prev.thumbnail_url) {
+            const matchesAnyModule = courseModules.some(m => {
+              const mCov = resolveModuleCover(m)
+              return Boolean(mCov && mCov === prev.thumbnail_url)
+            })
+            if (data.thumbnail_url && (!isCustomThumbnail || !prev.thumbnail_url || matchesAnyModule)) {
               nextForm.thumbnail_url = data.thumbnail_url
+            }
+            // Auto-format bare GUID with detected library ID for Bunny
+            if (data.source === 'bunny' && data.library_id && !prev.video_url.includes('/') && /^[0-9a-f-]{36}$/i.test(prev.video_url.trim())) {
+              nextForm.video_url = `${data.library_id}/${prev.video_url.trim()}`
             }
             return nextForm
           })
