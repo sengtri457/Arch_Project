@@ -328,8 +328,8 @@ export default function SpecificModuleClassroomPage({ params }: PageProps) {
     format: (currentLesson as any)?.video_source_type || "direct"
   } : null)
 
-  const coverUrl = getLessonCoverImage(slug, mod, (mod?.order_index || 1) - 1)
-  const currentCoverUrl = getLessonCoverImage(slug, currentLesson, (currentLesson?.order_index || 1) - 1, coverUrl)
+  const moduleCover = mod?.cover_image || (mod as any)?.cover_image_url || getLessonCoverImage(slug, null, (mod?.order_index || 1) - 1)
+  const currentCoverUrl = getLessonCoverImage(slug, currentLesson, (currentLesson?.order_index || 1) - 1, moduleCover)
   const totalModuleMinutes = lessons.reduce((sum, l) => sum + (l.duration_minutes || 0), 0)
 
   const renderPlayer = () => {

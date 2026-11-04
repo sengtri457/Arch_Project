@@ -103,8 +103,8 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
     is_preview: l.is_preview,
     order_index: l.order_index,
     downloadable_asset_url: l.downloadable_asset_url || null,
-    thumbnail_url: l.cover_image || m.cover_image,
-    cover_image: l.cover_image || m.cover_image,
+    thumbnail_url: l.thumbnail_url || l.cover_image || m.cover_image || (m as any).cover_image_url || null,
+    cover_image: l.cover_image || l.thumbnail_url || m.cover_image || (m as any).cover_image_url || null,
     module_title: m.title,
     module_number: m.module_number || `Module ${String(m.order_index).padStart(2, '0')}`
   })))
