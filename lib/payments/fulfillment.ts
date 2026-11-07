@@ -133,7 +133,7 @@ export async function fulfillPaymentTransaction(
   const siteOrigin =
     origin ||
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ||
-    'https://archtipsbox.com'
+    'https://www.archtipsbox.com'
 
   let itemName = 'Your purchase'
   let ctaUrl = `${siteOrigin}/dashboard`

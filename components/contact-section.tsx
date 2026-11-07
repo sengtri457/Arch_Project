@@ -257,7 +257,7 @@ export function ContactSection() {
               <div className="flex flex-wrap justify-center gap-4">
                 {/* Website */}
                 <a 
-                  href="https://archtipsbox.com" 
+                  href="https://www.archtipsbox.com" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-white hover:text-primary transition-colors duration-300"
