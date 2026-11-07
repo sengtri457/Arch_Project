@@ -18,8 +18,13 @@ describe("SEO Utility & Structured Data", () => {
   })
 
   it("returns configured site URL or fallback domain", () => {
-    process.env.NEXT_PUBLIC_SITE_URL = "https://archtipsbox.com"
-    expect(getSiteUrl()).toBe("https://archtipsbox.com")
+    process.env.NEXT_PUBLIC_SITE_URL = "https://www.archtipsbox.com"
+    expect(getSiteUrl()).toBe("https://www.archtipsbox.com")
+
+    delete process.env.NEXT_PUBLIC_SITE_URL
+    delete process.env.VERCEL_PROJECT_PRODUCTION_URL
+    delete process.env.VERCEL_URL
+    expect(getSiteUrl()).toBe("https://www.archtipsbox.com")
   })
 
   it("generates valid EducationalOrganization JSON-LD schema", () => {
@@ -101,5 +106,21 @@ describe("SEO Utility & Structured Data", () => {
     expect(schema["@type"]).toBe("ItemList")
     expect(schema.itemListElement.length).toBe(2)
     expect(schema.itemListElement[1].position).toBe(2)
+  })
+
+  it("configures 308/301 permanent redirects from /index and /index.html to /", async () => {
+    const nextConfig = (await import("../../next.config.mjs")).default
+    expect(typeof nextConfig.redirects).toBe("function")
+    const redirects = await nextConfig.redirects!()
+
+    const indexRedirect = redirects.find((r: any) => r.source === "/index")
+    expect(indexRedirect).toBeDefined()
+    expect(indexRedirect?.destination).toBe("/")
+    expect(indexRedirect?.permanent).toBe(true)
+
+    const indexHtmlRedirect = redirects.find((r: any) => r.source === "/index.html")
+    expect(indexHtmlRedirect).toBeDefined()
+    expect(indexHtmlRedirect?.destination).toBe("/")
+    expect(indexHtmlRedirect?.permanent).toBe(true)
   })
 })

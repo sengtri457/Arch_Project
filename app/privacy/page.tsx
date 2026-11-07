@@ -6,6 +6,9 @@ import { Footer } from "@/components/footer"
 export const metadata: Metadata = {
   title: "Privacy Policy - Archtipsbox",
   description: "Privacy Policy describing how Archtipsbox collects, uses, and protects your personal data.",
+  alternates: {
+    canonical: "/privacy",
+  },
 }
 
 const SECTIONS: { title: string; body: string[] }[] = [
