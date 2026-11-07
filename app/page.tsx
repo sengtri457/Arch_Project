@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { Navigation } from "@/components/navigation"
 import { HeroSection } from "@/components/hero-section"
 import { AnimatedTextSection } from "@/components/animated-text-section"
@@ -8,6 +9,12 @@ import { ContactSection } from "@/components/contact-section"
 import { Footer } from "@/components/footer"
 import { getCachedTestimonials, getCachedFeaturedProjects } from "@/lib/supabase/cached-queries"
 import { generateItemListSchema, JsonLd } from "@/lib/seo"
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/",
+  },
+}
 
 export default async function Home() {
   const [testimonials, projects] = await Promise.all([

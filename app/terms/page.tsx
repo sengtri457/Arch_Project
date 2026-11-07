@@ -6,6 +6,9 @@ import { Footer } from "@/components/footer"
 export const metadata: Metadata = {
   title: "Terms of Service - Archtipsbox",
   description: "Terms of Service for Archtipsbox architectural visualization courses and services.",
+  alternates: {
+    canonical: "/terms",
+  },
 }
 
 const SECTIONS: { title: string; body: string[] }[] = [
