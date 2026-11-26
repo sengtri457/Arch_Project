@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { FaInstagram, FaLinkedin, FaTiktok, FaFacebook, FaYoutube, FaBehance, FaWeixin, FaTelegram, FaPinterest, FaGlobe, FaWhatsapp } from "react-icons/fa"
 import { RenderIcon } from "@/components/render-icon"
-import { siteConfig } from "@/lib/seo"
+import { siteConfig, TELEGRAM_HANDLE, TELEGRAM_URL } from "@/lib/seo"
 
 export function ContactSection() {
   const [formData, setFormData] = useState({
@@ -72,7 +72,7 @@ export function ContactSection() {
       icon: FaTelegram,
       label: "Telegram",
       values: [
-        { value: "@bunsambath10", href: "https://t.me/bunsambath10" },
+        { value: TELEGRAM_HANDLE, href: TELEGRAM_URL },
       ],
     },
     {
@@ -334,7 +334,7 @@ export function ContactSection() {
                 
                 {/* Telegram */}
                 <a 
-                  href="https://t.me/bunsambath10" 
+                  href={TELEGRAM_URL} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-white hover:text-[#0088cc] transition-colors duration-300"

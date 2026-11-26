@@ -33,6 +33,7 @@ import { LessonComments } from "@/components/lesson-comments"
 import { LessonResourceDrawer } from "@/components/lesson-resource-drawer"
 import { CourseModulesAccordionSidebar } from "@/components/course-modules-accordion-sidebar"
 import { d5Modules, getLessonCoverImage, resolveLessonId, resolveCourseUuid } from "@/lib/courses-data"
+import { TELEGRAM_URL } from "@/lib/seo"
 import { getMediaUrl } from "@/lib/utils"
 
 function getEmbedUrl(rawUrl: string | undefined | null): string | null {
@@ -376,7 +377,7 @@ export default function CourseLessonClassroom({ params }: LessonPageProps) {
   const handleTelegramSubmit = async () => {
     if (!user || !currentLesson) return
 
-    const telegramChatUrl = "https://t.me/bunsambath10"
+    const telegramChatUrl = TELEGRAM_URL
     const newWindow = window.open("", "_blank")
     if (newWindow) {
       newWindow.document.write(`

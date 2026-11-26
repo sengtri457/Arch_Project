@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, afterEach, vi } from "vitest"
 import {
   getSiteUrl,
   siteConfig,
+  TELEGRAM_URL,
+  TELEGRAM_HANDLE,
   generateOrganizationSchema,
   generateWebSiteSchema,
   generateCourseSchema,
@@ -12,9 +14,20 @@ import {
 
 describe("SEO Utility & Structured Data", () => {
   const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  const originalTelegramUrl = process.env.NEXT_PUBLIC_TELEGRAM_URL
 
   afterEach(() => {
-    process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl
+    if (originalSiteUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_SITE_URL
+    } else {
+      process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl
+    }
+    if (originalTelegramUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_TELEGRAM_URL
+    } else {
+      process.env.NEXT_PUBLIC_TELEGRAM_URL = originalTelegramUrl
+    }
+    vi.resetModules()
   })
 
   it("returns configured site URL or fallback domain", () => {
@@ -34,6 +47,17 @@ describe("SEO Utility & Structured Data", () => {
     expect(schema.name).toBe(siteConfig.name)
     expect(schema.url).toBe(getSiteUrl())
     expect(Array.isArray(schema.sameAs)).toBe(true)
+  })
+
+  it("uses https://t.me/architectstipbox as the default Telegram URL and handle", async () => {
+    expect(TELEGRAM_URL).toBe("https://t.me/architectstipbox")
+    expect(TELEGRAM_HANDLE).toBe("@architectstipbox")
+
+    delete process.env.NEXT_PUBLIC_TELEGRAM_URL
+    vi.resetModules()
+    const freshSeo = await import("@/lib/seo")
+    expect(freshSeo.siteConfig.socials.telegram).toBe("https://t.me/architectstipbox")
+    expect(freshSeo.generateOrganizationSchema().sameAs).toContain("https://t.me/architectstipbox")
   })
 
   it("generates valid WebSite JSON-LD schema with SearchAction", () => {
