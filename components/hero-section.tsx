@@ -6,6 +6,7 @@ import { ArrowDown } from "lucide-react"
 import Link from "next/link"
 import { useState, useRef, useEffect } from "react"
 import { getMediaUrl } from "@/lib/utils"
+import { TELEGRAM_URL } from "@/lib/seo"
 
 // Background video configuration
 // Fast native video streaming using new-banner.mp4 with instant poster placeholder
@@ -87,7 +88,7 @@ export function HeroSection() {
               <Link href="#work">View Our Work</Link>
             </Button>
             <Button asChild size="lg" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 bg-primary text-primary-foreground hover:bg-primary/90">
-              <a href="https://t.me/bunsambath10" target="_blank" rel="noopener noreferrer">Get in Touch</a>
+              <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer">Get in Touch</a>
             </Button>
           </motion.div>
         </div>

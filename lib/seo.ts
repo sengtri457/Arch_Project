@@ -22,6 +22,9 @@ export function getSiteUrl(): string {
   return "https://www.archtipsbox.com"
 }
 
+export const TELEGRAM_URL = "https://t.me/architectstipbox"
+export const TELEGRAM_HANDLE = "@architectstipbox"
+
 export const siteConfig = {
   name: "Archtipsbox",
   legalName: "Archtipsbox Studio & Academy",
@@ -52,7 +55,7 @@ export const siteConfig = {
   socials: {
     facebook: process.env.NEXT_PUBLIC_FACEBOOK_URL || "https://www.facebook.com/61593134910540/?hpir=1",
     youtube: process.env.NEXT_PUBLIC_YOUTUBE_URL || "https://www.youtube.com/@archtipsbox",
-    telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/archtipsbox",
+    telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || TELEGRAM_URL,
     tiktok: process.env.NEXT_PUBLIC_TIKTOK_URL || "https://www.tiktok.com/@archtipsbox"
   }
 }

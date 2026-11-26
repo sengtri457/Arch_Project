@@ -28,6 +28,7 @@ import {
 import Link from "next/link";
 import { buildGumroadCheckoutUrl } from "@/lib/gumroad";
 import { courses as localCourses } from "@/lib/courses-data";
+import { TELEGRAM_URL } from "@/lib/seo";
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
@@ -252,7 +253,7 @@ function CheckoutContent() {
     } catch (err) {
       console.warn("Failed to create pending enrollment:", err);
     }
-    window.open("https://t.me/bunsambath10", "_blank");
+    window.open(TELEGRAM_URL, "_blank");
   };
 
   const getGumroadUrl = () => {
