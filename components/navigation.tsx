@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { FaPinterest, FaInstagram, FaTiktok, FaFacebook, FaYoutube, FaBehance, FaWeixin, FaTelegram, FaGlobe, FaWhatsapp } from "react-icons/fa"
 import { getMediaUrl } from "@/lib/utils"
 import { useAuth } from "@/components/auth-provider"
-import { siteConfig } from "@/lib/seo"
+import { siteConfig, TELEGRAM_URL } from "@/lib/seo"
 
 export function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -46,7 +46,7 @@ export function Navigation() {
     { href: "https://www.tiktok.com/@archtipsbox?_t=ZS-90p29Q9jQxx&_r=1", icon: FaTiktok, label: "TikTok" },
     { href: "http://www.youtube.com/@ArchTipsbox-x7h", icon: FaYoutube, label: "YouTube" },
     { href: "https://www.behance.net/archtipsbox", icon: FaBehance, label: "Behance" },
-    { href: "https://t.me/bunsambath10", icon: FaTelegram, label: "Telegram" },
+    { href: TELEGRAM_URL, icon: FaTelegram, label: "Telegram" },
   ]
 
   const navClassName = `fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
@@ -98,7 +98,7 @@ export function Navigation() {
             ))}
 
             <a
-              href="https://t.me/bunsambath10"
+              href={TELEGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center px-8 py-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium rounded-md"
@@ -169,7 +169,7 @@ export function Navigation() {
             </div>
 
             <a
-              href="https://t.me/bunsambath10"
+              href={TELEGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center px-8 py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium rounded-md w-full mt-2"
